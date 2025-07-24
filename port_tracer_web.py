@@ -1068,6 +1068,7 @@ def index():
     formatted_data = format_switches_for_frontend(user_role)
     return render_template_string(MAIN_TEMPLATE, 
                                 username=session['username'],
+                                user_role=user_role,
                                 sites=formatted_data.get('sites', []),
                                 sites_json=json.dumps(formatted_data))
 
