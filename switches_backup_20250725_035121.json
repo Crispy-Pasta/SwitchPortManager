@@ -116,36 +116,28 @@
               "model": "Dell N2048",
               "description": "SMA Site - SMA-F11-R1-VAS-01 (Floor 11)",
               "priority": 17,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SMA-F11-R2-DAS-01": {
               "ip_address": "10.50.0.11",
               "model": "Dell N2048",
               "description": "SMA Site - SMA-F11-R2-DAS-01 (Floor 11)",
               "priority": 18,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SMA-F11-R4-VAS-03": {
               "ip_address": "10.50.0.13",
               "model": "Dell N2048",
               "description": "SMA Site - SMA-F11-R4-VAS-03 (Floor 11)",
               "priority": 19,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SMA-F11-R2-VAS-04": {
               "ip_address": "10.50.0.14",
               "model": "Dell N2048",
               "description": "SMA Site - SMA-F11-R2-VAS-04 (Floor 11)",
               "priority": 20,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -214,11 +206,11 @@
             },
             "VCORP-F5-R4-DVAS-02": {
               "ip_address": "10.60.0.7",
-              "model": "Dell N3000",
+              "model": "Dell N1548P",
               "description": "VCORP Site - VCORP-F5-R4-DVAS-02 (Floor 5)",
               "priority": 28,
               "enabled": true,
-              "series": "N3000",
+              "series": "N2000",
               "port_category": "gi_te_ports"
             },
             "VCORP-F5-R4_5-VAS-01": {
@@ -241,11 +233,11 @@
             },
             "VCORP-F5-R2-DVAS-03": {
               "ip_address": "10.60.0.10",
-              "model": "Dell N3000",
+              "model": "Dell N1548",
               "description": "VCORP Site - VCORP-F5-R2-DVAS-03 (Floor 5)",
               "priority": 31,
               "enabled": true,
-              "series": "N3000",
+              "series": "N2000",
               "port_category": "gi_te_ports"
             },
             "VCORP-F5-R1-DS": {
@@ -306,21 +298,17 @@
           "switches": {
             "CEBU-F18-R2-DAS-01": {
               "ip_address": "10.80.0.3",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F18-R2-DAS-01 (Floor 18)",
               "priority": 42,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F18-C2-VAS-08": {
               "ip_address": "10.80.0.13",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F18-C2-VAS-08 (Floor 18)",
               "priority": 51,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -328,30 +316,24 @@
           "switches": {
             "CEBU-F16-C1-VAS-02": {
               "ip_address": "10.80.0.7",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F16-C1-VAS-02 (Floor 16)",
               "priority": 45,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F16-R2-VAS-03": {
               "ip_address": "10.80.0.8",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F16-R2-VAS-03 (Floor 16)",
               "priority": 46,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F16-R4-VAS-04": {
               "ip_address": "10.80.0.9",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F16-R4-VAS-04 (Floor 16)",
               "priority": 47,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -359,39 +341,31 @@
           "switches": {
             "CEBU-F17-C1-VAS-05": {
               "ip_address": "10.80.0.10",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F17-C1-VAS-05 (Floor 17)",
               "priority": 48,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F17-R2-VAS-06": {
               "ip_address": "10.80.0.11",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F17-R2-VAS-06 (Floor 17)",
               "priority": 49,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F17-R4-VAS-07": {
               "ip_address": "10.80.0.12",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F17-R4-VAS-07 (Floor 17)",
               "priority": 50,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F17-R1-AS-01": {
               "ip_address": "10.80.0.31",
-              "model": "Dell N3248",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F17-R1-AS-01 (Floor 17)",
               "priority": 58,
-              "enabled": true,
-              "series": "N3200",
-              "port_category": "te_tw_ports"
+              "enabled": true
             }
           }
         },
@@ -399,21 +373,17 @@
           "switches": {
             "CEBU-F10-C1-VAS-09": {
               "ip_address": "10.80.0.26",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F10-C1-VAS-09 (Floor 10)",
               "priority": 56,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBU-F10-C1-VAS-10": {
               "ip_address": "10.80.0.27",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBU Site - CEBU-F10-C1-VAS-10 (Floor 10)",
               "priority": 57,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -425,21 +395,17 @@
           "switches": {
             "CEBUHM-F15-C1-VAS-01": {
               "ip_address": "10.80.0.17",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBUHM Site - CEBUHM-F15-C1-VAS-01 (Floor 15)",
               "priority": 53,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "CEBUHM-F15-C1-VAS-02": {
               "ip_address": "10.80.0.18",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "CEBUHM Site - CEBUHM-F15-C1-VAS-02 (Floor 15)",
               "priority": 54,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -477,21 +443,17 @@
           "switches": {
             "AXIS-F24-R1-AS-01": {
               "ip_address": "10.85.0.10",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "AXIS Site - AXIS-F24-R1-AS-01 (Floor 24)",
               "priority": 63,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "AXIS-F24-R2-AS-02": {
               "ip_address": "10.85.0.11",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "AXIS Site - AXIS-F24-R2-AS-02 (Floor 24)",
               "priority": 64,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -499,21 +461,17 @@
           "switches": {
             "AXIS-26F-R1-AS-03": {
               "ip_address": "10.85.0.12",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "AXIS Site - AXIS-26F-R1-AS-03 (Floor 26)",
               "priority": 65,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "AXIS-26F-R2-AS-04": {
               "ip_address": "10.85.0.13",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "AXIS Site - AXIS-26F-R2-AS-04 (Floor 26)",
               "priority": 66,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -525,48 +483,38 @@
           "switches": {
             "UPT-F19-R2-VAS-01": {
               "ip_address": "10.90.0.10",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F19-R2-VAS-01 (Floor 19)",
               "priority": 69,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F19-R3-VAS-02": {
               "ip_address": "10.90.0.11",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F19-R3-VAS-02 (Floor 19)",
               "priority": 70,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F19-R2-VAS-03": {
               "ip_address": "10.90.0.12",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F19-R2-VAS-03 (Floor 19)",
               "priority": 71,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F19-R3-VAS-04": {
               "ip_address": "10.90.0.13",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F19-R3-VAS-04 (Floor 19)",
               "priority": 72,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F19-C1-DAS-01": {
               "ip_address": "10.90.0.19",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F19-C1-DAS-01 (Floor 19)",
               "priority": 78,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -574,48 +522,38 @@
           "switches": {
             "UPT-F20-C2-VAS-06": {
               "ip_address": "10.90.0.14",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F20-C2-VAS-06 (Floor 20)",
               "priority": 73,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F20-R1-VAS-07": {
               "ip_address": "10.90.0.15",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F20-R1-VAS-07 (Floor 20)",
               "priority": 74,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F20-R3-DVAS-01": {
               "ip_address": "10.90.0.16",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F20-R3-DVAS-01 (Floor 20)",
               "priority": 75,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F20-R2-VAS-08": {
               "ip_address": "10.90.0.17",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F20-R2-VAS-08 (Floor 20)",
               "priority": 76,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "UPT-F20-R4-DVAS-02": {
               "ip_address": "10.90.0.18",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "UPT Site - UPT-F20-R4-DVAS-02 (Floor 20)",
               "priority": 77,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -627,30 +565,24 @@
           "switches": {
             "SIGMA-S20-R2-AS-01": {
               "ip_address": "10.100.0.6",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-S20-R2-AS-01 (Floor 20)",
               "priority": 80,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SIGMA-F20-R4-VAS-02": {
               "ip_address": "10.100.0.8",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-F20-R4-VAS-02 (Floor 20)",
               "priority": 81,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SIGMA-F20-R6HUB-AS-03": {
               "ip_address": "10.100.0.10",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-F20-R6HUB-AS-03 (Floor 20)",
               "priority": 82,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -658,30 +590,24 @@
           "switches": {
             "SIGMA-F19-R2-VAS-05": {
               "ip_address": "10.100.0.15",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-F19-R2-VAS-05 (Floor 19)",
               "priority": 84,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SIGMA-F19-R4-VAS-06": {
               "ip_address": "10.100.0.17",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-F19-R4-VAS-06 (Floor 19)",
               "priority": 85,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SIGMA-F19-R6HUB-VAS-07": {
               "ip_address": "10.100.0.19",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "SIGMA Site - SIGMA-F19-R6HUB-VAS-07 (Floor 19)",
               "priority": 86,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -693,21 +619,17 @@
           "switches": {
             "5ECOM-F12-C2-VAS-01": {
               "ip_address": "10.105.0.10",
-              "model": "Dell N2048",
+              "model": "Dell N3000",
               "description": "5ECOM Site - 5ECOM-F12-C2-VAS-01 (Floor 12)",
               "priority": 89,
-              "enabled": true,
-              "series": "N2000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "5ECOM-F12-C3-DVAS-02": {
               "ip_address": "10.105.0.11",
               "model": "Dell N3000",
               "description": "5ECOM Site - 5ECOM-F12-C3-DVAS-02 (Floor 12)",
               "priority": 90,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -722,27 +644,21 @@
               "model": "Dell N3000",
               "description": "SRD Site - SRD-F10-R1-VAS-02 (Floor 10)",
               "priority": 93,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SRD-F10-R1-VAS-01": {
               "ip_address": "10.110.0.11",
               "model": "Dell N3000",
               "description": "SRD Site - SRD-F10-R1-VAS-01 (Floor 10)",
               "priority": 94,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SRD-F10-R2-VAS-04": {
               "ip_address": "10.110.0.12",
               "model": "Dell N3000",
               "description": "SRD Site - SRD-F10-R2-VAS-04 (Floor 10)",
               "priority": 95,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -757,18 +673,14 @@
               "model": "Dell N3000",
               "description": "SMNE Site - SMNE-F15-R1-AS-01 (Floor 15)",
               "priority": 100,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "SMNE-F15-R2-AS-02": {
               "ip_address": "10.115.0.11",
               "model": "Dell N3000",
               "description": "SMNE Site - SMNE-F15-R2-AS-02 (Floor 15)",
               "priority": 101,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -805,27 +717,21 @@
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F7-R1-VAS-01 (Floor 7)",
               "priority": 107,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "ZETA-F7-R2-VAS-02": {
               "ip_address": "10.120.0.11",
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F7-R2-VAS-02 (Floor 7)",
               "priority": 108,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "ZETA-F7-R2-VAS-07": {
               "ip_address": "10.120.0.17",
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F7-R2-VAS-07 (Floor 7)",
               "priority": 113,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -836,27 +742,21 @@
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F8-R1-VAS-03 (Floor 8)",
               "priority": 109,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "ZETA-F8-C2-VAS-04": {
               "ip_address": "10.120.0.13",
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F8-C2-VAS-04 (Floor 8)",
               "priority": 110,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "ZETA-F8-R2-VAS-05": {
               "ip_address": "10.120.0.16",
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F8-R2-VAS-05 (Floor 8)",
               "priority": 112,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -867,9 +767,7 @@
               "model": "Dell N3000",
               "description": "ZETA Site - ZETA-F9-R1-VAS-06 (Floor 9)",
               "priority": 111,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -884,18 +782,14 @@
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F15-C1-VAS-01 (Floor 15)",
               "priority": 116,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F15-R1_R2-VAS-02": {
               "ip_address": "10.130.0.12",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F15-R1_R2-VAS-02 (Floor 15)",
               "priority": 117,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -906,18 +800,14 @@
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F16-C1-VAS-03 (Floor 16)",
               "priority": 118,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F16-R1_R2-VAS-04": {
               "ip_address": "10.130.0.14",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F16-R1_R2-VAS-04 (Floor 16)",
               "priority": 119,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -928,27 +818,21 @@
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F27-C1-VAS-05 (Floor 27)",
               "priority": 120,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F27-R1_R2-VAS-06": {
               "ip_address": "10.130.0.16",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F27-R1_R2-VAS-06 (Floor 27)",
               "priority": 121,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F27-R3-DAS-01": {
               "ip_address": "10.130.0.21",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F27-R3-DAS-01 (Floor 27)",
               "priority": 126,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -959,18 +843,14 @@
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F28-C1-VAS-07 (Floor 28)",
               "priority": 122,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F28-R1_R2-VAS-08": {
               "ip_address": "10.130.0.18",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F28-R1_R2-VAS-08 (Floor 28)",
               "priority": 123,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -981,18 +861,14 @@
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F29-C1-VAS-09 (Floor 29)",
               "priority": 124,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "GAMMA-F29-R1_R2-VAS-10": {
               "ip_address": "10.130.0.20",
               "model": "Dell N3000",
               "description": "GAMMA Site - GAMMA-F29-R1_R2-VAS-10 (Floor 29)",
               "priority": 125,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1007,27 +883,21 @@
               "model": "Dell N3000",
               "description": "FRAB Site - FRAB-F18-C2-VAS-01 (Floor 18)",
               "priority": 129,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "FRAB-F18-C3-VAS-02": {
               "ip_address": "10.140.0.7",
               "model": "Dell N3000",
               "description": "FRAB Site - FRAB-F18-C3-VAS-02 (Floor 18)",
               "priority": 130,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "FRAB-F18-C1-VAS-04": {
               "ip_address": "10.140.0.8",
               "model": "Dell N3000",
               "description": "FRAB Site - FRAB-F18-C1-VAS-04 (Floor 18)",
               "priority": 131,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1038,9 +908,7 @@
               "model": "Dell N3000",
               "description": "FRAB Site - FRAB-F17-C2-VAS-03 (Floor 17)",
               "priority": 132,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1055,45 +923,35 @@
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F12-C2South-DAS-01 (Floor 12)",
               "priority": 135,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F12-C1South-VAS-01": {
               "ip_address": "10.150.0.11",
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F12-C1South-VAS-01 (Floor 12)",
               "priority": 136,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F12-C2North-VAS-02": {
               "ip_address": "10.150.0.12",
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F12-C2North-VAS-02 (Floor 12)",
               "priority": 137,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F12-C1North-VAS-03": {
               "ip_address": "10.150.0.13",
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F12-C1North-VAS-03 (Floor 12)",
               "priority": 138,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F12-C3South-VAS-07": {
               "ip_address": "10.150.0.19",
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F12-C3South-VAS-07 (Floor 12)",
               "priority": 144,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1113,9 +971,7 @@
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F11-C1North-VAS-04 (Floor 11)",
               "priority": 140,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F11-C1North-VAS-06": {
               "ip_address": "10.150.0.16",
@@ -1131,18 +987,14 @@
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F11-C1South-VAS-05 (Floor 11)",
               "priority": 142,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "NEO-F11-C2South-VAS-06": {
               "ip_address": "10.150.0.18",
               "model": "Dell N3000",
               "description": "NEO Site - NEO-F11-C2South-VAS-06 (Floor 11)",
               "priority": 143,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1157,27 +1009,21 @@
               "model": "Dell N3000",
               "description": "OWA Site - OWA-F5-R1-VAS-01 (Floor 5)",
               "priority": 146,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OWA-F5-R2-VAS-02": {
               "ip_address": "10.160.0.4",
               "model": "Dell N3000",
               "description": "OWA Site - OWA-F5-R2-VAS-02 (Floor 5)",
               "priority": 147,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OWA-F5-R1HUB-VAS-03": {
               "ip_address": "10.160.0.5",
               "model": "Dell N3000",
               "description": "OWA Site - OWA-F5-R1HUB-VAS-03 (Floor 5)",
               "priority": 148,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1188,9 +1034,7 @@
               "model": "Dell N3000",
               "description": "OWA Site - OWA-PH-R1-VAS-04 (Floor PH)",
               "priority": 149,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1205,18 +1049,14 @@
               "model": "Dell N3000",
               "description": "RBCT1 Site - RBCT1-F6-R1-DVAS-01 (Floor 6)",
               "priority": 154,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "RBCT1-F6-R2-DVAS-02": {
               "ip_address": "10.165.0.11",
               "model": "Dell N3000",
               "description": "RBCT1 Site - RBCT1-F6-R2-DVAS-02 (Floor 6)",
               "priority": 155,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1231,27 +1071,21 @@
               "model": "Dell N3000",
               "description": "OG Site - OG-F9-R1-DAS-01 (Floor 9)",
               "priority": 158,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OG-F9-R2-VAS-01": {
               "ip_address": "10.170.0.5",
               "model": "Dell N3000",
               "description": "OG Site - OG-F9-R2-VAS-01 (Floor 9)",
               "priority": 159,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OG-F9-C2-VAS-02": {
               "ip_address": "10.170.0.6",
               "model": "Dell N3000",
               "description": "OG Site - OG-F9-C2-VAS-02 (Floor 9)",
               "priority": 160,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1262,27 +1096,21 @@
               "model": "Dell N3000",
               "description": "OG Site - OG-F10-R1-DAS-01 (Floor 10)",
               "priority": 161,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OG-F10-R2-VAS-01": {
               "ip_address": "10.170.0.9",
               "model": "Dell N3000",
               "description": "OG Site - OG-F10-R2-VAS-01 (Floor 10)",
               "priority": 162,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OG-F10-C1-VAS-02": {
               "ip_address": "10.170.0.10",
               "model": "Dell N3000",
               "description": "OG Site - OG-F10-C1-VAS-02 (Floor 10)",
               "priority": 163,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1297,27 +1125,21 @@
               "model": "Dell N3000",
               "description": "PDM Site - PDM-S26SR-C1-AS-01 (Floor 26)",
               "priority": 166,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PDM-F26HUB-R1-VAS-02": {
               "ip_address": "10.180.0.7",
               "model": "Dell N3000",
               "description": "PDM Site - PDM-F26HUB-R1-VAS-02 (Floor 26)",
               "priority": 167,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PDM-F26-C1-VAS-05": {
               "ip_address": "10.180.0.10",
               "model": "Dell N3000",
               "description": "PDM Site - PDM-F26-C1-VAS-05 (Floor 26)",
               "priority": 170,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1328,27 +1150,21 @@
               "model": "Dell N3000",
               "description": "PDM Site - PDM-F27-R1-VAS-03 (Floor 27)",
               "priority": 168,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PDM-F27HUB-R1-VAS-04": {
               "ip_address": "10.180.0.9",
               "model": "Dell N3000",
               "description": "PDM Site - PDM-F27HUB-R1-VAS-04 (Floor 27)",
               "priority": 169,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PDM-F27-C1-VAS-06": {
               "ip_address": "10.180.0.11",
               "model": "Dell N3000",
               "description": "PDM Site - PDM-F27-C1-VAS-06 (Floor 27)",
               "priority": 171,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1363,9 +1179,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F7-C1-VAS-02 (Floor 7)",
               "priority": 175,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1376,9 +1190,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F10-C1-VAS-05 (Floor 10)",
               "priority": 178,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1389,9 +1201,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-GF-R1-VAS-01 (Floor GF)",
               "priority": 174,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1402,9 +1212,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F8-C1-VAS-03 (Floor 8)",
               "priority": 176,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1415,9 +1223,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F9-C1-VAS-04 (Floor 9)",
               "priority": 177,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1428,9 +1234,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F11-C1-VAS-06 (Floor 11)",
               "priority": 179,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1441,9 +1245,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F12-C1-VAS-07 (Floor 12)",
               "priority": 180,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1454,9 +1256,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F14-C1-VAS-08 (Floor 14)",
               "priority": 181,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1467,9 +1267,7 @@
               "model": "Dell N3000",
               "description": "AC Site - AC-F15-R1-VAS-01 (Floor 15)",
               "priority": 182,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1484,18 +1282,14 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F6-C1-VAS-01 (Floor 6)",
               "priority": 187,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F6-C1-VAS-02": {
               "ip_address": "10.200.0.16",
               "model": "Dell N3000",
               "description": "OA Site - OA-F6-C1-VAS-02 (Floor 6)",
               "priority": 188,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1506,27 +1300,21 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F7-C1-VAS-01 (Floor 7)",
               "priority": 189,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F7-R1-VAS-02": {
               "ip_address": "10.200.0.18",
               "model": "Dell N3000",
               "description": "OA Site - OA-F7-R1-VAS-02 (Floor 7)",
               "priority": 190,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F7-C1-VAS-03": {
               "ip_address": "10.200.0.21",
               "model": "Dell N3000",
               "description": "OA Site - OA-F7-C1-VAS-03 (Floor 7)",
               "priority": 193,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1537,18 +1325,14 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F8-C1-VAS-01 (Floor 8)",
               "priority": 191,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F8-C1-VAS-02": {
               "ip_address": "10.200.0.20",
               "model": "Dell N3000",
               "description": "OA Site - OA-F8-C1-VAS-02 (Floor 8)",
               "priority": 192,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1559,18 +1343,14 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F9-C1-VAS-01 (Floor 9)",
               "priority": 194,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F9-C2-VAS-02": {
               "ip_address": "10.200.0.23",
               "model": "Dell N3000",
               "description": "OA Site - OA-F9-C2-VAS-02 (Floor 9)",
               "priority": 195,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1581,18 +1361,14 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F10-R1-AS-01 (Floor 10)",
               "priority": 196,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F10-R2-AS-02": {
               "ip_address": "10.200.0.25",
               "model": "Dell N3000",
               "description": "OA Site - OA-F10-R2-AS-02 (Floor 10)",
               "priority": 197,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1603,18 +1379,14 @@
               "model": "Dell N3000",
               "description": "OA Site - OA-F11-C1-AS-01 (Floor 11)",
               "priority": 198,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "OA-F11-R1-AS-02": {
               "ip_address": "10.200.0.27",
               "model": "Dell N3000",
               "description": "OA Site - OA-F11-R1-AS-02 (Floor 11)",
               "priority": 199,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1686,27 +1458,21 @@
               "model": "Dell N3000",
               "description": "PICA Site - PICA-F20-R1-VAS-04 (Floor 20)",
               "priority": 210,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PICA-F20-R2-VAS-05": {
               "ip_address": "192.168.0.252",
               "model": "Dell N3000",
               "description": "PICA Site - PICA-F20-R2-VAS-05 (Floor 20)",
               "priority": 211,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PICA-F20-R3-VAS-06": {
               "ip_address": "192.168.0.253",
               "model": "Dell N3000",
               "description": "PICA Site - PICA-F20-R3-VAS-06 (Floor 20)",
               "priority": 212,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         },
@@ -1727,8 +1493,8 @@
               "description": "PICA Site - PICA-F25-R1-VAS-01 (Floor 25)",
               "priority": 207,
               "enabled": true,
-              "series": "N1500",
-              "port_category": "gi_ports"
+              "series": "N2000",
+              "port_category": "gi_te_ports"
             }
           }
         },
@@ -1739,18 +1505,14 @@
               "model": "Dell N3000",
               "description": "PICA Site - PICA-F24-R1-VAS-02 (Floor 24)",
               "priority": 208,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             },
             "PICA-F24-R1OLDHUB-VAS-03": {
               "ip_address": "192.168.0.250",
               "model": "Dell N3000",
               "description": "PICA Site - PICA-F24-R1OLDHUB-VAS-03 (Floor 24)",
               "priority": 209,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
@@ -1765,9 +1527,7 @@
               "model": "Dell N3000",
               "description": "KC Site - KC-F8-C1-VAS-01 (Floor 8)",
               "priority": 214,
-              "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "enabled": true
             }
           }
         }
