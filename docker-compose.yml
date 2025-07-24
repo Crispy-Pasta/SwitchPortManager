@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  dell-port-tracer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dell-port-tracer
+    ports:
+      - "5000:5000"
+    environment:
+      - USE_WINDOWS_AUTH=false
+      - SWITCH_USERNAME=admin
+      - SWITCH_PASSWORD=password
+      - OSS_PASSWORD=oss123
+      - NETADMIN_PASSWORD=netadmin123
+      - SUPERADMIN_PASSWORD=superadmin123
+      - WEB_PASSWORD=password
+      # Windows Auth settings (if needed)
+      - AD_SERVER=ldap://kmc.int
+      - AD_DOMAIN=kmc.int
+      - AD_BASE_DN=DC=kmc,DC=int
+    volumes:
+      - ./switches.json:/app/switches.json:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - port-tracer-network
+
+networks:
+  port-tracer-network:
+    driver: bridge

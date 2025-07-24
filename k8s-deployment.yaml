@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dell-port-tracer
+  namespace: default
+  labels:
+    app: dell-port-tracer
+    version: v1.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dell-port-tracer
+  template:
+    metadata:
+      labels:
+        app: dell-port-tracer
+        version: v1.0.0
+    spec:
+      containers:
+      - name: port-tracer
+        image: dell-port-tracer:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: USE_WINDOWS_AUTH
+          value: "false"
+        # Environment variables from secrets
+        envFrom:
+        - secretRef:
+            name: port-tracer-secrets
+        # Volume mounts
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/switches.json
+          subPath: switches.json
+        - name: logs-volume
+          mountPath: /app/logs
+        # Resource limits
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      # Volumes
+      volumes:
+      - name: config-volume
+        configMap:
+          name: port-tracer-config
+      - name: logs-volume
+        emptyDir: {}
+      # Security context for the pod
+      securityContext:
+        fsGroup: 1000
+      # Restart policy
+      restartPolicy: Always

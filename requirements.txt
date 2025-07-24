@@ -1,0 +1,31 @@
+# Dell Switch Port Tracer Web Service - Python Dependencies
+# Version: 1.0.0
+# Last Updated: July 2025
+
+# Core Web Framework
+Flask>=2.3.0
+
+# SSH Connection Library for Dell Switch Communication
+paramiko>=3.3.0
+
+# Environment Variable Management
+python-dotenv>=1.0.0
+
+# HTTP Basic Authentication Support
+Flask-HTTPAuth>=4.7.0
+
+# Windows Active Directory Authentication (Production Ready)
+ldap3>=2.9.1
+
+# Additional Security Dependencies
+cryptography>=3.4.8
+bcrypt>=3.2.0
+
+# Optional: For production deployment
+# gunicorn>=20.1.0
+# supervisor>=4.2.4
+
+# Development dependencies (uncomment for development)
+# pytest>=7.1.2
+# pytest-flask>=1.2.0
+# mock>=4.0.3

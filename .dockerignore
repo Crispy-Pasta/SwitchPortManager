@@ -1,0 +1,43 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Documentation
+README.md
+*.md
+
+# Test files
+test_*
+*_test.py
+
+# Development files
+.env.example
+docker-compose.yml
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

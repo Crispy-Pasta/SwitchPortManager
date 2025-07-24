@@ -1,0 +1,208 @@
+:root {
+  --deep-navy: #001738;
+  --orange: #FF7200;
+  --light-blue: #CEDDEF;
+  --rich-black: #111622;
+  --white: #FFFFFF;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: var(--white);
+  color: var(--deep-navy);
+}
+
+body.login-page {
+  background: var(--deep-navy);
+}
+
+body.login-page .container {
+  background: var(--white);
+  box-shadow: 0 0 16px rgba(0, 23, 56, 0.12);
+}
+
+body.login-page .container form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+body.login-page .container input[type="text"],
+body.login-page .container input[type="password"] {
+  width: 60%;
+  min-width: 180px;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body.main-page {
+  background: var(--deep-navy);
+}
+
+body.main-page .container {
+  background: var(--white);
+  box-shadow: 0 0 16px rgba(0, 23, 56, 0.12);
+}
+
+body.main-page .container form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+body.main-page .container input[type="text"] {
+  width: 60%;
+  min-width: 180px;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.container {
+  max-width: 800px;
+  margin: 40px auto;
+  background: var(--white);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 23, 56, 0.08);
+  border: 1px solid var(--light-blue);
+}
+
+h1, h3 {
+  color: var(--deep-navy);
+}
+
+.step {
+  margin: 24px 0;
+  padding: 20px;
+  border: 1px solid var(--light-blue);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.step h3 {
+  color: var(--orange);
+}
+
+input[type="text"], input[type="password"], select {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid var(--light-blue);
+  border-radius: 6px;
+  font-size: 1em;
+  background: var(--white);
+  color: var(--deep-navy);
+}
+
+button {
+  background: var(--orange);
+  color: var(--white);
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1em;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: var(--deep-navy);
+  color: var(--orange);
+}
+
+button:disabled {
+  background: #eee;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.user-info {
+  text-align: right;
+  color: var(--rich-black);
+  font-size: 0.95em;
+  margin-bottom: 10px;
+}
+
+.results {
+  margin-top: 24px;
+}
+
+.result-item {
+  padding: 16px;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid var(--light-blue);
+  background: #f4f8fb;
+  color: var(--deep-navy);
+}
+
+.found {
+  background: #e6f7e6;
+  border-color: #b2e2b2;
+}
+
+.not-found {
+  background: #fff2e6;
+  border-color: #ffd6b2;
+}
+
+.error {
+  background: #fff6e6;
+  border-color: #ffe0b2;
+  color: var(--orange);
+}
+
+.loading {
+  text-align: center;
+  color: var(--orange);
+}
+
+.select2-container--default .select2-selection--single {
+  background: var(--white);
+  border: 1px solid var(--light-blue);
+  border-radius: 6px;
+  height: 44px;
+  color: var(--deep-navy);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: 44px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 44px;
+}
+
+/* Port mode badges */
+.port-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: bold;
+  margin-left: 8px;
+  color: var(--white);
+}
+.port-badge.access { background: #28a745; }
+.port-badge.trunk { background: #dc3545; }
+.port-badge.general { background: #ffc107; color: var(--rich-black); }
+.port-badge.unknown { background: #6c757d; }
+
+/* Error and info messages */
+.error, .info {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+a {
+  color: var(--orange);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+} 
