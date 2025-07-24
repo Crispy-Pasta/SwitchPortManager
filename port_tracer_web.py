@@ -19,9 +19,9 @@ Features:
 - Production-grade security and health checks
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 1.0.1
+Version: 1.0.2
 Author: Network Operations Team
-Last Updated: July 2025 - Auto-deployment enabled
+Last Updated: July 2025 - Concurrent processing & user limits
 License: MIT
 """
 
@@ -35,6 +35,9 @@ from flask import Flask, render_template_string, request, jsonify, session, redi
 from flask_httpauth import HTTPBasicAuth
 from dotenv import load_dotenv
 import secrets
+import threading
+import concurrent.futures
+from collections import defaultdict
 
 # Import Windows Authentication
 try:
@@ -95,6 +98,11 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Concurrent user tracking per site (Dell switch limit: 10 concurrent SSH sessions)
+CONCURRENT_USERS_PER_SITE = defaultdict(lambda: {'count': 0, 'lock': threading.Lock()})
+MAX_CONCURRENT_USERS_PER_SITE = int(os.getenv('MAX_CONCURRENT_USERS_PER_SITE', '10'))
+MAX_WORKERS_PER_SITE = int(os.getenv('MAX_WORKERS_PER_SITE', '8'))  # Parallel switch connections
 
 # Audit logging for user actions
 audit_logger = logging.getLogger('audit')
@@ -564,74 +572,166 @@ def format_switches_for_frontend():
     
     return {'sites': formatted_sites}
 
-def trace_mac_on_switches(switches, mac_address, username):
-    """Trace MAC address across specified switches."""
-    results = []
+def trace_single_switch(switch_info, mac_address, username):
+    """Trace MAC address on a single switch - designed for concurrent execution."""
+    switch_ip = switch_info['ip']
+    switch_name = switch_info['name']
     
-    audit_logger.info(f"User: {username} - MAC Trace Started - MAC: {mac_address} - Switches: {len(switches)}")
-    
-    for switch_info in switches:
-        switch_ip = switch_info['ip']
-        switch_name = switch_info['name']
+    try:
+        switch = DellSwitchSSH(switch_ip, SWITCH_USERNAME, SWITCH_PASSWORD)
         
-        try:
-            switch = DellSwitchSSH(switch_ip, SWITCH_USERNAME, SWITCH_PASSWORD)
-            
-            if not switch.connect():
-                results.append({
-                    'switch_name': switch_name,
-                    'switch_ip': switch_ip,
-                    'status': 'connection_failed',
-                    'message': 'Failed to connect to switch'
-                })
-                continue
-            
-            # Execute MAC lookup
-            output = switch.execute_mac_lookup(mac_address)
-            result = parse_mac_table_output(output, mac_address)
-            
-            if result['found']:
-                # Get detailed port configuration
-                port_config = switch.get_port_config(result['port'])
-                
-                results.append({
-                    'switch_name': switch_name,
-                    'switch_ip': switch_ip,
-                    'status': 'found',
-                    'vlan': result['vlan'],
-                    'port': result['port'],
-                    'type': result['type'],
-                    'mac': result['mac'],
-                    'port_mode': port_config.get('mode', 'unknown'),
-                    'port_description': port_config.get('description', ''),
-                    'port_pvid': port_config.get('pvid', ''),
-                    'port_vlans': port_config.get('vlans', [])
-                })
-                
-                # Enhanced audit logging with port details
-                port_desc = f" ({port_config.get('description', 'No description')})" if port_config.get('description') else ""
-                audit_logger.info(f"User: {username} - MAC FOUND - {mac_address} on {switch_name} ({switch_ip}) port {result['port']}{port_desc} [Mode: {port_config.get('mode', 'unknown')}]")
-            else:
-                results.append({
-                    'switch_name': switch_name,
-                    'switch_ip': switch_ip,
-                    'status': 'not_found',
-                    'message': result['message']
-                })
-            
-            switch.disconnect()
-            
-        except Exception as e:
-            logger.error(f"Error tracing MAC on {switch_name} ({switch_ip}): {str(e)}")
-            results.append({
+        if not switch.connect():
+            return {
                 'switch_name': switch_name,
                 'switch_ip': switch_ip,
-                'status': 'error',
-                'message': str(e)
-            })
+                'status': 'connection_failed',
+                'message': 'Failed to connect to switch'
+            }
+        
+        # Execute MAC lookup
+        output = switch.execute_mac_lookup(mac_address)
+        result = parse_mac_table_output(output, mac_address)
+        
+        if result['found']:
+            # Get detailed port configuration
+            port_config = switch.get_port_config(result['port'])
+            
+            # Enhanced audit logging with port details
+            port_desc = f" ({port_config.get('description', 'No description')})" if port_config.get('description') else ""
+            audit_logger.info(f"User: {username} - MAC FOUND - {mac_address} on {switch_name} ({switch_ip}) port {result['port']}{port_desc} [Mode: {port_config.get('mode', 'unknown')}]")
+            
+            return {
+                'switch_name': switch_name,
+                'switch_ip': switch_ip,
+                'status': 'found',
+                'vlan': result['vlan'],
+                'port': result['port'],
+                'type': result['type'],
+                'mac': result['mac'],
+                'port_mode': port_config.get('mode', 'unknown'),
+                'port_description': port_config.get('description', ''),
+                'port_pvid': port_config.get('pvid', ''),
+                'port_vlans': port_config.get('vlans', [])
+            }
+        else:
+            return {
+                'switch_name': switch_name,
+                'switch_ip': switch_ip,
+                'status': 'not_found',
+                'message': result['message']
+            }
+        
+    except Exception as e:
+        logger.error(f"Error tracing MAC on {switch_name} ({switch_ip}): {str(e)}")
+        return {
+            'switch_name': switch_name,
+            'switch_ip': switch_ip,
+            'status': 'error',
+            'message': str(e)
+        }
+    finally:
+        # Ensure connection is always closed
+        try:
+            if 'switch' in locals():
+                switch.disconnect()
+        except:
+            pass
+
+def check_concurrent_user_limit(site):
+    """Check if the concurrent user limit for a site has been reached."""
+    site_tracker = CONCURRENT_USERS_PER_SITE[site]
     
-    audit_logger.info(f"User: {username} - MAC Trace Completed - MAC: {mac_address} - Results: {len([r for r in results if r['status'] == 'found'])} found")
-    return results
+    with site_tracker['lock']:
+        if site_tracker['count'] >= MAX_CONCURRENT_USERS_PER_SITE:
+            return False
+        site_tracker['count'] += 1
+        return True
+
+def release_concurrent_user_slot(site):
+    """Release a concurrent user slot for a site."""
+    site_tracker = CONCURRENT_USERS_PER_SITE[site]
+    
+    with site_tracker['lock']:
+        if site_tracker['count'] > 0:
+            site_tracker['count'] -= 1
+
+def trace_mac_on_switches(switches, mac_address, username):
+    """Trace MAC address across specified switches using concurrent processing."""
+    start_time = time.time()
+    site = switches[0]['site'] if switches else 'unknown'
+    
+    # Check concurrent user limit per site (Dell switch SSH session limit)
+    if not check_concurrent_user_limit(site):
+        audit_logger.warning(f"User: {username} - TRACE REJECTED - Site: {site} - Concurrent user limit ({MAX_CONCURRENT_USERS_PER_SITE}) reached")
+        return [{
+            'switch_name': 'System',
+            'switch_ip': 'N/A',
+            'status': 'error',
+            'message': f'Too many concurrent users for site {site}. Maximum {MAX_CONCURRENT_USERS_PER_SITE} users allowed. Please try again in a moment.'
+        }]
+    
+    try:
+        audit_logger.info(f"User: {username} - MAC Trace Started - MAC: {mac_address} - Switches: {len(switches)} - Site: {site}")
+        
+        # Use ThreadPoolExecutor for concurrent switch processing
+        max_workers = min(MAX_WORKERS_PER_SITE, len(switches))  # Don't exceed switch count
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all switch trace tasks
+            future_to_switch = {
+                executor.submit(trace_single_switch, switch_info, mac_address, username): switch_info
+                for switch_info in switches
+            }
+            
+            results = []
+            completed_count = 0
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_switch, timeout=60):
+                completed_count += 1
+                try:
+                    result = future.result()
+                    results.append(result)
+                    
+                    # Log progress for large batches
+                    if len(switches) > 5:
+                        logger.info(f"MAC trace progress: {completed_count}/{len(switches)} switches completed")
+                        
+                except Exception as e:
+                    switch_info = future_to_switch[future]
+                    logger.error(f"Error in concurrent trace for {switch_info['name']}: {str(e)}")
+                    results.append({
+                        'switch_name': switch_info['name'],
+                        'switch_ip': switch_info['ip'],
+                        'status': 'error',
+                        'message': f'Concurrent execution error: {str(e)}'
+                    })
+        
+        elapsed_time = time.time() - start_time
+        found_count = len([r for r in results if r['status'] == 'found'])
+        
+        audit_logger.info(f"User: {username} - MAC Trace Completed - MAC: {mac_address} - Results: {found_count} found - Time: {elapsed_time:.2f}s - Concurrent workers: {max_workers}")
+        return results
+        
+    except concurrent.futures.TimeoutError:
+        audit_logger.error(f"User: {username} - MAC Trace TIMEOUT - MAC: {mac_address} - Site: {site}")
+        return [{
+            'switch_name': 'System',
+            'switch_ip': 'N/A',
+            'status': 'error',
+            'message': 'Trace operation timed out after 60 seconds. Some switches may be unreachable.'
+        }]
+    except Exception as e:
+        audit_logger.error(f"User: {username} - MAC Trace ERROR - MAC: {mac_address} - Site: {site} - Error: {str(e)}")
+        return [{
+            'switch_name': 'System',
+            'switch_ip': 'N/A',
+            'status': 'error',
+            'message': f'System error during trace: {str(e)}'
+        }]
+    finally:
+        # Always release the concurrent user slot
+        release_concurrent_user_slot(site)
 
 # Web Interface HTML Templates
 LOGIN_TEMPLATE = """
