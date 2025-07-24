@@ -9,7 +9,7 @@ Kubernetes deployment support.
 Features:
 - Multi-site, multi-floor switch management
 - Windows AD integration with role-based permissions
-- Dell N2000/N3000/N3200 series switch support
+- Dell N2000/N3000/N3200 series switch support (N2048, N3024P, N3248 models)
 - Real-time MAC address tracing with port configuration details
 - Comprehensive audit logging and monitoring
 - Clean, responsive web interface with multiple MAC formats
@@ -239,6 +239,7 @@ def apply_role_based_filtering(results, user_role):
     """Apply role-based filtering to trace results."""
     permissions = get_user_permissions(user_role)
     filtered_results = []
+    switches_config = load_switches()
     
     for result in results:
         if result['status'] != 'found':
@@ -247,7 +248,22 @@ def apply_role_based_filtering(results, user_role):
             
         # For OSS users, filter out uplink ports
         if not permissions['show_uplink_ports']:
-            switch_model = 'N3000'  # Default - could be enhanced to get from config
+            # Detect switch model from configuration
+            switch_model = 'N3000'  # Default fallback
+            try:
+                # Find the switch configuration to get the correct model
+                sites = switches_config.get('sites', {})
+                for site_name, site_config in sites.items():
+                    floors = site_config.get('floors', {})
+                    for floor_name, floor_config in floors.items():
+                        switches = floor_config.get('switches', {})
+                        for switch_name, switch_config in switches.items():
+                            if switch_config.get('ip_address') == result['switch_ip']:
+                                switch_model = detect_switch_model_from_config(switch_name, switch_config)
+                                break
+            except Exception as e:
+                logger.debug(f"Could not detect switch model for {result['switch_ip']}: {str(e)}")
+            
             if is_uplink_port(result['port'], switch_model, result.get('port_description', '')):
                 # Skip uplink ports for OSS users
                 continue
@@ -455,9 +471,9 @@ def parse_mac_table_output(output, target_mac):
     lines = output.split('\n')
     
     # Convert target MAC to dotted format (C0:EA:E4:85:7F:CA -> C0EA.E485.7FCA)
-            # Normalize MAC address to format without delimiters for easy comparison
-            target_mac_clean = target_mac.replace(':', '').replace('-', '').replace('.', '').upper()
-            target_mac_dotted = f"{target_mac_clean[:4]}.{target_mac_clean[4:8]}.{target_mac_clean[8:]}"
+    # Normalize MAC address to format without delimiters for easy comparison
+    target_mac_clean = target_mac.replace(':', '').replace('-', '').replace('.', '').upper()
+    target_mac_dotted = f"{target_mac_clean[:4]}.{target_mac_clean[4:8]}.{target_mac_clean[8:]}"
     
     # Parse each line looking for the MAC
     for line_num, line in enumerate(lines, 1):
@@ -659,7 +675,7 @@ MAIN_TEMPLATE = """
             <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
         </div>
         <div style="display:flex; align-items:center; justify-content:center; margin-bottom: 18px;">
-            <img src="{{ url_for('static', filename='img/dell_logo.png') }}" alt="Dell Logo" style="height: 38px; margin-right: 14px;">
+            <img src="{{ url_for('static', filename='img/Dell_Logo.png') }}" alt="Dell Logo" style="height: 38px; margin-right: 14px;">
             <h1 style="margin:0;">Switch Port Tracer</h1>
         </div>
         <div class="step">
@@ -677,7 +693,7 @@ MAIN_TEMPLATE = """
         </div>
         <div class="step">
             <h3>Step 2: Enter MAC Address</h3>
-            <input type="text" id="mac" placeholder="MAC Address (e.g., 00-1B-63-84-45-E6, 00:1B:63:84:45:E6, 001B.6384.45E6)" disabled>
+            <input type="text" id="mac" placeholder="MAC Address (e.g., 00:1B:63:84:45:E6)" disabled>
             <button id="trace-btn" onclick="traceMac()" disabled>🔍 Trace MAC Address</button>
         </div>
         <div id="loading" class="loading" style="display: none;">

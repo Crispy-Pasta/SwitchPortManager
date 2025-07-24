@@ -12,7 +12,7 @@ A secure, enterprise-grade web application for tracing MAC addresses across Dell
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
 - **Role-Based Permissions**: Three access levels (OSS, NetAdmin, SuperAdmin) with different capabilities
-- **Dell Switch Support**: Optimized for Dell N2000, N3000, and N3200 series switches
+- **Dell Switch Support**: Comprehensive support for Dell N2000, N3000, and N3200 series switches (including N2048, N3248, N3024P models)
 - **Intelligent Filtering**: Automatic uplink port detection and VLAN information filtering
 - **Comprehensive Audit Logging**: Full activity tracking for security and compliance
 - **Responsive Web Interface**: Clean, modern UI with real-time MAC address tracing
@@ -36,7 +36,11 @@ pip install -r requirements.txt
 ### Dell Switch Requirements
 - SSH access enabled
 - MAC address table accessible via CLI
-- Supported models: N2000, N3000, N3200 series
+- **Supported Switch Series**:
+  - **N2000 Series**: N2048 and similar models (GigE access ports, 10GE uplinks)
+  - **N3000 Series**: N3024P and similar models (GigE access ports, 10GE uplinks)
+  - **N3200 Series**: N3248 and similar models (10GE access ports, 25GE uplinks)
+- Auto-detection of switch models for proper port categorization
 
 ## 🔧 Installation
 
@@ -130,9 +134,9 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 
 | Role | Access Level | Capabilities |
 |------|-------------|-------------|
-| **OSS** | Limited | • View access ports only<br>• Basic MAC/port information<br>• No uplink port visibility<br>• Limited VLAN details |
-| **NetAdmin** | Full | • View all ports including uplinks<br>• Complete VLAN information<br>• Port configuration details<br>• Full MAC trace capabilities |
-| **SuperAdmin** | Full | • All NetAdmin capabilities<br>• Administrative functions<br>• Full audit log access |
+| **OSS** | Limited | • View access ports only (Gi/Te based on model)<br>• Basic MAC/port information<br>• Auto-filtered uplinks (Te/Tw/Po ports)<br>• Limited VLAN details for trunk/general ports |
+| **NetAdmin** | Full | • View all ports including uplinks<br>• Complete VLAN information<br>• Port configuration details<br>• Full MAC trace capabilities across all switch series |
+| **SuperAdmin** | Full | • All NetAdmin capabilities<br>• Administrative functions<br>• Full audit log access<br>• Switch model management capabilities |
 
 ### Active Directory Group Mapping
 - **Default Role**: OSS (least privilege)
@@ -201,8 +205,10 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 
 ### Dell Switch Commands
 - **MAC Table Lookup**: `show mac address-table address XX:XX:XX:XX:XX:XX`
-- **Port Configuration**: `show running-config interface GiX/X/X`
-- **Connection Management**: Automated SSH session handling
+- **Port Configuration**: Supports all Dell port types:
+  - **N2000/N3000 Series**: `show running-config interface GiX/X/X` (access), `TeX/X/X` (uplink)
+  - **N3200 Series**: `show running-config interface TeX/X/X` (access), `TwX/X/X` (uplink)
+- **Connection Management**: Automated SSH session handling with model-aware commands
 
 ## 🛡️ Security Features
 
