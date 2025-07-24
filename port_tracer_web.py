@@ -1071,9 +1071,9 @@ def index():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    # Pass user role to format switches with appropriate filtering
+    # Get switches data (role-based filtering handled in frontend)
     user_role = session.get('role', 'oss')
-    formatted_data = format_switches_for_frontend(user_role)
+    formatted_data = format_switches_for_frontend()
     return render_template_string(MAIN_TEMPLATE, 
                                 username=session['username'],
                                 user_role=user_role,
