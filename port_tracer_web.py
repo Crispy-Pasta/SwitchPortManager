@@ -95,17 +95,20 @@ ROLE_PERMISSIONS = {
     'oss': {
         'show_vlan_details': False,  # Only for access ports
         'show_uplink_ports': False,  # Hide uplink ports
-        'show_trunk_general_vlans': False  # Hide VLAN details for trunk/general
+        'show_trunk_general_vlans': False,  # Hide VLAN details for trunk/general
+        'show_switch_names': False  # Hide switch names for security
     },
     'netadmin': {
         'show_vlan_details': True,
         'show_uplink_ports': True,
-        'show_trunk_general_vlans': True
+        'show_trunk_general_vlans': True,
+        'show_switch_names': True  # Show actual switch names
     },
     'superadmin': {
         'show_vlan_details': True,
         'show_uplink_ports': True,
-        'show_trunk_general_vlans': True
+        'show_trunk_general_vlans': True,
+        'show_switch_names': True  # Show actual switch names
     }
 }
 
@@ -559,10 +562,11 @@ def get_site_floor_switches(site, floor):
     
     return matching_switches
 
-def format_switches_for_frontend():
-    """Convert switches.json format for frontend consumption."""
+def format_switches_for_frontend(user_role='oss'):
+    """Convert switches.json format for frontend consumption with role-based filtering."""
     switches_config = load_switches()
     formatted_sites = []
+    permissions = get_user_permissions(user_role)
     
     sites = switches_config.get('sites', {})
     for site_name, site_config in sites.items():
@@ -571,8 +575,11 @@ def format_switches_for_frontend():
             switches = []
             for switch_name, switch_config in floor_config.get('switches', {}).items():
                 if switch_config.get('enabled', True):
+                    # For OSS users, hide switch names for security
+                    display_name = switch_name if permissions.get('show_switch_names', True) else f"Switch-{len(switches)+1}"
+                    
                     switches.append({
-                        'name': switch_name,
+                        'name': display_name,
                         'ip': switch_config['ip_address'],
                         'model': switch_config.get('model', 'Unknown'),
                         'description': switch_config.get('description', '')
@@ -1056,7 +1063,9 @@ def index():
     if 'username' not in session:
         return redirect(url_for('login'))
     
-    formatted_data = format_switches_for_frontend()
+    # Pass user role to format switches with appropriate filtering
+    user_role = session.get('role', 'oss')
+    formatted_data = format_switches_for_frontend(user_role)
     return render_template_string(MAIN_TEMPLATE, 
                                 username=session['username'],
                                 sites=formatted_data.get('sites', []),
