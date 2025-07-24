@@ -563,10 +563,9 @@ def get_site_floor_switches(site, floor):
     return matching_switches
 
 def format_switches_for_frontend(user_role='oss'):
-    """Convert switches.json format for frontend consumption with role-based filtering."""
+    """Convert switches.json format for frontend consumption."""
     switches_config = load_switches()
     formatted_sites = []
-    permissions = get_user_permissions(user_role)
     
     sites = switches_config.get('sites', {})
     for site_name, site_config in sites.items():
@@ -575,11 +574,10 @@ def format_switches_for_frontend(user_role='oss'):
             switches = []
             for switch_name, switch_config in floor_config.get('switches', {}).items():
                 if switch_config.get('enabled', True):
-                    # For OSS users, hide switch names for security
-                    display_name = switch_name if permissions.get('show_switch_names', True) else f"Switch-{len(switches)+1}"
-                    
+                    # Always use actual switch names in data structure
+                    # Role-based filtering will be handled in frontend JavaScript
                     switches.append({
-                        'name': display_name,
+                        'name': switch_name,
                         'ip': switch_config['ip_address'],
                         'model': switch_config.get('model', 'Unknown'),
                         'description': switch_config.get('description', '')
