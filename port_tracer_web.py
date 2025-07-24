@@ -19,9 +19,9 @@ Features:
 - Production-grade security and health checks
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 1.0.0
+Version: 1.0.1
 Author: Network Operations Team
-Last Updated: July 2025
+Last Updated: July 2025 - Auto-deployment enabled
 License: MIT
 """
 
