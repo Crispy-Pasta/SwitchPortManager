@@ -833,6 +833,7 @@ MAIN_TEMPLATE = """
     </div>
     <script>
         const sitesData = {{ sites_json | safe }};
+        const userRole = '{{ user_role }}';
         
         // Initialize Select2 on page load
         $(document).ready(function() {
@@ -905,9 +906,18 @@ MAIN_TEMPLATE = """
                     const floor = site.floors.find(f => f.floor === selectedFloor);
                     if (floor && floor.switches) {
                         const switchCount = floor.switches.length;
-                        const switchNames = floor.switches.map(s => s.name).join(', ');
-                        document.getElementById('switch-info').innerHTML = 
-                            `✅ ${switchCount} switch(es) loaded: ${switchNames}`;
+                        let displayMessage;
+                        
+                        if (userRole === 'oss') {
+                            // OSS users see only the count
+                            displayMessage = `✅ ${switchCount} switch(es) loaded`;
+                        } else {
+                            // Admin users see the switch names
+                            const switchNames = floor.switches.map(s => s.name).join(', ');
+                            displayMessage = `✅ ${switchCount} switch(es) loaded: ${switchNames}`;
+                        }
+                        
+                        document.getElementById('switch-info').innerHTML = displayMessage;
                         document.getElementById('mac').disabled = false;
                         document.getElementById('trace-btn').disabled = false;
                     }
