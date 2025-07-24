@@ -177,6 +177,65 @@ button:disabled {
   height: 44px;
 }
 
+/* Select2 dropdown and search styling */
+.select2-container--default .select2-dropdown {
+  border: 1px solid var(--light-blue);
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 23, 56, 0.1);
+}
+
+.select2-container--default .select2-search--dropdown {
+  padding: 8px;
+  background: var(--white);
+  border-bottom: 1px solid var(--light-blue);
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+  border: 1px solid var(--light-blue);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--deep-navy);
+  background: var(--white);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+  border-color: var(--orange);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 114, 0, 0.2);
+}
+
+.select2-container--default .select2-results {
+  background: var(--white);
+}
+
+.select2-container--default .select2-results__option {
+  padding: 10px 12px;
+  color: var(--deep-navy);
+}
+
+.select2-container--default .select2-results__option--highlighted {
+  background: var(--light-blue);
+  color: var(--deep-navy);
+}
+
+.select2-container--default .select2-results__option--selected {
+  background: var(--orange);
+  color: var(--white);
+}
+
+/* Ensure search box appears at the top of dropdown */
+.select2-dropdown .select2-search {
+  display: block !important;
+  order: -1;
+}
+
+.select2-results {
+  order: 1;
+}
+
 /* Port mode badges */
 .port-badge {
   display: inline-block;
