@@ -2,8 +2,10 @@
 """
 Dell Switch Port Tracer Web Service
 
-A secure, enterprise-grade web application for tracing MAC addresses across Dell 
-network switches with role-based access control, comprehensive audit logging, and 
+A secure, enterprise-grade web application for tracing MAC addresses across Dell
+switches in an enterprise environment.
+
+# Auto-deployment test - version 1.0
 Kubernetes deployment support.
 
 Features:
