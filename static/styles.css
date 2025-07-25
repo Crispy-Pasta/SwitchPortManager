@@ -251,6 +251,38 @@ button:disabled {
 .port-badge.general { background: #ffc107; color: var(--rich-black); }
 .port-badge.unknown { background: #6c757d; }
 
+/* Caution badges */
+.caution-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: bold;
+  margin: 2px 4px;
+  border: 1px solid;
+  background: rgba(255, 193, 7, 0.1);
+  color: #856404;
+  border-color: #ffc107;
+}
+
+.caution-badge.caution-wlan_ap {
+  background: rgba(255, 152, 0, 0.1);
+  color: #e65100;
+  border-color: #ff9800;
+}
+
+.caution-badge.caution-uplink {
+  background: rgba(244, 67, 54, 0.1);
+  color: #c62828;
+  border-color: #f44336;
+}
+
+.caution-badge.caution-trunk_many_vlans {
+  background: rgba(156, 39, 176, 0.1);
+  color: #7b1fa2;
+  border-color: #9c27b0;
+}
+
 /* Error and info messages */
 .error, .info {
   margin: 10px 0;

@@ -282,6 +282,80 @@ def is_uplink_port(port_name, switch_model=None, port_description=''):
     uplink_patterns = ['Te', 'Tw', 'Fo']  # TenGig, TwentyGig, FortyGig
     return any(port_name.startswith(pattern) for pattern in uplink_patterns)
 
+def is_wlan_ap_port(port_description='', port_vlans=None):
+    """Determine if a port is likely connected to WLAN/AP based on description and VLAN configuration."""
+    
+    # Check description for WLAN/AP indicators
+    if port_description:
+        wlan_keywords = ['WLAN', 'wlan', 'Wlan', 'AP', 'ap', 'Wi-Fi', 'wifi', 'WiFi', 'WIRELESS', 'wireless', 'Wireless', 'ACCESS POINT', 'access point']
+        if any(keyword in port_description for keyword in wlan_keywords):
+            return True
+    
+    # Check for multiple VLANs (typical for AP trunk ports)
+    if port_vlans and isinstance(port_vlans, list):
+        # If port has many VLANs (more than 3), it's likely an AP or trunk port
+        total_vlans = 0
+        for vlan_range in port_vlans:
+            if '-' in str(vlan_range):  # VLAN range like "10-20"
+                try:
+                    start, end = map(int, str(vlan_range).split('-'))
+                    total_vlans += (end - start + 1)
+                except:
+                    total_vlans += 1
+            elif ',' in str(vlan_range):  # Multiple VLANs like "10,20,30"
+                total_vlans += len(str(vlan_range).split(','))
+            else:
+                total_vlans += 1
+        
+        if total_vlans > 3:  # More than 3 VLANs suggests AP or trunk
+            return True
+    
+    return False
+
+def get_port_caution_info(port_name, switch_model=None, port_description='', port_mode='', port_vlans=None):
+    """Get caution information for a port based on its characteristics."""
+    cautions = []
+    
+    # Check for WLAN/AP port
+    if is_wlan_ap_port(port_description, port_vlans):
+        cautions.append({
+            'type': 'wlan_ap',
+            'icon': '⚠️',
+            'message': 'Possible WLAN/AP Connection'
+        })
+    
+    # Check for uplink port
+    if is_uplink_port(port_name, switch_model, port_description):
+        cautions.append({
+            'type': 'uplink',
+            'icon': '⚠️',
+            'message': 'Possible Switch Uplink'
+        })
+    
+    # Check for trunk/general ports with many VLANs (additional caution)
+    if port_mode in ['trunk', 'general'] and port_vlans:
+        total_vlans = 0
+        for vlan_range in port_vlans:
+            if '-' in str(vlan_range):
+                try:
+                    start, end = map(int, str(vlan_range).split('-'))
+                    total_vlans += (end - start + 1)
+                except:
+                    total_vlans += 1
+            elif ',' in str(vlan_range):
+                total_vlans += len(str(vlan_range).split(','))
+            else:
+                total_vlans += 1
+        
+        if total_vlans > 5:  # Many VLANs suggests trunk/uplink usage
+            cautions.append({
+                'type': 'trunk_many_vlans',
+                'icon': '⚠️',
+                'message': f'Trunk Port with {total_vlans} VLANs'
+            })
+    
+    return cautions
+
 def apply_role_based_filtering(results, user_role):
     """Apply role-based filtering to trace results."""
     permissions = get_user_permissions(user_role)
@@ -635,9 +709,36 @@ def trace_single_switch(switch_info, mac_address, username):
             # Get detailed port configuration
             port_config = switch.get_port_config(result['port'])
             
+            # Detect switch model for accurate caution detection
+            switch_model = 'N3000'  # Default fallback
+            try:
+                # Try to get switch model from switches.json
+                switches_config = load_switches()
+                sites = switches_config.get('sites', {})
+                for site_name, site_config in sites.items():
+                    floors = site_config.get('floors', {})
+                    for floor_name, floor_config in floors.items():
+                        switches = floor_config.get('switches', {})
+                        for sw_name, sw_config in switches.items():
+                            if sw_config.get('ip_address') == switch_ip:
+                                switch_model = detect_switch_model_from_config(sw_name, sw_config)
+                                break
+            except Exception as e:
+                logger.debug(f"Could not detect switch model for {switch_ip}: {str(e)}")
+            
+            # Get caution information for this port
+            cautions = get_port_caution_info(
+                port_name=result['port'],
+                switch_model=switch_model,
+                port_description=port_config.get('description', ''),
+                port_mode=port_config.get('mode', ''),
+                port_vlans=port_config.get('vlans', [])
+            )
+            
             # Enhanced audit logging with port details
             port_desc = f" ({port_config.get('description', 'No description')})" if port_config.get('description') else ""
-            audit_logger.info(f"User: {username} - MAC FOUND - {mac_address} on {switch_name} ({switch_ip}) port {result['port']}{port_desc} [Mode: {port_config.get('mode', 'unknown')}]")
+            caution_desc = f" [Cautions: {len(cautions)}]" if cautions else ""
+            audit_logger.info(f"User: {username} - MAC FOUND - {mac_address} on {switch_name} ({switch_ip}) port {result['port']}{port_desc} [Mode: {port_config.get('mode', 'unknown')}]{caution_desc}")
             
             return {
                 'switch_name': switch_name,
@@ -650,7 +751,8 @@ def trace_single_switch(switch_info, mac_address, username):
                 'port_mode': port_config.get('mode', 'unknown'),
                 'port_description': port_config.get('description', ''),
                 'port_pvid': port_config.get('pvid', ''),
-                'port_vlans': port_config.get('vlans', [])
+                'port_vlans': port_config.get('vlans', []),
+                'cautions': cautions  # Add caution information
             }
         else:
             return {
@@ -997,6 +1099,15 @@ MAIN_TEMPLATE = """
                         descriptionInfo = `<br><strong>Description:</strong> <em>${result.port_description}</em>`;
                     }
                     
+                    // Add caution information if available
+                    let cautionInfo = '';
+                    if (result.cautions && result.cautions.length > 0) {
+                        const cautionItems = result.cautions.map(caution => 
+                            `<span class="caution-badge caution-${caution.type}">${caution.icon} ${caution.message}</span>`
+                        ).join(' ');
+                        cautionInfo = `<br><strong>Additional Information:</strong> ${cautionItems}`;
+                    }
+                    
                     // Add VLAN information
                     let vlanInfo = '';
                     if (result.vlan_restricted) {
@@ -1018,7 +1129,7 @@ MAIN_TEMPLATE = """
                             <strong>✅ MAC Found!</strong><br>
                             <strong>Switch:</strong> ${result.switch_name} (${result.switch_ip})<br>
                             ${portInfo}${descriptionInfo}<br>
-                            ${vlanInfo}
+                            ${vlanInfo}${cautionInfo}
                         </div>
                     `;
                 });
