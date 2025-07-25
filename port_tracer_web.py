@@ -316,17 +316,7 @@ def get_port_caution_info(port_name, switch_model=None, port_description='', por
     """Get caution information for a port based on its characteristics."""
     cautions = []
     
-    # Check for WLAN/AP port based on description keywords
-    if port_description:
-        wlan_keywords = ['WLAN', 'wlan', 'Wlan', 'AP', 'ap']
-        if any(keyword in port_description for keyword in wlan_keywords):
-            cautions.append({
-                'type': 'wlan_ap',
-                'icon': '⚠️',
-                'message': 'Possible AP Connection'
-            })
-    
-    # Check for uplink port based on description keywords or port type
+    # Check for uplink port FIRST (higher priority than WLAN/AP)
     uplink_detected = False
     if port_description:
         uplink_keywords = ['UPLINK', 'uplink', 'Uplink', 'CS', 'cs', 'Cs']
@@ -343,6 +333,15 @@ def get_port_caution_info(port_name, switch_model=None, port_description='', por
             'icon': '⚠️',
             'message': 'Possible Switch Uplink'
         })
+    # Only check for WLAN/AP if NOT an uplink (uplink takes priority)
+    elif port_description:
+        wlan_keywords = ['WLAN', 'wlan', 'Wlan', 'AP', 'ap']
+        if any(keyword in port_description for keyword in wlan_keywords):
+            cautions.append({
+                'type': 'wlan_ap',
+                'icon': '⚠️',
+                'message': 'Possible AP Connection'
+            })
     
     # Check for trunk/general ports with many VLANs (additional caution)
     if port_mode in ['trunk', 'general'] and port_vlans:
@@ -1111,13 +1110,19 @@ MAIN_TEMPLATE = """
                         descriptionInfo = `<br><strong>Description:</strong> <em>${result.port_description}</em>`;
                     }
                     
-                    // Add caution information if available
-                    let cautionInfo = '';
+                    // Process caution information
+                    let cautionLine = '';
+                    let hasUplink = false;
+                    
                     if (result.cautions && result.cautions.length > 0) {
-                        const cautionItems = result.cautions.map(caution => 
-                            `<span class="caution-badge caution-${caution.type}">${caution.icon} ${caution.message}</span>`
-                        ).join(' ');
-                        cautionInfo = `<br><strong>Additional Information:</strong> ${cautionItems}`;
+                        // Show all cautions on a separate line after MAC Found
+                        const cautionBadges = result.cautions.map(caution => {
+                            if (caution.type === 'uplink') {
+                                hasUplink = true;
+                            }
+                            return `<span class="caution-badge caution-${caution.type}">${caution.icon} ${caution.message}</span>`;
+                        }).join(' ');
+                        cautionLine = `<br>${cautionBadges}`;
                     }
                     
                     // Add VLAN information
@@ -1138,12 +1143,21 @@ MAIN_TEMPLATE = """
                     
                     html += `
                         <div class="result-item found">
-                            <strong>✅ MAC Found!</strong><br>
+                            <strong>✅ MAC Found!</strong>${cautionLine}<br>
                             <strong>Switch:</strong> ${result.switch_name} (${result.switch_ip})<br>
                             ${portInfo}${descriptionInfo}<br>
-                            ${vlanInfo}${cautionInfo}
+                            ${vlanInfo}
                         </div>
                     `;
+                    
+                    // Add Additional Information section outside the box only for uplinks
+                    if (hasUplink) {
+                        html += `
+                            <div class="additional-info">
+                                <strong>Additional Information:</strong>
+                            </div>
+                        `;
+                    }
                 });
             } else {
                 html += '<div class="result-item not-found"><strong>❌ MAC Address Not Found</strong><br>The MAC address was not found on any switches in the selected site and floor.</div>';
