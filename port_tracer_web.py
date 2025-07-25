@@ -261,13 +261,13 @@ def is_uplink_port(port_name, switch_model=None, port_description=''):
     if port_name.startswith('Po'):
         return True
         
-    # Check description for uplink indicators
+    # Check description for uplink indicators - prioritize description-based detection
     if port_description:
-        uplink_keywords = ['UPLINK', 'uplink', 'Uplink', 'TRUNK', 'trunk', 'Trunk', 'CORE', 'core', 'Core']
+        uplink_keywords = ['UPLINK', 'uplink', 'Uplink', 'CS', 'cs', 'Cs', 'TRUNK', 'trunk', 'Trunk', 'CORE', 'core', 'Core']
         if any(keyword in port_description for keyword in uplink_keywords):
             return True
     
-    # Model-specific uplink port detection
+    # Model-specific uplink port detection (only if no description indicators)
     if switch_model == 'N2000':
         # N2000: Gi ports are access, Te ports are uplinks
         return port_name.startswith('Te')
@@ -316,16 +316,28 @@ def get_port_caution_info(port_name, switch_model=None, port_description='', por
     """Get caution information for a port based on its characteristics."""
     cautions = []
     
-    # Check for WLAN/AP port
-    if is_wlan_ap_port(port_description, port_vlans):
-        cautions.append({
-            'type': 'wlan_ap',
-            'icon': '⚠️',
-            'message': 'Possible WLAN/AP Connection'
-        })
+    # Check for WLAN/AP port based on description keywords
+    if port_description:
+        wlan_keywords = ['WLAN', 'wlan', 'Wlan', 'AP', 'ap']
+        if any(keyword in port_description for keyword in wlan_keywords):
+            cautions.append({
+                'type': 'wlan_ap',
+                'icon': '⚠️',
+                'message': 'Possible AP Connection'
+            })
     
-    # Check for uplink port
-    if is_uplink_port(port_name, switch_model, port_description):
+    # Check for uplink port based on description keywords or port type
+    uplink_detected = False
+    if port_description:
+        uplink_keywords = ['UPLINK', 'uplink', 'Uplink', 'CS', 'cs', 'Cs']
+        if any(keyword in port_description for keyword in uplink_keywords):
+            uplink_detected = True
+    
+    # If no description-based uplink detection, use port name patterns
+    if not uplink_detected and is_uplink_port(port_name, switch_model, ''):
+        uplink_detected = True
+    
+    if uplink_detected:
         cautions.append({
             'type': 'uplink',
             'icon': '⚠️',
@@ -1260,7 +1272,25 @@ def trace():
     user_role = session.get('role', 'oss')
     filtered_results = apply_role_based_filtering(results, user_role)
     
-    return jsonify(filtered_results)
+    # Sort results to prioritize interface ports (Gi) over uplink ports (Te/Tw)
+    def get_port_priority(result):
+        if result['status'] != 'found':
+            return 999  # Put non-found results at the end
+        
+        port_name = result.get('port', '')
+        # Priority: Gi ports (access/interface) first, then Te/Tw (uplink) ports
+        if port_name.startswith('Gi'):
+            return 1  # Highest priority for Gigabit Ethernet (interface ports)
+        elif port_name.startswith('Te'):
+            return 2  # Lower priority for TenGig (uplink ports)
+        elif port_name.startswith('Tw'):
+            return 3  # Lowest priority for TwentyGig (uplink ports)
+        else:
+            return 4  # Other port types
+    
+    sorted_results = sorted(filtered_results, key=get_port_priority)
+    
+    return jsonify(sorted_results)
 
 if __name__ == '__main__':
     print("🔌 Starting Dell Switch Port Tracer Web Service...")
