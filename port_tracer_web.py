@@ -183,13 +183,26 @@ def verify_user(username, password):
                 if user_info.get('groups'):
                     groups = [str(group).upper() for group in user_info['groups']]
                     
+                    # Debug logging for group membership
+                    logger.info(f"User {username} AD groups: {groups}")
+                    
                     # Role assignment based on specific AD security groups
-                    if any('SOLARWINDS_OSS_SD_ACCESS' in group for group in groups):
+                    # Check for exact group CN (Common Name) matches, not just substring matches
+                    oss_group_found = any('CN=SOLARWINDS_OSS/SD_ACCESS' in group or 'CN=SOLARWINDS_OSS_SD_ACCESS' in group for group in groups)
+                    noc_team_group_found = any('CN=NOC TEAM' in group for group in groups)
+                    admin_group_found = any('CN=ADMIN' in group or 'CN=SUPERADMIN' in group for group in groups)
+                    
+                    if oss_group_found:
                         role = 'oss'
-                    elif any('NOC TEAM' in group for group in groups):
+                        logger.info(f"User {username} assigned role 'oss' due to SOLARWINDS_OSS/SD_ACCESS group")
+                    elif noc_team_group_found:
                         role = 'netadmin'
-                    elif any('ADMIN' in group or 'SUPERADMIN' in group for group in groups):
+                        logger.info(f"User {username} assigned role 'netadmin' due to NOC TEAM group")
+                    elif admin_group_found:
                         role = 'superadmin'
+                        logger.info(f"User {username} assigned role 'superadmin' due to admin group")
+                    else:
+                        logger.info(f"User {username} assigned default role 'oss' - no matching groups found")
                 
                 return {
                     'username': user_info['username'],
@@ -808,15 +821,17 @@ MAIN_TEMPLATE = """
         </div>
         <div class="step">
             <h3>Step 1: Select Site and Floor</h3>
-            <select id="site" onchange="loadFloors()">
-                <option value="">Select Site...</option>
-                {% for site in sites %}
-                <option value="{{ site.name }}">{{ site.name }} ({{ site.location }})</option>
-                {% endfor %}
-            </select>
-            <select id="floor" onchange="loadSwitches()" disabled>
-                <option value="">Select Floor...</option>
-            </select>
+            <div class="site-floor-search-row">
+                <select id="site" onchange="loadFloors()">
+                    <option value="">Select Site...</option>
+                    {% for site in sites %}
+                    <option value="{{ site.name }}">{{ site.name }} ({{ site.location }})</option>
+                    {% endfor %}
+                </select>
+                <select id="floor" onchange="loadSwitches()" disabled>
+                    <option value="">Select Floor...</option>
+                </select>
+            </div>
             <div id="switch-info" style="margin-top: 10px; color: #666;"></div>
         </div>
         <div class="step">
