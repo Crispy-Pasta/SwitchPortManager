@@ -34,7 +34,6 @@ COPY cpu_safety_monitor.py .
 COPY switch_protection_monitor.py .
 COPY nt_auth_integration.py .
 COPY switches.json .
-COPY .env .
 COPY static/ ./static/
 
 # Set ownership of all files to app user
