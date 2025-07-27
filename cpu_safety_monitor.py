@@ -14,6 +14,7 @@ Protection Zones:
 
 Author: Network Operations Team
 Last Updated: July 2025
+Auto-deployment Test: v2.0 monitoring files now properly included
 """
 
 import psutil
