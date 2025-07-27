@@ -330,7 +330,7 @@ def get_port_caution_info(port_name, switch_model=None, port_description='', por
     if uplink_detected:
         cautions.append({
             'type': 'uplink',
-            'icon': '⚠️',
+            'icon': '🚨',
             'message': 'Possible Switch Uplink'
         })
     # Only check for WLAN/AP if NOT an uplink (uplink takes priority)
@@ -358,12 +358,8 @@ def get_port_caution_info(port_name, switch_model=None, port_description='', por
             else:
                 total_vlans += 1
         
-        if total_vlans > 5:  # Many VLANs suggests trunk/uplink usage
-            cautions.append({
-                'type': 'trunk_many_vlans',
-                'icon': '⚠️',
-                'message': f'Trunk Port with {total_vlans} VLANs'
-            })
+        # Removed trunk_many_vlans caution as requested
+        pass
     
     return cautions
 
@@ -896,9 +892,9 @@ LOGIN_TEMPLATE = """
 <body class="login-page">
     <div class="container">
         <div style="text-align:center; margin-bottom: 16px;">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 80px; margin-bottom: 12px;">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 80px; margin-bottom: 6px;">
         </div>
-        <h1 style="text-align:center;">Dell Switch Port Tracer</h1>
+        <h1 style="text-align:center;">Switch Port Tracer</h1>
         <form method="post">
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
@@ -928,8 +924,7 @@ MAIN_TEMPLATE = """
         <div style="text-align:center; margin-bottom: 10px;">
             <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
         </div>
-        <div style="display:flex; align-items:center; justify-content:center; margin-bottom: 18px;">
-            <img src="{{ url_for('static', filename='img/Dell_Logo.png') }}" alt="Dell Logo" style="height: 38px; margin-right: 14px;">
+        <div style="text-align:center; margin-bottom: 18px;">
             <h1 style="margin:0;">Switch Port Tracer</h1>
         </div>
         <div class="step">
@@ -1096,7 +1091,7 @@ MAIN_TEMPLATE = """
             const foundResults = results.filter(r => r.status === 'found');
             
             if (foundResults.length > 0) {
-                foundResults.forEach(result => {
+                foundResults.forEach((result, index) => {
                     let portInfo = `<strong>Port:</strong> ${result.port}`;
                     
                     // Add port mode badge
@@ -1141,8 +1136,12 @@ MAIN_TEMPLATE = """
                         }
                     }
                     
+                    // Check if this result has an uplink caution
+                    const hasUplinkCaution = result.cautions && result.cautions.some(caution => caution.type === 'uplink');
+                    const resultClass = hasUplinkCaution ? 'result-item found uplink-detected' : 'result-item found';
+                    
                     html += `
-                        <div class="result-item found">
+                        <div class="${resultClass}">
                             <strong>✅ MAC Found!</strong>${cautionLine}<br>
                             <strong>Switch:</strong> ${result.switch_name} (${result.switch_ip})<br>
                             ${portInfo}${descriptionInfo}<br>
@@ -1150,8 +1149,8 @@ MAIN_TEMPLATE = """
                         </div>
                     `;
                     
-                    // Add Additional Information section outside the box only for uplinks
-                    if (hasUplink) {
+                    // Add Additional Information section between result boxes (after first result)
+                    if (index === 0 && foundResults.length > 1) {
                         html += `
                             <div class="additional-info">
                                 <strong>Additional Information:</strong>
@@ -1166,7 +1165,6 @@ MAIN_TEMPLATE = """
             // Show other results (only errors and connection failures, not 'not found')
             const otherResults = results.filter(r => r.status !== 'found' && r.status !== 'not_found');
             if (otherResults.length > 0) {
-                html += '<h4>Additional Information:</h4>';
                 otherResults.forEach(result => {
                     const cssClass = result.status === 'error' ? 'error' : 'not-found';
                     html += `
