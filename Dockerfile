@@ -30,6 +30,8 @@ RUN mkdir -p /app/logs /app/static/img \
 
 # Copy application files
 COPY port_tracer_web.py .
+COPY cpu_safety_monitor.py .
+COPY switch_protection_monitor.py .
 COPY nt_auth_integration.py .
 COPY switches.json .
 COPY .env .
