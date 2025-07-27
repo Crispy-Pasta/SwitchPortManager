@@ -5,7 +5,7 @@ metadata:
   namespace: default
   labels:
     app: dell-port-tracer
-    version: v1.0.0
+    version: v2.0.0
 spec:
   replicas: 2
   selector:
@@ -15,7 +15,7 @@ spec:
     metadata:
       labels:
         app: dell-port-tracer
-        version: v1.0.0
+        version: v2.0.0
     spec:
       containers:
       - name: port-tracer
@@ -26,7 +26,31 @@ spec:
           name: http
         env:
         - name: USE_WINDOWS_AUTH
+          value: "true"
+        # CPU and Switch Protection Settings
+        - name: CPU_SAFETY_ENABLED
+          value: "true"
+        - name: CPU_GREEN_THRESHOLD
+          value: "40.0"
+        - name: CPU_YELLOW_THRESHOLD
+          value: "60.0"
+        - name: CPU_RED_THRESHOLD
+          value: "80.0"
+        - name: SWITCH_PROTECTION_ENABLED
+          value: "true"
+        - name: MAX_CONNECTIONS_PER_SWITCH
+          value: "8"
+        - name: MAX_TOTAL_CONNECTIONS
+          value: "64"
+        - name: COMMANDS_PER_SECOND_LIMIT
+          value: "10"
+        # Syslog Settings (optional)
+        - name: SYSLOG_ENABLED
           value: "false"
+        - name: SYSLOG_SERVER
+          value: "localhost"
+        - name: SYSLOG_PORT
+          value: "514"
         # Environment variables from secrets
         envFrom:
         - secretRef:
