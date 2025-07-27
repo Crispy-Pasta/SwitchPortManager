@@ -34,9 +34,9 @@ switches in an enterprise environment with concurrent processing capabilities.
 - Progress tracking for large batches
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 1.0.2
+Version: 2.0.0
 Author: Network Operations Team
-Last Updated: July 2025 - Concurrent processing & user limits
+Last Updated: July 2025 - CPU Safety & Switch Protection & Syslog Integration
 License: MIT
 
 🔧 TROUBLESHOOTING:
@@ -48,7 +48,9 @@ License: MIT
 
 import paramiko
 import logging
+import logging.handlers
 import time
+import psutil
 import json
 import os
 from datetime import datetime
@@ -69,7 +71,18 @@ except ImportError:
     WINDOWS_AUTH_AVAILABLE = False
     print("Warning: ldap3 not installed. Windows authentication disabled.")
 
-# Load environment variables
+# Load CPU Safety Monitor
+from cpu_safety_monitor import initialize_cpu_monitor, get_cpu_monitor
+
+# Load Switch Protection Monitor
+try:
+    from switch_protection_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
+    SWITCH_PROTECTION_AVAILABLE = True
+except ImportError:
+    SWITCH_PROTECTION_AVAILABLE = False
+    logger.warning("Switch protection monitor not available")
+
+# Load environment variables first
 load_dotenv()
 
 # Flask app
@@ -112,16 +125,50 @@ ROLE_PERMISSIONS = {
     }
 }
 
-# Configure logging
+# Configure logging with optional syslog support
+handlers = [
+    logging.FileHandler('port_tracer.log'),
+    logging.StreamHandler()
+]
+
+# Add syslog handler if configured and available
+syslog_server = os.getenv('SYSLOG_SERVER')
+if syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
+    try:
+        syslog_port = int(os.getenv('SYSLOG_PORT', 514))
+        syslog_handler = logging.handlers.SysLogHandler(address=(syslog_server, syslog_port))
+        syslog_handler.setFormatter(logging.Formatter('Dell-Port-Tracer: %(levelname)s - %(message)s'))
+        handlers.append(syslog_handler)
+        print(f"✅ Syslog logging enabled: {syslog_server}:{syslog_port}")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not connect to syslog server {syslog_server}: {str(e)}")
+        print("   Continuing without syslog logging...")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('port_tracer.log'),
-        logging.StreamHandler()
-    ]
+    handlers=handlers
 )
 logger = logging.getLogger(__name__)
+
+# CPU Safety configuration (override concurrent limits based on CPU protection zones)
+cpu_monitor = initialize_cpu_monitor(
+    green_threshold=float(os.getenv('CPU_GREEN_THRESHOLD', '40')),
+    yellow_threshold=float(os.getenv('CPU_YELLOW_THRESHOLD', '60')),
+    red_threshold=float(os.getenv('CPU_RED_THRESHOLD', '80'))
+)
+
+# Switch Protection Monitor initialization
+switch_monitor = None
+if SWITCH_PROTECTION_AVAILABLE:
+    switch_monitor = initialize_switch_protection_monitor(
+        max_connections_per_switch=int(os.getenv('MAX_CONNECTIONS_PER_SWITCH', '8')),
+        max_total_connections=int(os.getenv('MAX_TOTAL_CONNECTIONS', '64')),
+        commands_per_second_limit=int(os.getenv('COMMANDS_PER_SECOND_LIMIT', '10'))
+    )
+    logger.info("Switch protection monitor initialized")
+else:
+    logger.warning("Switch protection monitor not available - switches may be vulnerable to overload")
 
 # Concurrent user tracking per site (Dell switch limit: 10 concurrent SSH sessions)
 CONCURRENT_USERS_PER_SITE = defaultdict(lambda: {'count': 0, 'lock': threading.Lock()})
@@ -413,14 +460,15 @@ def apply_role_based_filtering(results, user_role):
     return filtered_results
 
 class DellSwitchSSH:
-    """Dell switch SSH connection handler."""
+    """Dell switch SSH connection handler with protection monitoring."""
     
-    def __init__(self, ip_address, username, password):
+    def __init__(self, ip_address, username, password, switch_monitor=None):
         self.ip_address = ip_address
         self.username = username
         self.password = password
         self.ssh_client = None
         self.shell = None
+        self.switch_monitor = switch_monitor
     
     def connect(self) -> bool:
         """Establish SSH connection to the switch."""
@@ -491,6 +539,7 @@ class DellSwitchSSH:
     
     def execute_mac_lookup(self, mac_address: str) -> str:
         """Execute MAC address table lookup command."""
+        success = False
         try:
             command = f"show mac address-table address {mac_address}"
             logger.info(f"Executing on {self.ip_address}: {command}")
@@ -507,11 +556,16 @@ class DellSwitchSSH:
                 output += additional_output
             
             logger.info(f"Command completed on {self.ip_address}, output: {len(output)} chars")
+            success = True
             return output
             
         except Exception as e:
             logger.error(f"Failed to execute MAC lookup on {self.ip_address}: {str(e)}")
             raise
+        finally:
+            # Record command execution for monitoring
+            if self.switch_monitor:
+                self.switch_monitor.record_command_execution(self.ip_address, success)
     
     def get_port_config(self, port_name: str) -> dict:
         """Get port configuration including mode and description."""
@@ -697,8 +751,18 @@ def trace_single_switch(switch_info, mac_address, username):
     switch_ip = switch_info['ip']
     switch_name = switch_info['name']
     
+    # Check switch-side protection limits before attempting connection
+    if switch_monitor and SWITCH_PROTECTION_AVAILABLE:
+        if not switch_monitor.acquire_switch_connection(switch_ip, username):
+            return {
+                'switch_name': switch_name,
+                'switch_ip': switch_ip,
+                'status': 'connection_rejected',
+                'message': 'Switch connection rejected due to protection limits. Please try again in a moment.'
+            }
+    
     try:
-        switch = DellSwitchSSH(switch_ip, SWITCH_USERNAME, SWITCH_PASSWORD)
+        switch = DellSwitchSSH(switch_ip, SWITCH_USERNAME, SWITCH_PASSWORD, switch_monitor)
         
         if not switch.connect():
             return {
@@ -784,6 +848,10 @@ def trace_single_switch(switch_info, mac_address, username):
                 switch.disconnect()
         except:
             pass
+        
+        # Always release switch connection slot
+        if switch_monitor and SWITCH_PROTECTION_AVAILABLE:
+            switch_monitor.release_switch_connection(switch_ip, username)
 
 def check_concurrent_user_limit(site):
     """Check if the concurrent user limit for a site has been reached."""
@@ -1182,7 +1250,60 @@ MAIN_TEMPLATE = """
 </html>
 """
 
+# Implement a before_request hook to check CPU load before processing requests
+@app.before_request
+def check_cpu_before_request():
+    # Only check CPU for compute-intensive operations
+    if request.endpoint in ['trace']:
+        can_accept, reason = cpu_monitor.can_accept_request()
+        if not can_accept:
+            return jsonify({'status': 'error', 'message': reason}), 503  # Service Unavailable
+
 # Routes
+@app.route('/cpu-status')
+def cpu_status():
+    """CPU monitoring status endpoint for admin users."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        stats = cpu_monitor.get_statistics()
+        return jsonify(stats), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/switch-protection-status')
+def switch_protection_status():
+    """Switch protection monitoring status endpoint for admin users."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    if not switch_monitor or not SWITCH_PROTECTION_AVAILABLE:
+        return jsonify({'error': 'Switch protection monitoring not available'}), 503
+    
+    try:
+        global_stats = switch_monitor.get_global_stats()
+        return jsonify({
+            'status': 'active',
+            'timestamp': datetime.now().isoformat(),
+            'global_stats': global_stats,
+            'configuration': {
+                'max_connections_per_switch': switch_monitor.max_connections_per_switch,
+                'max_total_connections': switch_monitor.max_total_connections,
+                'commands_per_second_limit': switch_monitor.commands_per_second_limit
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':

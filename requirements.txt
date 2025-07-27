@@ -18,6 +18,9 @@ Flask-HTTPAuth>=4.7.0
 # Windows Active Directory Authentication (Production Ready)
 ldap3>=2.9.1
 
+# System Monitoring for CPU Safety
+psutil>=5.9.0
+
 # Additional Security Dependencies
 cryptography>=3.4.8
 bcrypt>=3.2.0
