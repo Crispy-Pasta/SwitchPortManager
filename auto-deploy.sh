@@ -9,6 +9,18 @@ CONTAINER_NAME="dell-port-tracer"
 LOG_FILE="/home/janzen/auto-deploy.log"
 GITHUB_REPO="https://github.com/Crispy-Pasta/DellPortTracer.git"
 
+# Critical files to monitor for changes (used for selective monitoring)
+CRITICAL_FILES=(
+    "port_tracer_web.py"
+    "requirements.txt" 
+    "Dockerfile"
+    "nt_auth_integration.py"
+    "cpu_safety_monitor.py"
+    "switch_protection_monitor.py"
+    "switches.json"
+    ".env"
+)
+
 # Function to log messages with timestamp
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
