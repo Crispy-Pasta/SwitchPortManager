@@ -7,29 +7,53 @@ services:
       dockerfile: Dockerfile
     container_name: dell-port-tracer
     ports:
-      - "5000:5000"
+      - "8443:5000"  # Updated to match production port
     environment:
-      - USE_WINDOWS_AUTH=false
-      - SWITCH_USERNAME=admin
-      - SWITCH_PASSWORD=password
-      - OSS_PASSWORD=oss123
-      - NETADMIN_PASSWORD=netadmin123
-      - SUPERADMIN_PASSWORD=superadmin123
-      - WEB_PASSWORD=password
-      # Windows Auth settings (if needed)
-      - AD_SERVER=ldap://kmc.int
-      - AD_DOMAIN=kmc.int
-      - AD_BASE_DN=DC=kmc,DC=int
+      # v2.0 Features Configuration
+      - USE_WINDOWS_AUTH=true
+      - CPU_SAFETY_ENABLED=true
+      - CPU_GREEN_THRESHOLD=40.0
+      - CPU_YELLOW_THRESHOLD=60.0
+      - CPU_RED_THRESHOLD=80.0
+      - SWITCH_PROTECTION_ENABLED=true
+      - MAX_CONNECTIONS_PER_SWITCH=8
+      - MAX_TOTAL_CONNECTIONS=64
+      - COMMANDS_PER_SECOND_LIMIT=10
+      - SYSLOG_ENABLED=false
+      - SYSLOG_SERVER=localhost
+      - SYSLOG_PORT=514
+      # Authentication settings - use env file for sensitive data
+    env_file:
+      - .env
     volumes:
-      - ./switches.json:/app/switches.json:ro
-      - ./logs:/app/logs
+      # Use bind mount for switches.json to allow runtime updates
+      - type: bind
+        source: ./switches.json
+        target: /app/switches.json
+        read_only: false
+      - type: bind
+        source: ./logs
+        target: /app/logs
+        read_only: false
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health', timeout=5)"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+    # Security settings for production
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits for v2.0 CPU monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     networks:
       - port-tracer-network
 

@@ -115,6 +115,18 @@ main() {
     
     log_message "Successfully pulled latest changes"
     
+    # Sync switches.json to mounted location if it has changed
+    if [ -f "$REPO_DIR/switches.json" ] && [ -f "/home/janzen/switches.json" ]; then
+        if ! cmp -s "$REPO_DIR/switches.json" "/home/janzen/switches.json"; then
+            log_message "switches.json has changed, updating mounted file..."
+            cp "$REPO_DIR/switches.json" "/home/janzen/switches.json"
+            log_message "switches.json synchronized successfully"
+        fi
+    elif [ -f "$REPO_DIR/switches.json" ]; then
+        log_message "Copying switches.json to mounted location..."
+        cp "$REPO_DIR/switches.json" "/home/janzen/switches.json"
+    fi
+    
     # Check if container is currently running
     if is_container_running; then
         log_message "Container is currently running. Proceeding with update..."
