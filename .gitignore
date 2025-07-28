@@ -28,9 +28,12 @@ Thumbs.db
 *.tmp
 *.temp
 
-# Test files
-test_*.py
-*_test.py
+# Log files in logs folder
+logs/*.log
+
+# Test files (now in scripts folder)
+scripts/test_*.py
+scripts/*_test.py
 tests/
 
 # Development files
