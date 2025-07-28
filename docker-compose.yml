@@ -19,8 +19,8 @@ services:
       - MAX_CONNECTIONS_PER_SWITCH=8
       - MAX_TOTAL_CONNECTIONS=64
       - COMMANDS_PER_SECOND_LIMIT=10
-      - SYSLOG_ENABLED=false
-      - SYSLOG_SERVER=localhost
+      - SYSLOG_ENABLED=true
+      - SYSLOG_SERVER=10.10.250.18
       - SYSLOG_PORT=514
       # Authentication settings - use env file for sensitive data
     env_file:

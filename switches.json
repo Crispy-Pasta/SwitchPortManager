@@ -1756,18 +1756,27 @@
         }
       }
     },
-    "KC": {
+    "PBCOM": {
       "floors": {
-        "8": {
+        "33": {
           "switches": {
-            "KC-F8-C1-VAS-01": {
-              "ip_address": "192.168.4.3",
-              "model": "Dell N3000",
-              "description": "KC Site - KC-F8-C1-VAS-01 (Floor 8)",
-              "priority": 214,
+            "PBCOM-F33-C1-AS-01": {
+              "ip_address": "10.65.0.10",
+              "model": "Dell N3248",
+              "description": "PBCOM SITE - PBCOM-F33-C1-AS-01 (Floor 33)",
+              "priority": 210,
               "enabled": true,
-              "series": "N3000",
-              "port_category": "gi_te_ports"
+              "series": "N3200",
+              "port_category": "te_tw_ports"
+            },
+            "PBCOM-F33-C1-AS-02":{
+              "ip_address": "10.65.0.11",
+              "model": "Dell N3248",
+              "description": "PBCOM SITE - PBCOM-F33-C1-AS-02 (Floor 33)",
+              "priority": 211,
+              "enabled": true,
+              "series": "N3200",
+              "port_category": "te_tw_ports"
             }
           }
         }
