@@ -131,15 +131,31 @@ handlers = [
     logging.StreamHandler()
 ]
 
-# Add syslog handler if configured and available
+# Add syslog handler if configured and available (SolarWinds SEM compatible)
 syslog_server = os.getenv('SYSLOG_SERVER')
-if syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
+syslog_enabled = os.getenv('SYSLOG_ENABLED', 'false').lower() == 'true'
+if syslog_enabled and syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
     try:
         syslog_port = int(os.getenv('SYSLOG_PORT', 514))
-        syslog_handler = logging.handlers.SysLogHandler(address=(syslog_server, syslog_port))
-        syslog_handler.setFormatter(logging.Formatter('Dell-Port-Tracer: %(levelname)s - %(message)s'))
+        # Use facility LOCAL0 (16) for custom applications - SolarWinds SEM friendly
+        syslog_handler = logging.handlers.SysLogHandler(
+            address=(syslog_server, syslog_port),
+            facility=logging.handlers.SysLogHandler.LOG_LOCAL0
+        )
+        # RFC3164 compliant format for better SolarWinds SEM parsing
+        syslog_formatter = logging.Formatter(
+            'Dell-Port-Tracer[%(process)d]: %(levelname)s - %(funcName)s - %(message)s'
+        )
+        syslog_handler.setFormatter(syslog_formatter)
         handlers.append(syslog_handler)
-        print(f"✅ Syslog logging enabled: {syslog_server}:{syslog_port}")
+        print(f"✅ Syslog logging enabled for SolarWinds SEM: {syslog_server}:{syslog_port} (LOCAL0 facility)")
+        
+        # Send initial test message to confirm syslog connectivity
+        test_logger = logging.getLogger('syslog_test')
+        test_logger.addHandler(syslog_handler)
+        test_logger.setLevel(logging.INFO)
+        test_logger.info("Dell Port Tracer application started - Syslog connectivity test")
+        
     except Exception as e:
         print(f"⚠️  Warning: Could not connect to syslog server {syslog_server}: {str(e)}")
         print("   Continuing without syslog logging...")
@@ -175,12 +191,29 @@ CONCURRENT_USERS_PER_SITE = defaultdict(lambda: {'count': 0, 'lock': threading.L
 MAX_CONCURRENT_USERS_PER_SITE = int(os.getenv('MAX_CONCURRENT_USERS_PER_SITE', '10'))
 MAX_WORKERS_PER_SITE = int(os.getenv('MAX_WORKERS_PER_SITE', '8'))  # Parallel switch connections
 
-# Audit logging for user actions
+# Audit logging for user actions (with optional syslog support)
 audit_logger = logging.getLogger('audit')
 audit_handler = logging.FileHandler('audit.log')
 audit_formatter = logging.Formatter('%(asctime)s - AUDIT - %(message)s')
 audit_handler.setFormatter(audit_formatter)
 audit_logger.addHandler(audit_handler)
+
+# Add syslog handler for audit logs if syslog is enabled
+if syslog_enabled and syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
+    try:
+        audit_syslog_handler = logging.handlers.SysLogHandler(
+            address=(syslog_server, syslog_port),
+            facility=logging.handlers.SysLogHandler.LOG_LOCAL1  # Use LOCAL1 for audit logs
+        )
+        audit_syslog_formatter = logging.Formatter(
+            'Dell-Port-Tracer-AUDIT[%(process)d]: %(levelname)s - %(message)s'
+        )
+        audit_syslog_handler.setFormatter(audit_syslog_formatter)
+        audit_logger.addHandler(audit_syslog_handler)
+        print(f"✅ Audit syslog logging enabled: {syslog_server}:{syslog_port} (LOCAL1 facility)")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not configure audit syslog: {str(e)}")
+
 audit_logger.setLevel(logging.INFO)
 
 # Load switches configuration
