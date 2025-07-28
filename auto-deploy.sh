@@ -44,6 +44,11 @@ restart_container() {
         -v /home/janzen/logs:/app/logs \
         -v /home/janzen/switches.json:/app/switches.json \
         --env-file /home/janzen/.env \
+        -e SYSLOG_ENABLED=true \
+        -e SYSLOG_SERVER=10.10.250.18 \
+        -e SYSLOG_PORT=514 \
+        -e CPU_SAFETY_ENABLED=true \
+        -e SWITCH_PROTECTION_ENABLED=true \
         --restart unless-stopped \
         dell-port-tracer:latest
     
