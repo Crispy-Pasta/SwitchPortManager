@@ -56,6 +56,7 @@ import os
 from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, session, redirect, url_for
 from flask_httpauth import HTTPBasicAuth
+from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import secrets
 import threading
@@ -89,6 +90,14 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 auth = HTTPBasicAuth()
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///switches.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize database
+from database import db, Site, Floor, Switch
+db.init_app(app)
 
 # Configuration
 SWITCH_USERNAME = os.getenv('SWITCH_USERNAME')
@@ -722,7 +731,36 @@ def parse_mac_table_output(output, target_mac):
     return {'found': False, 'message': 'MAC address not found'}
 
 def get_site_floor_switches(site, floor):
-    """Get switches for specific site and floor."""
+    """Get switches for specific site and floor from database."""
+    try:
+        # Query database for switches
+        site_obj = Site.query.filter_by(name=site).first()
+        if not site_obj:
+            return []
+            
+        floor_obj = Floor.query.filter_by(site_id=site_obj.id, name=floor).first()
+        if not floor_obj:
+            return []
+            
+        switches = Switch.query.filter_by(floor_id=floor_obj.id, enabled=True).all()
+        
+        matching_switches = []
+        for switch in switches:
+            matching_switches.append({
+                'name': switch.name,
+                'ip': switch.ip_address,
+                'site': site,
+                'floor': floor
+            })
+        
+        return matching_switches
+    except Exception as e:
+        logger.error(f"Database error in get_site_floor_switches: {str(e)}")
+        # Fallback to JSON if database fails
+        return get_site_floor_switches_json(site, floor)
+
+def get_site_floor_switches_json(site, floor):
+    """Fallback function to get switches from JSON when database fails."""
     switches_config = load_switches()
     matching_switches = []
     
@@ -982,7 +1020,650 @@ def trace_mac_on_switches(switches, mac_address, username):
         # Always release the concurrent user slot
         release_concurrent_user_slot(site)
 
+
 # Web Interface HTML Templates
+MANAGE_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Switches</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=4.0">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        .manage-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 0px;
+            align-items: flex-start;
+            max-width: 100%;
+            overflow-x: auto;
+            min-height: 280px;
+        }
+        .form-container, .table-container {
+            flex: 1;
+        }
+        .form-container {
+            max-width: 280px;
+            flex-shrink: 0;
+            min-height: 300px;
+        }
+        .table-container {
+            min-width: 1000px;
+            max-width: calc(100% - 304px);
+            flex: 1;
+            overflow-x: auto;
+        }
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        #search-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid var(--light-blue);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+        }
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--orange);
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--rich-black);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .table-wrapper {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+                        #switches-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 14px;
+                    table-layout: fixed;
+                    min-width: 1000px;
+                }
+        #switches-table th {
+            background: var(--deep-navy);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+        #switches-table th:nth-child(1) { width: 25%; } /* Name */
+        #switches-table th:nth-child(2) { width: 15%; } /* IP Address */
+        #switches-table th:nth-child(3) { width: 15%; } /* Model */
+        #switches-table th:nth-child(4) { width: 12%; } /* Site */
+        #switches-table th:nth-child(5) { width: 8%; text-align: center; } /* Floor */
+        #switches-table th:nth-child(6) { width: 12%; text-align: center; } /* Status */
+        #switches-table th:nth-child(7) { width: 13%; } /* Actions */
+        #switches-table td {
+            padding: 8px 6px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        #switches-table td:nth-child(5) { text-align: center; } /* Floor */
+        #switches-table td:nth-child(6) { text-align: center; } /* Status */
+        #switches-table tr:hover {
+            background: #f8fafc;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-start;
+            flex-wrap: nowrap;
+            min-width: 80px;
+        }
+        .btn-small {
+            padding: 4px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            white-space: nowrap;
+            min-width: 35px;
+            text-align: center;
+            display: inline-block;
+        }
+        .btn-edit {
+            background: var(--orange);
+            color: white;
+        }
+        .btn-edit:hover {
+            background: var(--deep-navy);
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+            text-align: center;
+            min-width: 60px;
+        }
+        .status-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 300px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .toast.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        .toast.error {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+        }
+        .form-group {
+            margin-bottom: 8px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 3px;
+            font-weight: 600;
+            color: var(--deep-navy);
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--orange);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+    </style>
+</head>
+<body class="main-page manage-page">
+    <div class="container">
+        <div class="user-info">Logged in as: {{ username }} | <a href="/logout">Logout</a></div>
+        <div style="text-align:center; margin-bottom: 10px;">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
+        </div>
+        <div style="text-align:center; margin-bottom: 18px;">
+            <h1 style="margin:0;">Switch Management</h1>
+        </div>
+        
+        <div class="navigation-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🔍 Port Tracer</a>
+                <a href="/manage" class="nav-link active">⚙️ Manage Switches</a>
+                <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
+                <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-number" id="total-switches">-</div>
+                <div class="stat-label">Total Switches</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="enabled-switches">-</div>
+                <div class="stat-label">Enabled</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="disabled-switches">-</div>
+                <div class="stat-label">Disabled</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="total-sites">-</div>
+                <div class="stat-label">Sites</div>
+            </div>
+        </div>
+
+        <div class="manage-container">
+            <div class="form-container">
+                <div class="step">
+                    <h3>📝 Add/Edit Switch</h3>
+                    <form id="switch-form">
+                        <input type="hidden" id="switch-id" name="id">
+                        
+                        <div class="form-group">
+                            <label for="switch-name">Switch Name</label>
+                            <input type="text" id="switch-name" name="name" placeholder="e.g., SW-F11-R1-VAS-01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="switch-ip">IP Address</label>
+                            <input type="text" id="switch-ip" name="ip_address" placeholder="e.g., 10.50.0.10" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="switch-model">Model</label>
+                            <input type="text" id="switch-model" name="model" placeholder="e.g., Dell N3248" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="switch-description">Description</label>
+                            <input type="text" id="switch-description" name="description" placeholder="e.g., Floor 11 VAS Switch">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="site-select">Site</label>
+                            <select id="site-select" name="site_id" required>
+                                <option value="">Select site...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="floor-select">Floor</label>
+                            <select id="floor-select" name="floor_id" required disabled>
+                                <option value="">Select floor...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="switch-enabled" name="enabled" checked>
+                            <label for="switch-enabled">Switch is enabled</label>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" id="save-btn">💾 Save</button>
+                            <button type="button" id="clear-form-btn" class="btn-secondary">🗑️ Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <div class="step">
+                    <h3>📋 Switch Inventory</h3>
+                    <div class="search-container">
+                        <input type="text" id="search-input" placeholder="🔍 Search switches by name, IP, model, site, or floor...">
+                        <button type="button" id="refresh-btn" style="padding: 10px 15px; background: var(--orange); color: white; border: none; border-radius: 6px; cursor: pointer;">🔄 Refresh</button>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table id="switches-table">
+                            <thead>
+                                <tr>
+                                    <th>Switch Name</th>
+                                    <th>IP Address</th>
+                                    <th>Model</th>
+                                    <th>Site</th>
+                                    <th>Floor</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="loading">Loading switches...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('switch-form');
+            const tableBody = document.querySelector('#switches-table tbody');
+            const siteSelect = document.getElementById('site-select');
+            const floorSelect = document.getElementById('floor-select');
+            const searchInput = document.getElementById('search-input');
+            const toast = document.getElementById('toast');
+            const refreshBtn = document.getElementById('refresh-btn');
+            let allSwitches = [];
+            let allSites = [];
+
+            // Initialize Select2 for both dropdowns
+            $('#site-select').select2({
+                placeholder: 'Select site...',
+                allowClear: true
+            });
+            
+            $('#floor-select').select2({
+                placeholder: 'Select floor...',
+                allowClear: true
+            });
+
+            function showToast(message, type) {
+                toast.textContent = message;
+                toast.className = `toast show ${type}`;
+                setTimeout(() => {
+                    toast.className = toast.className.replace('show', '');
+                }, 4000);
+            }
+
+            function updateStats() {
+                const total = allSwitches.length;
+                const enabled = allSwitches.filter(s => s.enabled).length;
+                const disabled = total - enabled;
+                const sites = new Set(allSwitches.map(s => s.site_name)).size;
+
+                document.getElementById('total-switches').textContent = total;
+                document.getElementById('enabled-switches').textContent = enabled;
+                document.getElementById('disabled-switches').textContent = disabled;
+                document.getElementById('total-sites').textContent = sites;
+            }
+
+            function loadSites() {
+                return fetch('/api/sites')
+                    .then(response => response.json())
+                    .then(data => {
+                        allSites = data;
+                        
+                        // Populate site dropdown
+                        siteSelect.innerHTML = '<option value="">Select site...</option>';
+                        data.forEach(site => {
+                            const option = document.createElement('option');
+                            option.value = site.id;
+                            option.textContent = site.name;
+                            siteSelect.appendChild(option);
+                        });
+                        $('#site-select').trigger('change');
+                        
+                        // Initialize floor dropdown as empty and disabled
+                        floorSelect.innerHTML = '<option value="">Select floor...</option>';
+                        floorSelect.disabled = true;
+                        $('#floor-select').trigger('change');
+                    });
+            }
+            
+            // Handle site selection to populate floor dropdown
+            $('#site-select').on('change', function() {
+                const selectedSiteId = $(this).val();
+                floorSelect.innerHTML = '<option value="">Select floor...</option>';
+                
+                if (selectedSiteId) {
+                    const selectedSite = allSites.find(site => site.id == selectedSiteId);
+                    if (selectedSite) {
+                        selectedSite.floors.forEach(floor => {
+                            const option = document.createElement('option');
+                            option.value = floor.id;
+                            option.textContent = floor.name;
+                            floorSelect.appendChild(option);
+                        });
+                        floorSelect.disabled = false;
+                    }
+                } else {
+                    floorSelect.disabled = true;
+                }
+                $('#floor-select').trigger('change');
+            });
+
+            function renderTable(switches) {
+                if (switches.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <div>📭</div>
+                                <div>No switches found</div>
+                                <div style="font-size: 12px; margin-top: 5px;">Try adjusting your search criteria</div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                switches.forEach(switchData => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${switchData.name}</strong></td>
+                        <td><code>${switchData.ip_address}</code></td>
+                        <td>${switchData.model}</td>
+                        <td>${switchData.site_name}</td>
+                        <td>${switchData.floor_name.replace('Floor ', '')}</td>
+                        <td>
+                            <span class="status-badge ${switchData.enabled ? 'status-enabled' : 'status-disabled'}">
+                                ${switchData.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-small btn-edit edit-btn" data-id="${switchData.id}" title="Edit switch">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn-small btn-delete delete-btn" data-id="${switchData.id}" title="Delete switch">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            function loadSwitches() {
+                tableBody.innerHTML = '<tr><td colspan="7" class="loading">Loading switches...</td></tr>';
+                
+                fetch('/api/switches')
+                    .then(response => response.json())
+                    .then(data => {
+                        allSwitches = data;
+                        renderTable(allSwitches);
+                        updateStats();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        tableBody.innerHTML = '<tr><td colspan="7" class="empty-state">❌ Error loading switches</td></tr>';
+                        showToast('Error loading switches', 'error');
+                    });
+            }
+
+            // Search functionality
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const filteredSwitches = allSwitches.filter(sw => 
+                    sw.name.toLowerCase().includes(searchTerm) ||
+                    sw.ip_address.toLowerCase().includes(searchTerm) ||
+                    sw.model.toLowerCase().includes(searchTerm) ||
+                    sw.site_name.toLowerCase().includes(searchTerm) ||
+                    sw.floor_name.toLowerCase().includes(searchTerm)
+                );
+                renderTable(filteredSwitches);
+            });
+
+            // Form submission
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const switchId = document.getElementById('switch-id').value;
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+                const saveBtn = document.getElementById('save-btn');
+
+                // Disable button and show loading state
+                saveBtn.disabled = true;
+                saveBtn.textContent = switchId ? '🔄 Updating...' : '🔄 Creating...';
+
+                // Convert site_id to floor_id for API compatibility
+                if (data.site_id && data.floor_id) {
+                    // The floor_id is already correct, just remove site_id
+                    delete data.site_id;
+                }
+
+                const url = switchId ? `/api/switches/${switchId}` : '/api/switches';
+                const method = switchId ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        showToast(result.error, 'error');
+                    } else {
+                        showToast(result.message, 'success');
+                        form.reset();
+                        document.getElementById('switch-id').value = '';
+                        $('#floor-select').val('').trigger('change');
+                        loadSwitches();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error saving switch', 'error');
+                })
+                .finally(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = switchId ? '💾 Update' : '💾 Save';
+                });
+            });
+
+            // Table actions
+            tableBody.addEventListener('click', function(event) {
+                if (event.target.classList.contains('edit-btn')) {
+                    const switchId = event.target.dataset.id;
+                    const switchData = allSwitches.find(s => s.id == switchId);
+                    
+                    document.getElementById('switch-id').value = switchData.id;
+                    document.getElementById('switch-name').value = switchData.name;
+                    document.getElementById('switch-ip').value = switchData.ip_address;
+                    document.getElementById('switch-model').value = switchData.model;
+                    document.getElementById('switch-description').value = switchData.description || '';
+                    document.getElementById('switch-enabled').checked = switchData.enabled;
+                    
+                    // Set site first, then floor
+                    $('#site-select').val(switchData.site_id).trigger('change');
+                    
+                    // Wait for floor dropdown to populate, then set floor
+                    setTimeout(() => {
+                        $('#floor-select').val(switchData.floor_id).trigger('change');
+                    }, 100);
+                    
+                    // Update form button text
+                    document.getElementById('save-btn').textContent = '💾 Update';
+                    
+                    // Scroll to form
+                    document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+                    
+                } else if (event.target.classList.contains('delete-btn')) {
+                    const switchId = event.target.dataset.id;
+                    const switchData = allSwitches.find(s => s.id == switchId);
+                    
+                    if (confirm(`Are you sure you want to delete switch "${switchData.name}" (${switchData.ip_address})?\\n\\nThis action cannot be undone.`)) {
+                        fetch(`/api/switches/${switchId}`, { method: 'DELETE' })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.error) {
+                                    showToast(result.error, 'error');
+                                } else {
+                                    showToast(result.message, 'success');
+                                    loadSwitches();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showToast('Error deleting switch', 'error');
+                            });
+                    }
+                }
+            });
+
+            // Clear form
+            document.getElementById('clear-form-btn').addEventListener('click', () => {
+                form.reset();
+                document.getElementById('switch-id').value = '';
+                $('#site-select').val('').trigger('change');
+                $('#floor-select').val('').trigger('change');
+                floorSelect.disabled = true;
+                document.getElementById('save-btn').textContent = '💾 Save';
+            });
+
+            // Refresh button
+            refreshBtn.addEventListener('click', () => {
+                loadSwitches();
+                showToast('Switches refreshed', 'success');
+            });
+
+            // Initialize
+            loadSites().then(() => {
+                loadSwitches();
+            });
+        });
+    </script>
+</body>
+</html>
+"""
 LOGIN_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -1027,6 +1708,15 @@ MAIN_TEMPLATE = """
         </div>
         <div style="text-align:center; margin-bottom: 18px;">
             <h1 style="margin:0;">Switch Port Tracer</h1>
+        </div>
+        
+        <div class="navigation-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link active">🔍 Port Tracer</a>
+                <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
+                <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
+                <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+            </div>
         </div>
         <div class="step">
             <h3>Step 1: Select Site and Floor</h3>
@@ -1457,6 +2147,223 @@ def trace():
     sorted_results = sorted(filtered_results, key=get_port_priority)
     
     return jsonify(sorted_results)
+
+# CRUD Routes for Switch Management (NetAdmin/SuperAdmin only)
+@app.route('/manage')
+def manage_switches():
+    """Switch management interface for network administrators."""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    return render_template_string(MANAGE_TEMPLATE, username=session['username'], user_role=user_role)
+
+@app.route('/api/switches')
+def api_get_switches():
+    """API endpoint to get all switches with their sites and floors."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        switches = db.session.query(Switch, Floor, Site).join(Floor, Switch.floor_id == Floor.id).join(Site, Floor.site_id == Site.id).all()
+        
+        switches_data = []
+        for switch, floor, site in switches:
+            switches_data.append({
+                'id': switch.id,
+                'name': switch.name,
+                'ip_address': switch.ip_address,
+                'model': switch.model,
+                'description': switch.description or '',
+                'enabled': switch.enabled,
+                'site_name': site.name,
+                'floor_name': floor.name,
+                'site_id': site.id,
+                'floor_id': floor.id
+            })
+        
+        return jsonify(switches_data)
+    except Exception as e:
+        logger.error(f"Error fetching switches: {str(e)}")
+        return jsonify({'error': 'Failed to fetch switches'}), 500
+
+@app.route('/api/sites')
+def api_get_sites():
+    """API endpoint to get all sites and their floors."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        sites = Site.query.all()
+        sites_data = []
+        
+        for site in sites:
+            floors_data = []
+            for floor in site.floors:
+                floors_data.append({
+                    'id': floor.id,
+                    'name': floor.name
+                })
+            
+            sites_data.append({
+                'id': site.id,
+                'name': site.name,
+                'floors': floors_data
+            })
+        
+        return jsonify(sites_data)
+    except Exception as e:
+        logger.error(f"Error fetching sites: {str(e)}")
+        return jsonify({'error': 'Failed to fetch sites'}), 500
+
+@app.route('/api/switches', methods=['POST'])
+def api_create_switch():
+    """API endpoint to create a new switch."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        # Validate required fields
+        required_fields = ['name', 'ip_address', 'model', 'floor_id']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Check if switch name or IP already exists
+        existing_switch = Switch.query.filter(
+            (Switch.name == data['name']) | (Switch.ip_address == data['ip_address'])
+        ).first()
+        
+        if existing_switch:
+            return jsonify({'error': 'Switch name or IP address already exists'}), 400
+        
+        # Create new switch
+        new_switch = Switch(
+            name=data['name'],
+            ip_address=data['ip_address'],
+            model=data['model'],
+            description=data.get('description', ''),
+            enabled=data.get('enabled', True),
+            floor_id=data['floor_id']
+        )
+        
+        db.session.add(new_switch)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SWITCH CREATED - {data['name']} ({data['ip_address']})")
+        
+        return jsonify({'message': 'Switch created successfully', 'id': new_switch.id}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating switch: {str(e)}")
+        return jsonify({'error': 'Failed to create switch'}), 500
+
+@app.route('/api/switches/<int:switch_id>', methods=['PUT'])
+def api_update_switch(switch_id):
+    """API endpoint to update an existing switch."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        switch = Switch.query.get_or_404(switch_id)
+        data = request.json
+        username = session['username']
+        
+        # Store old values for audit log
+        old_name = switch.name
+        old_ip = switch.ip_address
+        
+        # Check if new name or IP conflicts with other switches
+        if data.get('name') and data['name'] != switch.name:
+            existing = Switch.query.filter(Switch.name == data['name'], Switch.id != switch_id).first()
+            if existing:
+                return jsonify({'error': 'Switch name already exists'}), 400
+        
+        if data.get('ip_address') and data['ip_address'] != switch.ip_address:
+            existing = Switch.query.filter(Switch.ip_address == data['ip_address'], Switch.id != switch_id).first()
+            if existing:
+                return jsonify({'error': 'IP address already exists'}), 400
+        
+        # Update switch fields
+        if 'name' in data:
+            switch.name = data['name']
+        if 'ip_address' in data:
+            switch.ip_address = data['ip_address']
+        if 'model' in data:
+            switch.model = data['model']
+        if 'description' in data:
+            switch.description = data['description']
+        if 'enabled' in data:
+            switch.enabled = data['enabled']
+        if 'floor_id' in data:
+            switch.floor_id = data['floor_id']
+        
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SWITCH UPDATED - {old_name} ({old_ip}) -> {switch.name} ({switch.ip_address})")
+        
+        return jsonify({'message': 'Switch updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating switch: {str(e)}")
+        return jsonify({'error': 'Failed to update switch'}), 500
+
+@app.route('/api/switches/<int:switch_id>', methods=['DELETE'])
+def api_delete_switch(switch_id):
+    """API endpoint to delete a switch."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        switch = Switch.query.get_or_404(switch_id)
+        username = session['username']
+        
+        # Store values for audit log
+        switch_name = switch.name
+        switch_ip = switch.ip_address
+        
+        db.session.delete(switch)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SWITCH DELETED - {switch_name} ({switch_ip})")
+        
+        return jsonify({'message': 'Switch deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting switch: {str(e)}")
+        return jsonify({'error': 'Failed to delete switch'}), 500
 
 if __name__ == '__main__':
     print("🔌 Starting Dell Switch Port Tracer Web Service...")

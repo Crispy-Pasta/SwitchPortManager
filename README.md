@@ -11,6 +11,8 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 ## 🚀 Features
 
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
+- **Database-Driven Architecture**: SQLite database for scalable switch inventory management
+- **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
 - **Role-Based Permissions**: Three access levels (OSS, NetAdmin, SuperAdmin) with different capabilities
 - **Dell Switch Support**: Comprehensive support for Dell N2000, N3000, and N3200 series switches (including N2048, N3248, N3024P models)
@@ -77,8 +79,13 @@ pip install -r requirements.txt
    AD_BASE_DN=DC=your-domain,DC=com
    ```
 
-4. **Configure Switch Inventory**
-   Update `switches.json` with your network topology
+4. **Initialize Database**
+   ```bash
+   # If migrating from switches.json (existing installations)
+   python migrate.py
+   
+   # For new installations, the database will be created automatically
+   ```
 
 5. **Start the Application**
    ```bash
@@ -164,6 +171,13 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 - **Found Results**: Switch, port, VLAN, and configuration details
 - **Role-Based Filtering**: Information displayed based on user permissions
 - **Error Handling**: Clear messaging for connection issues or failures
+
+### Switch Management Interface (NetAdmin/SuperAdmin Only)
+- **CRUD Operations**: Create, read, update, and delete switches, sites, and floors
+- **Real-time Search**: Filter switches by name, IP, model, site, or floor
+- **Bulk Operations**: Manage multiple switches efficiently
+- **Data Validation**: Form validation and error handling
+- **Audit Logging**: All management operations are logged for compliance
 
 ## 📊 Monitoring & Health Checks
 

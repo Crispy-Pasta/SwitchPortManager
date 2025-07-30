@@ -62,12 +62,22 @@ body.main-page .container input[type="text"] {
 
 .container {
   max-width: 800px;
-  margin: 40px auto;
+  margin: 20px auto;
   background: var(--white);
-  padding: 30px;
+  padding: 20px;
   border-radius: 12px;
   box-shadow: 0 0 16px rgba(0, 23, 56, 0.08);
   border: 1px solid var(--light-blue);
+}
+
+/* Ensure main page container is properly sized */
+body.main-page .container {
+  max-width: 800px;
+}
+
+/* Management page specific container size */
+body.manage-page .container {
+  max-width: 1600px;
 }
 
 h1, h3 {
@@ -172,6 +182,7 @@ button:disabled {
   border-radius: 6px;
   height: 44px;
   color: var(--deep-navy);
+  min-width: 200px;
 }
 
 .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -187,6 +198,7 @@ button:disabled {
   border: 1px solid var(--light-blue);
   border-radius: 6px;
   box-shadow: 0 4px 8px rgba(0, 23, 56, 0.1);
+  min-width: 200px;
 }
 
 .select2-container--default .select2-search--dropdown {
@@ -219,6 +231,8 @@ button:disabled {
 .select2-container--default .select2-results__option {
   padding: 10px 12px;
   color: var(--deep-navy);
+  white-space: nowrap;
+  min-width: 200px;
 }
 
 .select2-container--default .select2-results__option--highlighted {
@@ -308,4 +322,178 @@ a:hover {
   color: var(--deep-navy);
   font-weight: bold;
   font-size: 0.95em;
+}
+
+/* Ensure floor select dropdown has enough width */
+#floor-select, #site-select {
+  min-width: 200px;
+}
+
+/* Better form spacing for management page */
+body.manage-page .form-group {
+  margin-bottom: 6px;
+}
+
+body.manage-page .form-group label {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 500;
+  color: var(--deep-navy);
+  font-size: 13px;
+}
+
+body.manage-page .form-group input,
+body.manage-page .form-group select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--light-blue);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--white);
+  color: var(--deep-navy);
+}
+
+body.manage-page .form-group input:focus,
+body.manage-page .form-group select:focus {
+  border-color: var(--orange);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 114, 0, 0.2);
+}
+
+body.manage-page .form-actions {
+  margin-top: 6px;
+}
+
+.select2-container {
+  min-width: 200px !important;
+}
+
+/* Style for disabled floor dropdown */
+#floor-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Better spacing for table columns */
+#switches-table td:nth-child(1) {
+  padding-right: 15px;
+}
+
+#switches-table td:nth-child(2) {
+  padding-right: 15px;
+}
+
+#switches-table td:nth-child(3) {
+  padding-right: 15px;
+  min-width: 150px;
+}
+
+#switches-table td:nth-child(4) {
+  padding-right: 10px;
+}
+
+#switches-table td:nth-child(5) {
+  padding-right: 14px;
+  padding-left: 10px;
+}
+
+#switches-table td:nth-child(6) {
+  padding-right: 20px;
+  padding-left: 12px;
+}
+
+#switches-table td:nth-child(7) {
+  padding-left: 15px;
+}
+
+/* Ensure table doesn't overflow */
+#switches-table {
+  min-width: 1200px;
+  font-size: 13px;
+}
+
+/* Ensure action buttons are fully visible */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 80px;
+}
+
+.btn-small {
+  white-space: nowrap;
+  min-width: 35px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+/* Ensure switch names stay on one line but show full text */
+#switches-table td:nth-child(1) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  min-width: 250px;
+}
+
+/* Ensure IP addresses don't overlap */
+#switches-table td:nth-child(2) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  min-width: 150px;
+}
+
+/* Center align Floor and Status columns */
+#switches-table td:nth-child(5) {
+  text-align: center;
+}
+
+#switches-table td:nth-child(6) {
+  text-align: center;
+}
+
+/* Management page specific styling */
+body.manage-page {
+  min-height: 100vh;
+}
+
+body.manage-page .container {
+  max-width: 1400px;
+  margin: 2px auto;
+  min-height: calc(100vh - 4px);
+  padding: 10px;
+}
+
+/* Navigation bar styling */
+.navigation-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--light-blue);
+}
+
+.nav-links {
+  display: flex;
+  gap: 15px;
+}
+
+.nav-links a {
+  color: var(--orange);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.nav-links a:hover {
+  background: var(--orange);
+  color: white;
+}
+
+.nav-links a.active {
+  background: var(--orange);
+  color: white;
 }

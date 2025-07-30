@@ -15,6 +15,10 @@ python-dotenv>=1.0.0
 # HTTP Basic Authentication Support
 Flask-HTTPAuth>=4.7.0
 
+# Database ORM and Migration Support
+Flask-SQLAlchemy>=3.0.5
+Flask-Migrate>=4.0.5
+
 # Windows Active Directory Authentication (Production Ready)
 ldap3>=2.9.1
 
