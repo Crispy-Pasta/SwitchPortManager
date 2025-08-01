@@ -1713,9 +1713,11 @@ MAIN_TEMPLATE = """
         <div class="navigation-bar">
             <div class="nav-links">
                 <a href="/" class="nav-link active">🔍 Port Tracer</a>
+                {% if user_role in ['netadmin', 'superadmin'] %}
                 <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
                 <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
                 <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+                {% endif %}
             </div>
         </div>
         <div class="step">
