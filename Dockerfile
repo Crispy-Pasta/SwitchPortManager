@@ -24,17 +24,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN useradd --create-home --shell /bin/bash app \
     && chown -R app:app /app
 
-# Create directories for logs and data
-RUN mkdir -p /app/logs /app/static/img \
-    && chown -R app:app /app/logs /app/static
+# Create directories for logs, data, and database
+RUN mkdir -p /app/logs /app/static/img /app/instance \
+    && chown -R app:app /app/logs /app/static /app/instance
 
 # Copy application files
 COPY port_tracer_web.py .
+COPY database.py .
+COPY migrate.py .
 COPY cpu_safety_monitor.py .
 COPY switch_protection_monitor.py .
 COPY nt_auth_integration.py .
 COPY switches.json .
 COPY static/ ./static/
+COPY instance/ ./instance/
 
 # Set ownership of all files to app user
 RUN chown -R app:app /app
