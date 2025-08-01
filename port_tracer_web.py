@@ -241,12 +241,26 @@ audit_logger.setLevel(logging.INFO)
 
 # Load switches configuration
 def load_switches():
-    """Load switches from JSON configuration."""
+    """Load switches from PostgreSQL."""
     try:
-        with open('switches.json', 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        logger.error("switches.json not found")
+        sites_with_switches = {}
+        sites = Site.query.all()
+        for site in sites:
+            floors = Floor.query.filter_by(site_id=site.id).all()
+            floors_with_switches = {}
+            for floor in floors:
+                switches = Switch.query.filter_by(floor_id=floor.id, enabled=True).all()
+                switch_data = [{'name': sw.name, 'ip': sw.ip_address} for sw in switches]
+                if switch_data:
+                    floors_with_switches[floor.name] = switch_data
+            if floors_with_switches:
+                sites_with_switches[site.name] = floors_with_switches
+        if not sites_with_switches:
+            return {"sites": []}
+        else:
+            return {"sites": sites_with_switches}
+    except Exception as e:
+        logger.error(f"Failed to load switches from the database: {str(e)}")
         return {"sites": []}
 
 # Authentication functions
@@ -778,7 +792,7 @@ def get_site_floor_switches_json(site, floor):
     switches_config = load_switches()
     matching_switches = []
     
-    # Handle the actual JSON structure from switches.json
+    # Handle the JSON structure from database fallback
     sites = switches_config.get('sites', {})
     if site in sites:
         floors = sites[site].get('floors', {})
@@ -840,7 +854,7 @@ def format_switches_for_frontend(user_role='oss'):
         return format_switches_for_frontend_json(user_role)
 
 def format_switches_for_frontend_json(user_role='oss'):
-    """Fallback function to convert switches.json format for frontend consumption."""
+    """Fallback function to convert database format for frontend consumption."""
     switches_config = load_switches()
     formatted_sites = []
     
@@ -912,7 +926,7 @@ def trace_single_switch(switch_info, mac_address, username):
             # Detect switch model for accurate caution detection
             switch_model = 'N3000'  # Default fallback
             try:
-                # Try to get switch model from switches.json
+                # Try to get switch model from database fallback
                 switches_config = load_switches()
                 sites = switches_config.get('sites', {})
                 for site_name, site_config in sites.items():
@@ -2138,10 +2152,17 @@ def index():
 def health_check():
     """Health check endpoint for Kubernetes liveness and readiness probes."""
     try:
-        # Check if switches configuration is available
-        switches_config = load_switches()
-        if not switches_config.get('sites'):
-            return jsonify({'status': 'unhealthy', 'reason': 'No switches configured'}), 503
+# Use PostgreSQL to check if switches configuration is available
+        try:
+            site_count = Site.query.count()
+            if site_count == 0:
+                return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
+            return jsonify({
+                'status': 'healthy',
+            })
+        except Exception as e:
+            logger.error(f"Health check failed: {str(e)}")
+            return jsonify({'status': 'unhealthy', 'reason': 'Database connection failed'}), 503
         
         return jsonify({
             'status': 'healthy',
