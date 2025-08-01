@@ -63,6 +63,11 @@ services:
       - AD_SERVER=${AD_SERVER}
       - AD_DOMAIN=${AD_DOMAIN}
       - AD_BASE_DN=${AD_BASE_DN}
+      - AD_USER_SEARCH_BASE=${AD_USER_SEARCH_BASE}
+      - AD_GROUP_SEARCH_BASE=${AD_GROUP_SEARCH_BASE}
+      - AD_REQUIRED_GROUP=${AD_REQUIRED_GROUP}
+      - AD_SERVICE_USER=${AD_SERVICE_USER}
+      - AD_SERVICE_PASSWORD=${AD_SERVICE_PASSWORD}
     volumes:
       - ./logs:/app/logs
     depends_on:
