@@ -1,3 +1,17 @@
+/*
+ * Dell Switch Port Tracer v2.0 - Stylesheet
+ * PostgreSQL-Driven MAC Address Tracing Solution
+ * 
+ * Features:
+ * - Enterprise-grade PostgreSQL database backend
+ * - Real-time switch management interface
+ * - Role-based access control (OSS/NetAdmin/SuperAdmin)
+ * - CPU Safety and Switch Protection monitoring
+ * - Windows AD integration
+ * 
+ * Updated: August 2025 - PostgreSQL Migration Complete
+ */
+
 :root {
   --deep-navy: #001738;
   --orange: #FF7200;

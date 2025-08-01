@@ -27,6 +27,20 @@ spec:
         env:
         - name: USE_WINDOWS_AUTH
           value: "true"
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        - name: POSTGRES_DB
+          value: "port_tracer_db"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-credentials
+              key: POSTGRES_PASSWORD
         # CPU and Switch Protection Settings
         - name: CPU_SAFETY_ENABLED
           value: "true"
@@ -57,9 +71,6 @@ spec:
             name: port-tracer-secrets
         # Volume mounts
         volumeMounts:
-        - name: config-volume
-          mountPath: /app/switches.json
-          subPath: switches.json
         - name: logs-volume
           mountPath: /app/logs
         # Resource limits
@@ -98,9 +109,6 @@ spec:
             - ALL
       # Volumes
       volumes:
-      - name: config-volume
-        configMap:
-          name: port-tracer-config
       - name: logs-volume
         emptyDir: {}
       # Security context for the pod

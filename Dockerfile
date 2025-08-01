@@ -12,6 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better Docker layer caching
@@ -31,13 +32,12 @@ RUN mkdir -p /app/logs /app/static/img /app/instance \
 # Copy application files
 COPY port_tracer_web.py .
 COPY database.py .
-COPY migrate.py .
+COPY init_database.py .
+COPY migrate_data.py .
 COPY cpu_safety_monitor.py .
 COPY switch_protection_monitor.py .
 COPY nt_auth_integration.py .
-COPY switches.json .
 COPY static/ ./static/
-COPY instance/ ./instance/
 
 # Set ownership of all files to app user
 RUN chown -R app:app /app

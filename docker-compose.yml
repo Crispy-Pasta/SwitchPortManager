@@ -1,61 +1,82 @@
 version: '3.8'
 
 services:
-  dell-port-tracer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: dell-port-tracer
-    ports:
-      - "8443:5000"  # Updated to match production port
+  postgres:
+    image: postgres:15
+    container_name: port-tracer-postgres
     environment:
-      # v2.0 Features Configuration
-      - USE_WINDOWS_AUTH=true
-      - CPU_SAFETY_ENABLED=true
-      - CPU_GREEN_THRESHOLD=40.0
-      - CPU_YELLOW_THRESHOLD=60.0
-      - CPU_RED_THRESHOLD=80.0
-      - SWITCH_PROTECTION_ENABLED=true
-      - MAX_CONNECTIONS_PER_SWITCH=8
-      - MAX_TOTAL_CONNECTIONS=64
-      - COMMANDS_PER_SECOND_LIMIT=10
-      - SYSLOG_ENABLED=true
-      - SYSLOG_SERVER=10.10.250.18
-      - SYSLOG_PORT=514
-      # Authentication settings - use env file for sensitive data
-    env_file:
-      - .env
+      - POSTGRES_DB=${POSTGRES_DB:-port_tracer_db}
+      - POSTGRES_USER=${POSTGRES_USER:-dell_tracer_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password123}
+      - POSTGRES_HOST_AUTH_METHOD=md5
     volumes:
-      # Use bind mount for switches.json to allow runtime updates
-      - type: bind
-        source: ./switches.json
-        target: /app/switches.json
-        read_only: false
-      - type: bind
-        source: ./logs
-        target: /app/logs
-        read_only: false
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dell_tracer_user} -d ${POSTGRES_DB:-port_tracer_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  port-tracer:
+    build: .
+    container_name: port-tracer-app
+    ports:
+      - "5000:5000"
+    environment:
+      # PostgreSQL Database Configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-port_tracer_db}
+      - POSTGRES_USER=${POSTGRES_USER:-dell_tracer_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password123}
+      
+      # Dell Switch SSH Credentials
+      - SWITCH_USERNAME=${SWITCH_USERNAME}
+      - SWITCH_PASSWORD=${SWITCH_PASSWORD}
+      
+      # Web Service Configuration
+      - OSS_PASSWORD=${OSS_PASSWORD:-oss123}
+      - NETADMIN_PASSWORD=${NETADMIN_PASSWORD:-netadmin123}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-superadmin123}
+      - WEB_PASSWORD=${WEB_PASSWORD:-password}
+      
+      # CPU Safety Thresholds
+      - CPU_GREEN_THRESHOLD=${CPU_GREEN_THRESHOLD:-20}
+      - CPU_YELLOW_THRESHOLD=${CPU_YELLOW_THRESHOLD:-40}
+      - CPU_RED_THRESHOLD=${CPU_RED_THRESHOLD:-60}
+      
+      # Switch Protection Monitor Configuration
+      - MAX_CONNECTIONS_PER_SWITCH=${MAX_CONNECTIONS_PER_SWITCH:-8}
+      - MAX_TOTAL_CONNECTIONS=${MAX_TOTAL_CONNECTIONS:-64}
+      - COMMANDS_PER_SECOND_LIMIT=${COMMANDS_PER_SECOND_LIMIT:-10}
+      
+      # Syslog Configuration (Optional)
+      - SYSLOG_ENABLED=${SYSLOG_ENABLED:-false}
+      - SYSLOG_SERVER=${SYSLOG_SERVER}
+      - SYSLOG_PORT=${SYSLOG_PORT:-514}
+      
+      # Windows Active Directory Configuration (Optional)
+      - USE_WINDOWS_AUTH=${USE_WINDOWS_AUTH:-false}
+      - AD_SERVER=${AD_SERVER}
+      - AD_DOMAIN=${AD_DOMAIN}
+      - AD_BASE_DN=${AD_BASE_DN}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-    # Security settings for production
-    security_opt:
-      - no-new-privileges:true
-    # Resource limits for v2.0 CPU monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
-    networks:
-      - port-tracer-network
+
+volumes:
+  postgres_data:
 
 networks:
   port-tracer-network:

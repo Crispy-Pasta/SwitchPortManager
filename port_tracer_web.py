@@ -91,9 +91,23 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 auth = HTTPBasicAuth()
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///switches.db')
+# Database configuration - PostgreSQL by default
+postgres_host = os.getenv('POSTGRES_HOST', 'localhost')
+postgres_port = os.getenv('POSTGRES_PORT', '5432')
+postgres_db = os.getenv('POSTGRES_DB', 'dell_port_tracer')
+postgres_user = os.getenv('POSTGRES_USER', 'dell_tracer_user')
+postgres_password = os.getenv('POSTGRES_PASSWORD', 'dell_tracer_pass')
+
+# Construct PostgreSQL connection URL
+default_db_url = f'postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}'
+
+# Allow override via DATABASE_URL environment variable
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', default_db_url)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 300,  # Recycle connections every 5 minutes
+    'pool_pre_ping': True  # Verify connections before use
+}
 
 # Initialize database
 from database import db, Site, Floor, Switch
@@ -782,7 +796,51 @@ def get_site_floor_switches_json(site, floor):
     return matching_switches
 
 def format_switches_for_frontend(user_role='oss'):
-    """Convert switches.json format for frontend consumption."""
+    """Convert PostgreSQL database format for frontend consumption."""
+    try:
+        # Query PostgreSQL database for all sites with floors and switches
+        sites = Site.query.all()
+        formatted_sites = []
+        
+        for site in sites:
+            floors = []
+            for floor in site.floors:
+                switches = []
+                # Only include enabled switches
+                enabled_switches = [s for s in floor.switches if s.enabled]
+                
+                for switch in enabled_switches:
+                    # Always use actual switch names in data structure
+                    # Role-based filtering will be handled in frontend JavaScript
+                    switches.append({
+                        'name': switch.name,
+                        'ip': switch.ip_address,
+                        'model': switch.model or 'Unknown',
+                        'description': switch.description or ''
+                    })
+                
+                if switches:  # Only include floors with enabled switches
+                    floors.append({
+                        'floor': floor.name,
+                        'switches': switches
+                    })
+            
+            if floors:  # Only include sites with floors that have switches
+                formatted_sites.append({
+                    'name': site.name,
+                    'location': f"{site.name.upper()} Site",
+                    'floors': floors
+                })
+        
+        return {'sites': formatted_sites}
+        
+    except Exception as e:
+        logger.error(f"Database error in format_switches_for_frontend: {str(e)}")
+        # Fallback to JSON if database fails
+        return format_switches_for_frontend_json(user_role)
+
+def format_switches_for_frontend_json(user_role='oss'):
+    """Fallback function to convert switches.json format for frontend consumption."""
     switches_config = load_switches()
     formatted_sites = []
     

@@ -11,8 +11,9 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 ## 🚀 Features
 
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
-- **Database-Driven Architecture**: SQLite database for scalable switch inventory management
+- **Database-Driven Architecture**: PostgreSQL database for enterprise-grade scalability and reliability
 - **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
+- **Database Migration Support**: Seamless migration from SQLite to PostgreSQL with data integrity validation
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
 - **Role-Based Permissions**: Three access levels (OSS, NetAdmin, SuperAdmin) with different capabilities
 - **Dell Switch Support**: Comprehensive support for Dell N2000, N3000, and N3200 series switches (including N2048, N3248, N3024P models)
@@ -27,6 +28,7 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 
 ### System Requirements
 - Python 3.8+
+- PostgreSQL 12+ (or Docker for containerized database)
 - Docker (for containerized deployment)
 - Kubernetes cluster (for production deployment)
 - Network access to Dell switches via SSH
@@ -63,6 +65,13 @@ pip install -r requirements.txt
 3. **Configure Environment Variables**
    Create a `.env` file:
    ```env
+   # PostgreSQL Database Configuration
+   POSTGRES_HOST=localhost
+   POSTGRES_PORT=5432
+   POSTGRES_DB=port_tracer_db
+   POSTGRES_USER=dell_tracer_user
+   POSTGRES_PASSWORD=secure_password_here
+
    # Dell Switch SSH Credentials
    SWITCH_USERNAME=your_switch_username
    SWITCH_PASSWORD=your_switch_password
@@ -71,20 +80,57 @@ pip install -r requirements.txt
    OSS_PASSWORD=oss123
    NETADMIN_PASSWORD=netadmin123
    SUPERADMIN_PASSWORD=superadmin123
+   WEB_PASSWORD=admin_password_here
+
+   # CPU Safety Thresholds
+   CPU_GREEN_THRESHOLD=20
+   CPU_YELLOW_THRESHOLD=40
+   CPU_RED_THRESHOLD=60
+
+   # Switch Protection Monitor Configuration
+   MAX_CONNECTIONS_PER_SWITCH=8
+   MAX_TOTAL_CONNECTIONS=64
+   COMMANDS_PER_SECOND_LIMIT=10
+
+   # Syslog Configuration (Optional)
+   SYSLOG_ENABLED=true
+   SYSLOG_SERVER=your-syslog-server
+   SYSLOG_PORT=514
 
    # Windows Active Directory Configuration (Optional)
-   USE_WINDOWS_AUTH=true
+   USE_WINDOWS_AUTH=false
    AD_SERVER=ldap://your-domain.com
    AD_DOMAIN=your-domain.com
    AD_BASE_DN=DC=your-domain,DC=com
    ```
 
-4. **Initialize Database**
-   ```bash
-   # If migrating from switches.json (existing installations)
-   python migrate.py
+4. **Setup PostgreSQL Database**
    
-   # For new installations, the database will be created automatically
+   **Option A: Using Docker (Recommended)**
+   ```bash
+   # Run PostgreSQL in Docker
+   docker run -d --name port-tracer-postgres \
+     -e POSTGRES_DB=port_tracer_db \
+     -e POSTGRES_USER=dell_tracer_user \
+     -e POSTGRES_PASSWORD=secure_password_here \
+     -p 5432:5432 postgres:15
+   ```
+   
+   **Option B: Using Existing PostgreSQL Server**
+   ```sql
+   -- Connect to your PostgreSQL server and run:
+   CREATE DATABASE port_tracer_db;
+   CREATE USER dell_tracer_user WITH PASSWORD 'secure_password_here';
+   GRANT ALL PRIVILEGES ON DATABASE port_tracer_db TO dell_tracer_user;
+   ```
+
+5. **Initialize Database Schema and Data**
+   ```bash
+   # Initialize database with schema and sample data
+   python init_database.py
+   
+   # If migrating from SQLite (existing installations)
+   python migrate_data.py
    ```
 
 5. **Start the Application**
