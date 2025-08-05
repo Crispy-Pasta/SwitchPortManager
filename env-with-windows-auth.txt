@@ -1,0 +1,32 @@
+# PostgreSQL Database Configuration
+DATABASE_URL=postgresql://dell_tracer_user:secure_password123@localhost:5432/port_tracer_db
+POSTGRES_DB=port_tracer_db
+POSTGRES_USER=dell_tracer_user
+POSTGRES_PASSWORD=secure_password123
+
+# Application Configuration
+FLASK_ENV=production
+SECRET_KEY=your-secret-key-here
+PORT=5000
+
+# Switch Credentials (will be configured later)
+SWITCH_USERNAME=
+SWITCH_PASSWORD=
+
+# Syslog Configuration (will be configured later)
+SYSLOG_SERVER=
+
+# Windows Active Directory Configuration - ENABLED
+USE_WINDOWS_AUTH=true
+AD_SERVER=ldap://kmc.int
+AD_DOMAIN=kmc.int
+AD_BASE_DN=DC=kmc,DC=int
+AD_USER_SEARCH_BASE=DC=kmc,DC=int
+AD_GROUP_SEARCH_BASE=DC=kmc,DC=int
+
+# Optional: Restrict access to specific AD group
+# AD_REQUIRED_GROUP=CN=NOC Team,CN=Users,DC=kmc,DC=int
+
+# Optional: Service account for enhanced group lookups (recommended for production)
+# AD_SERVICE_USER=service_account@kmc.int
+# AD_SERVICE_PASSWORD=service_password_here
