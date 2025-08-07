@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Advanced VLAN Management System for Dell Switches
-================================================
+Advanced VLAN Management System for Dell Switches (Enhanced)
+===========================================================
 
 Comprehensive VLAN management with safety checks, port validation, and user confirmations.
 Supports N2000, N3000, and N3200 Dell switch models with proper uplink protection.
 
-Features:
+CORE FEATURES:
 - Database-driven switch selection with searchable dropdown
 - Multi-port input with validation and safety checks  
 - Port status and mode verification with user confirmations
@@ -15,15 +15,37 @@ Features:
 - Force change and skip options with proper confirmations
 - Comprehensive audit logging for all operations
 
-UI/UX IMPROVEMENTS (v2.1.1):
+NEW ENHANCED FEATURES (v2.2.0):
+- Interface Range Optimization: Groups consecutive ports for efficient batch operations
+- Intelligent Fallback System: Automatically switches from range to individual port config
+- Enhanced Success Response: Detailed feedback with ranges used and descriptions applied
+- Robust Error Handling: Multi-layer fallback with comprehensive error detection
+- Dell N2048 Compatibility: Special handling for switch-specific limitations
+- Advanced Debugging: Extensive logging for troubleshooting VLAN operations
+- Port Description Management: Applies descriptions alongside VLAN changes
+
+UI/UX IMPROVEMENTS:
 - Enhanced VLAN naming conventions with enterprise standards
 - Updated placeholder examples: Zone_Client_Name, Internal_Network, Guest_Access, IoT_Devices
 - Improved help text with naming guidelines for consistency
 - Better user guidance for VLAN naming best practices and standardization
-- Added naming standards documentation in template help text
+- Detailed success messages showing optimization results
 
-Author: Network Operations Team
-Version: 2.1.1
+TROUBLESHOoting GUIDE:
+- Check logs for "Generated interface ranges" to see optimization attempts
+- Look for "Falling back to individual port configuration" for compatibility issues
+- Monitor "Batch operation complete" messages for operation results
+- Use DEBUG level logging for detailed command execution traces
+
+SUPPORTED SWITCH MODELS:
+- Dell N2000 Series (N2048, N2024, etc.) - Special compatibility mode
+- Dell N3000 Series - Full feature support
+- Dell N3200 Series - Full feature support
+
+AUTHORS: Network Operations Team
+VERSION: 2.2.0 (Enhanced VLAN Management with Interface Range Optimization)
+LAST UPDATED: 2025-08-07
+COMPATIBILITY: Python 3.7+, Dell PowerConnect N-Series Switches
 """
 
 import paramiko
@@ -616,13 +638,26 @@ class VLANManager:
             return False
     
     def generate_interface_ranges(self, ports):
-        """Generate interface range commands from a list of ports.
+        """Generate interface range commands from a list of ports for batch configuration.
+        
+        This function optimizes VLAN configuration by grouping consecutive ports into ranges,
+        which significantly improves performance on Dell switches that support interface range commands.
+        
+        TROUBLESHOOTING:
+        - If ports aren't being grouped, check that port names follow Dell format (e.g., Gi1/0/24)
+        - Look for "Could not parse port" warnings in logs for unsupported port formats
+        - Ensure ports are on the same interface type (Gi, Te, Tw) and stack/slot
         
         Args:
             ports: List of port names (e.g., ['Gi1/0/1', 'Gi1/0/2', 'Gi1/0/5', 'Gi1/0/6', 'Gi1/0/7'])
             
         Returns:
             List of range strings (e.g., ['Gi1/0/1-2', 'Gi1/0/5-7'])
+            Empty list if no ports can be parsed or grouped
+            
+        Example Output:
+            Input:  ['Gi1/0/24', 'Gi1/0/25', 'Gi1/0/27']
+            Output: ['Gi1/0/24-25', 'Gi1/0/27']
         """
         if not ports:
             return []
