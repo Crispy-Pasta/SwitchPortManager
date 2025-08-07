@@ -931,20 +931,27 @@ def trace_single_switch(switch_info, mac_address, username):
             # Get detailed port configuration
             port_config = switch.get_port_config(result['port'])
             
-            # Detect switch model for accurate caution detection
+            # Detect switch model for accurate caution detection with Flask app context
             switch_model = 'N3000'  # Default fallback
             try:
-                # Try to get switch model from database fallback
-                switches_config = load_switches()
-                sites = switches_config.get('sites', {})
-                for site_name, site_config in sites.items():
-                    floors = site_config.get('floors', {})
-                    for floor_name, floor_config in floors.items():
-                        switches = floor_config.get('switches', {})
-                        for sw_name, sw_config in switches.items():
-                            if sw_config.get('ip_address') == switch_ip:
-                                switch_model = detect_switch_model_from_config(sw_name, sw_config)
-                                break
+                # Use Flask app context to access database properly in threaded environment
+                with app.app_context():
+                    # Try to get switch model from database first
+                    db_switch = Switch.query.filter_by(ip_address=switch_ip).first()
+                    if db_switch and db_switch.model:
+                        switch_model = detect_switch_model_from_config(db_switch.name, {'model': db_switch.model})
+                    else:
+                        # Fallback to JSON-based detection if database fails
+                        switches_config = load_switches()
+                        sites = switches_config.get('sites', {})
+                        for site_name, site_config in sites.items():
+                            floors = site_config.get('floors', {})
+                            for floor_name, floor_config in floors.items():
+                                switches = floor_config.get('switches', {})
+                                for sw_name, sw_config in switches.items():
+                                    if sw_config.get('ip_address') == switch_ip:
+                                        switch_model = detect_switch_model_from_config(sw_name, sw_config)
+                                        break
             except Exception as e:
                 logger.debug(f"Could not detect switch model for {switch_ip}: {str(e)}")
             
