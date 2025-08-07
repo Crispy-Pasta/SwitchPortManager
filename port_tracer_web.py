@@ -492,7 +492,6 @@ def apply_role_based_filtering(results, user_role):
     """Apply role-based filtering to trace results."""
     permissions = get_user_permissions(user_role)
     filtered_results = []
-    switches_config = load_switches()
     
     for result in results:
         if result['status'] != 'found':
@@ -501,19 +500,27 @@ def apply_role_based_filtering(results, user_role):
             
         # For OSS users, filter out uplink ports
         if not permissions['show_uplink_ports']:
-            # Detect switch model from configuration
+            # Detect switch model with Flask app context for database access
             switch_model = 'N3000'  # Default fallback
             try:
-                # Find the switch configuration to get the correct model
-                sites = switches_config.get('sites', {})
-                for site_name, site_config in sites.items():
-                    floors = site_config.get('floors', {})
-                    for floor_name, floor_config in floors.items():
-                        switches = floor_config.get('switches', {})
-                        for switch_name, switch_config in switches.items():
-                            if switch_config.get('ip_address') == result['switch_ip']:
-                                switch_model = detect_switch_model_from_config(switch_name, switch_config)
-                                break
+                # Use Flask app context to access database properly
+                with app.app_context():
+                    # Try to get switch model from database first
+                    db_switch = Switch.query.filter_by(ip_address=result['switch_ip']).first()
+                    if db_switch and db_switch.model:
+                        switch_model = detect_switch_model_from_config(db_switch.name, {'model': db_switch.model})
+                    else:
+                        # Fallback to JSON-based detection if database fails
+                        switches_config = load_switches()
+                        sites = switches_config.get('sites', {})
+                        for site_name, site_config in sites.items():
+                            floors = site_config.get('floors', {})
+                            for floor_name, floor_config in floors.items():
+                                switches = floor_config.get('switches', {})
+                                for switch_name, switch_config in switches.items():
+                                    if switch_config.get('ip_address') == result['switch_ip']:
+                                        switch_model = detect_switch_model_from_config(switch_name, switch_config)
+                                        break
             except Exception as e:
                 logger.debug(f"Could not detect switch model for {result['switch_ip']}: {str(e)}")
             
