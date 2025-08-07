@@ -351,8 +351,10 @@ def detect_switch_model_from_config(switch_name, switch_config):
     """Detect switch model from configuration or name patterns."""
     model = switch_config.get('model', '').upper()
     
-    # Extract model from explicit model field
-    if 'N2000' in model or 'N20' in model:
+    # Extract model from explicit model field - check for specific N3248 first
+    if 'N3248' in model:
+        return 'N3200'  # N3248 is part of N3200 series
+    elif 'N2000' in model or 'N20' in model:
         return 'N2000'
     elif 'N3200' in model or 'N32' in model:
         return 'N3200' 
@@ -368,17 +370,8 @@ def detect_switch_model_from_config(switch_name, switch_config):
     elif any(pattern in name_upper for pattern in ['N3000', 'N30']):
         return 'N3000'
     
-    # Enhanced pattern matching for common enterprise switch naming conventions
-    # Many Dell N3248 switches are deployed as access switches in corporate environments
-    # Look for common access switch indicators in names
-    if any(pattern in name_upper for pattern in ['AS-', '-AS-', 'ACCESS', 'ACC-']):
-        # Access switches in corporate environments are commonly N3248 (48-port)
-        # This is a reasonable assumption for most enterprise deployments
-        return 'N3200'  # N3248 is part of N3200 series
-    
-    # Default assumption - use N3200 instead of N3000 for better N3248 compatibility
-    # This helps when switch model cannot be determined from name/config
-    return 'N3200'
+    # Default assumption - use N3000 as the original default
+    return 'N3000'
 
 def is_uplink_port(port_name, switch_model=None, port_description=''):
     """Determine if a port is an uplink based on Dell switch series and port characteristics."""
