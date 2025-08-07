@@ -442,7 +442,7 @@ class VLANManager:
             commands = [
                 "configure",
                 f"vlan {vlan_id}",
-                f"name {vlan_name}",
+                f"name \"{vlan_name}\"",
                 "exit",
                 "exit"
             ]
@@ -462,7 +462,7 @@ class VLANManager:
             commands = [
                 "configure",
                 f"vlan {vlan_id}",
-                f"name {vlan_name}",
+                f"name \"{vlan_name}\"",
                 "exit",
                 "exit"
             ]
@@ -602,7 +602,7 @@ class VLANManager:
             ]
             
             if description:
-                commands.insert(-1, f"description {description}")
+                commands.insert(-1, f"description \"{description}\"")
             
             commands.extend(["exit", "exit"])
             
@@ -614,6 +614,238 @@ class VLANManager:
         except Exception as e:
             logger.error(f"Failed to change port {port_name} VLAN: {str(e)}")
             return False
+    
+    def generate_interface_ranges(self, ports):
+        """Generate interface range commands from a list of ports.
+        
+        Args:
+            ports: List of port names (e.g., ['Gi1/0/1', 'Gi1/0/2', 'Gi1/0/5', 'Gi1/0/6', 'Gi1/0/7'])
+            
+        Returns:
+            List of range strings (e.g., ['Gi1/0/1-2', 'Gi1/0/5-7'])
+        """
+        if not ports:
+            return []
+        
+        # Group ports by interface type and stack
+        port_groups = {}
+        
+        for port in ports:
+            try:
+                # Parse port name (e.g., 'Gi1/0/24' -> ['Gi1', '0', '24'])
+                if '/' in port:
+                    parts = port.split('/')
+                    if len(parts) == 3:  # Standard format: Gi1/0/24
+                        interface_stack = parts[0]  # 'Gi1'
+                        slot = parts[1]  # '0'
+                        port_num = int(parts[2])  # 24
+                        
+                        group_key = f"{interface_stack}/{slot}"  # 'Gi1/0'
+                        if group_key not in port_groups:
+                            port_groups[group_key] = []
+                        port_groups[group_key].append(port_num)
+                    elif len(parts) == 4:  # Some switches use 4-part format
+                        interface_type = parts[0][:2]  # 'Gi'
+                        stack = parts[0][2:]  # '1'
+                        slot1 = parts[1]  # '0'
+                        slot2 = parts[2]  # '0'
+                        port_num = int(parts[3])  # 24
+                        
+                        group_key = f"{interface_type}{stack}/{slot1}/{slot2}"  # 'Gi1/0/0'
+                        if group_key not in port_groups:
+                            port_groups[group_key] = []
+                        port_groups[group_key].append(port_num)
+            except (ValueError, IndexError) as e:
+                # If we can't parse it, treat as individual port
+                logger.warning(f"Could not parse port {port} for range optimization: {str(e)}")
+                continue
+        
+        # Generate ranges for each group
+        ranges = []
+        
+        for group_key, port_nums in port_groups.items():
+            if not port_nums:
+                continue
+                
+            # Sort port numbers
+            port_nums.sort()
+            
+            # Find consecutive ranges
+            current_range_start = port_nums[0]
+            current_range_end = port_nums[0]
+            
+            for i in range(1, len(port_nums)):
+                if port_nums[i] == current_range_end + 1:
+                    # Consecutive port, extend range
+                    current_range_end = port_nums[i]
+                else:
+                    # Non-consecutive, finalize current range and start new one
+                    if current_range_start == current_range_end:
+                        ranges.append(f"{group_key}/{current_range_start}")
+                    else:
+                        ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
+                    
+                    current_range_start = port_nums[i]
+                    current_range_end = port_nums[i]
+            
+            # Add the final range
+            if current_range_start == current_range_end:
+                ranges.append(f"{group_key}/{current_range_start}")
+            else:
+                ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
+        
+        return ranges
+    
+    def change_ports_vlan_batch(self, ports, vlan_id, description=None):
+        """Change multiple ports VLAN assignment using interface range commands for efficiency.
+        
+        Args:
+            ports: List of port names
+            vlan_id: Target VLAN ID
+            description: Port description (optional)
+            
+        Returns:
+            dict: Results with success/failure details
+        """
+        if not ports:
+            return {'success': False, 'message': 'No ports provided'}
+        
+        try:
+            # Generate interface ranges for efficiency
+            ranges = self.generate_interface_ranges(ports)
+            logger.info(f"Generated interface ranges: {ranges} for ports: {ports}")
+            
+            results = {
+                'success': True,
+                'ports_changed': [],
+                'ports_failed': [],
+                'commands_executed': [],
+                'ranges_used': ranges
+            }
+            
+            # Process each range
+            range_success = False
+            for range_str in ranges:
+                try:
+                    commands = [
+                        "configure",
+                        f"interface range {range_str}",
+                        "switchport mode access",
+                        f"switchport access vlan {vlan_id}"
+                    ]
+                    
+                    if description:
+                        commands.insert(-1, f"description \"{description}\"")
+                    
+                    commands.extend(["exit", "exit"])
+                    
+                    # Execute commands for this range
+                    range_output = ""
+                    for command in commands:
+                        output = self.execute_command(command)
+                        range_output += output
+                        results['commands_executed'].append(command)
+                    
+                    # Check if range command worked (look for errors)
+                    if "Invalid" in range_output or "ERROR" in range_output or "error" in range_output:
+                        logger.warning(f"Interface range command may have failed for {range_str}, output: {range_output[:200]}")
+                        # Fallback: try individual ports
+                        range_ports = self._extract_ports_from_range(range_str)
+                        logger.info(f"Falling back to individual port configuration for: {range_ports}")
+                        
+                        for port in range_ports:
+                            individual_success = self.change_port_vlan(port, vlan_id, description)
+                            if individual_success:
+                                results['ports_changed'].append(port)
+                            else:
+                                results['ports_failed'].append(port)
+                    else:
+                        # Range command appeared successful
+                        range_ports = self._extract_ports_from_range(range_str)
+                        results['ports_changed'].extend(range_ports)
+                        range_success = True
+                        logger.info(f"Successfully configured range {range_str} to VLAN {vlan_id} on {self.switch_ip}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to configure range {range_str}: {str(e)}")
+                    # Fallback: try individual ports
+                    range_ports = self._extract_ports_from_range(range_str)
+                    logger.info(f"Exception occurred, falling back to individual port configuration for: {range_ports}")
+                    
+                    for port in range_ports:
+                        try:
+                            individual_success = self.change_port_vlan(port, vlan_id, description)
+                            if individual_success:
+                                results['ports_changed'].append(port)
+                            else:
+                                results['ports_failed'].append(port)
+                        except Exception as port_e:
+                            logger.error(f"Failed to configure individual port {port}: {str(port_e)}")
+                            results['ports_failed'].append(port)
+            
+            # If no ranges worked, try all ports individually as final fallback
+            if not range_success and not results['ports_changed']:
+                logger.warning("No interface ranges worked, trying all ports individually")
+                results['ranges_used'] = []  # Clear ranges since they didn't work
+                
+                for port in ports:
+                    try:
+                        individual_success = self.change_port_vlan(port, vlan_id, description)
+                        if individual_success:
+                            results['ports_changed'].append(port)
+                        else:
+                            results['ports_failed'].append(port)
+                    except Exception as port_e:
+                        logger.error(f"Failed to configure individual port {port}: {str(port_e)}")
+                        results['ports_failed'].append(port)
+            
+            # Update success status based on results
+            results['success'] = len(results['ports_failed']) == 0 and len(results['ports_changed']) > 0
+            
+            logger.info(f"Batch operation complete: {len(results['ports_changed'])} changed, {len(results['ports_failed'])} failed")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to execute batch VLAN change: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Batch operation failed: {str(e)}',
+                'ports_changed': [],
+                'ports_failed': ports
+            }
+    
+    def _extract_ports_from_range(self, range_str):
+        """Extract individual port names from a range string.
+        
+        Args:
+            range_str: Range string like 'Gi1/0/1-5' or 'Gi1/0/10'
+            
+        Returns:
+            List of individual port names
+        """
+        ports = []
+        
+        try:
+            if '-' in range_str:
+                # Handle range like 'Gi1/0/1-5'
+                base_part, range_part = range_str.rsplit('/', 1)
+                if '-' in range_part:
+                    start, end = map(int, range_part.split('-'))
+                    for i in range(start, end + 1):
+                        ports.append(f"{base_part}/{i}")
+                else:
+                    # Single port
+                    ports.append(range_str)
+            else:
+                # Single port
+                ports.append(range_str)
+                
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Could not extract ports from range {range_str}: {str(e)}")
+            ports.append(range_str)  # Fallback to original
+        
+        return ports
 
 # Flask API Routes for VLAN Management
 
@@ -771,11 +1003,14 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             'switch_info': switch_info,
             'vlan_id': vlan_id,
             'vlan_name': vlan_name,
+            'description': description,  # Include the description in results
             'total_ports_requested': len(ports),
             'ports_changed': [],
             'ports_failed': [],
             'ports_skipped': skipped_ports,
-            'vlan_operation_result': None
+            'vlan_operation_result': None,
+            'ranges_used': [],  # Initialize ranges_used
+            'commands_executed': []  # Initialize commands_executed
         }
         
         # Handle VLAN creation/update
@@ -790,18 +1025,29 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             else:
                 results['vlan_operation_result'] = f'Failed to update VLAN {vlan_id} name'
         
-        # Change port VLANs
-        for port in final_ports:
+        # Change port VLANs using batch processing with interface ranges
+        if final_ports:
             try:
-                if vlan_manager.change_port_vlan(port, vlan_id, description):
-                    results['ports_changed'].append(port)
-                    logger.info(f"Successfully changed {port} to VLAN {vlan_id}")
+                batch_result = vlan_manager.change_ports_vlan_batch(final_ports, vlan_id, description)
+                
+                if batch_result['success']:
+                    results['ports_changed'] = batch_result['ports_changed']
+                    results['ports_failed'] = batch_result['ports_failed']
+                    results['ranges_used'] = batch_result['ranges_used']
+                    results['commands_executed'] = batch_result['commands_executed']
+                    
+                    # Log successful batch operation
+                    ranges_str = ', '.join(batch_result['ranges_used'])
+                    logger.info(f"Successfully configured {len(results['ports_changed'])} ports using ranges: {ranges_str}")
                 else:
-                    results['ports_failed'].append(port)
-                    logger.error(f"Failed to change {port} to VLAN {vlan_id}")
+                    # Batch failed, add all to failed list
+                    results['ports_failed'].extend(final_ports)
+                    logger.error(f"Batch VLAN change failed: {batch_result.get('message', 'Unknown error')}")
+                    
             except Exception as e:
-                results['ports_failed'].append(port)
-                logger.error(f"Exception changing {port}: {str(e)}")
+                # Exception in batch processing, add all to failed list
+                results['ports_failed'].extend(final_ports)
+                logger.error(f"Exception in batch VLAN processing: {str(e)}")
         
         # Summary
         results['summary'] = {
@@ -811,6 +1057,30 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             'skipped': len(results['ports_skipped']),
             'uplink_protected': len([p for p in ports if vlan_manager.is_uplink_port(p)])
         }
+        
+        # Enhanced success message with ranges and description
+        if results['ports_changed']:
+            success_parts = []
+            
+            # VLAN assignment info
+            success_parts.append(f"Successfully changed {len(results['ports_changed'])} ports to VLAN {vlan_id} ({vlan_name})")
+            
+            # Interface ranges used for efficiency
+            if results['ranges_used']:
+                ranges_str = ', '.join(results['ranges_used'])
+                success_parts.append(f"Interface ranges configured: {ranges_str}")
+            
+            # Description applied
+            if description and description.strip():
+                success_parts.append(f"Port description applied: \"{description}\"")
+            
+            # VLAN operation performed
+            if results['vlan_operation_result']:
+                success_parts.append(results['vlan_operation_result'])
+            
+            results['success_message'] = '\n'.join(success_parts)
+        else:
+            results['success_message'] = "No ports were changed."
         
         return results
         
