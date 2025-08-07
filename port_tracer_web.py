@@ -384,7 +384,7 @@ def is_uplink_port(port_name, switch_model=None, port_description=''):
         if any(keyword in port_description for keyword in uplink_keywords):
             return True
     
-    # Model-specific uplink port detection (only if no description indicators)
+    # Model-specific uplink port detection - PRIORITIZE switch model logic over generic patterns
     if switch_model == 'N2000':
         # N2000: Gi ports are access, Te ports are uplinks
         return port_name.startswith('Te')
@@ -393,11 +393,17 @@ def is_uplink_port(port_name, switch_model=None, port_description=''):
         return port_name.startswith('Te')
     elif switch_model == 'N3200':
         # N3200: Te ports are access, Tw (TwentyGig) ports are uplinks
+        # FIXED: Only Tw ports are uplinks, Te ports are access ports for OSS users
         return port_name.startswith('Tw')
     
-    # Generic fallback - common uplink port patterns
-    uplink_patterns = ['Te', 'Tw', 'Fo']  # TenGig, TwentyGig, FortyGig
-    return any(port_name.startswith(pattern) for pattern in uplink_patterns)
+    # Generic fallback - only apply if switch model is unknown
+    # FIXED: Don't override switch-specific logic
+    if switch_model is None or switch_model not in ['N2000', 'N3000', 'N3200']:
+        uplink_patterns = ['Te', 'Tw', 'Fo']  # TenGig, TwentyGig, FortyGig
+        return any(port_name.startswith(pattern) for pattern in uplink_patterns)
+    
+    # If we have a known switch model but port doesn't match uplink patterns, it's an access port
+    return False
 
 def is_wlan_ap_port(port_description='', port_vlans=None):
     """Determine if a port is likely connected to WLAN/AP based on description and VLAN configuration."""
