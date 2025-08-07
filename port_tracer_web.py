@@ -363,7 +363,7 @@ def detect_switch_model_from_config(switch_name, switch_config):
     name_upper = switch_name.upper()
     if any(pattern in name_upper for pattern in ['N2000', 'N20']):
         return 'N2000'
-    elif any(pattern in name_upper for pattern in ['N3200', 'N32']):
+    elif any(pattern in name_upper for pattern in ['N3200', 'N32', 'N3248']):
         return 'N3200'
     elif any(pattern in name_upper for pattern in ['N3000', 'N30']):
         return 'N3000'
