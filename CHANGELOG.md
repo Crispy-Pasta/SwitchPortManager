@@ -14,3 +14,20 @@
 - `requirements.txt`: Added new dependencies for database integration (`Flask-SQLAlchemy`, `Flask-Migrate`).
 - `README.md`: Updated to reflect the new database-driven architecture and management UI.
 
+## [2.1.1] - 2025-08-15
+
+### Added
+- **VLAN Management v2**: Enhanced VLAN manager with improved UI and validation.
+- **Dropdown Width Optimization**: Fixed dropdown width issues on Switch Management page with constrained 250px width.
+- **VLAN Naming Conventions**: Updated placeholder examples to follow enterprise naming standards (e.g., "Zone_Client_Name", "Internal_Network").
+
+### Fixed
+- **UI/UX Improvements**: Select2 dropdowns on manage switches page now properly constrained to 250px width to prevent layout overflow.
+- **CSS Specificity**: Added stronger CSS selectors with !important declarations to override global Select2 styles.
+- **JavaScript Enhancement**: Added forced width application via jQuery .css() calls with timeout for runtime Select2 initialization.
+
+### Technical Notes
+- Scoped CSS changes to `.manage-page` class to prevent affecting other pages.
+- Enhanced CSS targeting includes `body.manage-page` selectors for increased specificity.
+- Applied width constraints to both Select2 containers and selection elements.
+

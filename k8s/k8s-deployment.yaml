@@ -5,7 +5,7 @@ metadata:
   namespace: default
   labels:
     app: dell-port-tracer
-    version: v2.0.0
+    version: v2.1.1
 spec:
   replicas: 2
   selector:
@@ -15,7 +15,7 @@ spec:
     metadata:
       labels:
         app: dell-port-tracer
-        version: v2.0.0
+        version: v2.1.1
     spec:
       containers:
       - name: port-tracer

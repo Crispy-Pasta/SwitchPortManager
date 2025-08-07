@@ -181,6 +181,23 @@ Each successful result includes:
 
 ---
 
+## 🎨 **User Interface Improvements (v2.1.1)**
+
+### **Enhanced VLAN Management**
+- **Naming Conventions**: Updated placeholder examples follow enterprise standards:
+  - `Zone_Client_Name` - for client-specific VLANs
+  - `Internal_Network` - for internal infrastructure
+  - `Guest_Access` - for guest network segments
+  - `IoT_Devices` - for IoT device networks
+
+### **Switch Management Optimizations**
+- **Dropdown Constraints**: Site and floor dropdowns optimized to 250px width
+- **Layout Fixes**: Prevents horizontal scrolling and layout overflow
+- **Enhanced CSS**: Stronger specificity rules override global styles
+- **Runtime Consistency**: JavaScript enforcement ensures width consistency
+
+---
+
 ## 🔧 Troubleshooting
 
 ### **Common Issues**
@@ -194,6 +211,11 @@ Each successful result includes:
 - **Cause**: Network connectivity issues or switch maintenance
 - **Solution**: Check switch availability and network path
 - **Escalation**: Contact network team if persistent
+
+#### **"Dropdown Width Issues" (Switch Management)**
+- **Cause**: Browser caching old CSS styles or conflicting global styles
+- **Solution**: Hard refresh browser (Ctrl+F5) or clear cache
+- **Status**: Fixed in v2.1.1 with enhanced CSS specificity
 
 #### **"MAC Address Not Found"**
 - **Possible Causes**:

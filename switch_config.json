@@ -1,0 +1,26 @@
+{
+  "switches": [
+    {
+      "hostname": "dell-stack-001",
+      "ip_address": "10.0.0.5",
+      "username": "janestrada",
+      "password": "Love2eat",
+      "stack_unit": 1,
+      "enable_password": "your_enable_password_here"
+    },
+    {
+      "hostname": "dell-switch-02",
+      "ip_address": "192.168.1.11",
+      "username": "admin",
+      "password": "your_password_here",
+      "stack_unit": 2
+    },
+    {
+      "hostname": "dell-switch-03",
+      "ip_address": "192.168.1.12",
+      "username": "netadmin",
+      "password": "your_password_here",
+      "enable_password": "your_enable_password_here"
+    }
+  ]
+}

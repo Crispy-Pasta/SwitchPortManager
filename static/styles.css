@@ -75,7 +75,7 @@ body.main-page .container input[type="text"] {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 20px auto;
   background: var(--white);
   padding: 20px;
@@ -86,7 +86,7 @@ body.main-page .container input[type="text"] {
 
 /* Ensure main page container is properly sized */
 body.main-page .container {
-  max-width: 800px;
+  max-width: 1000px;
 }
 
 /* Management page specific container size */
@@ -196,7 +196,8 @@ button:disabled {
   border-radius: 6px;
   height: 44px;
   color: var(--deep-navy);
-  min-width: 200px;
+  min-width: 350px;
+  width: 350px;
 }
 
 .select2-container--default .select2-selection--single .select2-selection__rendered {
@@ -340,7 +341,8 @@ a:hover {
 
 /* Ensure floor select dropdown has enough width */
 #floor-select, #site-select {
-  min-width: 200px;
+  min-width: 350px;
+  width: 350px;
 }
 
 /* Better form spacing for management page */
@@ -379,7 +381,8 @@ body.manage-page .form-actions {
 }
 
 .select2-container {
-  min-width: 200px !important;
+  min-width: 350px !important;
+  width: 350px !important;
 }
 
 /* Style for disabled floor dropdown */
@@ -480,34 +483,68 @@ body.manage-page .container {
 
 /* Navigation bar styling */
 .navigation-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 2px solid var(--light-blue);
+  background: linear-gradient(135deg, var(--deep-navy), #003366);
+  border-radius: 10px;
+  margin-bottom: 30px;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(0, 23, 56, 0.15);
 }
 
 .nav-links {
   display: flex;
-  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
 }
 
-.nav-links a {
-  color: var(--orange);
+.nav-link {
+  color: var(--light-blue);
   text-decoration: none;
-  font-weight: 500;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: all 0.2s;
+  padding: 15px 20px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  display: inline-block;
+  position: relative;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  transform: translateY(-2px);
+}
+
+.nav-link.active {
+  background: var(--orange);
+  color: var(--white);
+  box-shadow: 0 2px 8px rgba(255, 114, 0, 0.3);
+}
+
+.nav-link.active:hover {
+  background: #e06600;
+  transform: none;
+}
+
+/* Legacy support for old nav-links a selectors */
+.nav-links a {
+  color: var(--light-blue);
+  text-decoration: none;
+  padding: 15px 20px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  display: inline-block;
+  position: relative;
 }
 
 .nav-links a:hover {
-  background: var(--orange);
-  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  transform: translateY(-2px);
 }
 
 .nav-links a.active {
   background: var(--orange);
-  color: white;
+  color: var(--white);
+  box-shadow: 0 2px 8px rgba(255, 114, 0, 0.3);
 }

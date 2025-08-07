@@ -37,6 +37,8 @@ COPY migrate_data.py .
 COPY cpu_safety_monitor.py .
 COPY switch_protection_monitor.py .
 COPY nt_auth_integration.py .
+COPY vlan_management_v2.py .
+COPY vlan_template_v2.html .
 COPY static/ ./static/
 
 # Set ownership of all files to app user

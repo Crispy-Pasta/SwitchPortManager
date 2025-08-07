@@ -80,6 +80,28 @@ This document covers common issues encountered during production deployment and 
 2. Use format: `- VARIABLE_NAME=${VARIABLE_NAME}`
 3. Restart containers after changes
 
+### Issue 5: Switch Management UI Dropdown Width Issues
+
+**Problem:** Select2 dropdowns on switch management page overflow container and cause horizontal scrolling.
+
+**Root Cause:** Global CSS styles in `styles.css` apply fixed 350px width that conflicts with page layout constraints.
+
+**Solution:**
+1. Enhanced CSS specificity implemented with `.manage-page` class scoping
+2. Added multiple CSS selectors with `!important` declarations:
+   - `.manage-page .form-group select`
+   - `body.manage-page #site-select, #floor-select`
+   - `.manage-page .select2-container` and variants
+3. JavaScript forced width application via jQuery `.css()` calls with 100ms timeout
+4. Select2 initialization with explicit `width: '250px'` parameter
+
+**Technical Details:**
+- Dropdown width constrained to 250px (down from 350px)
+- CSS changes scoped to prevent affecting other pages
+- Runtime width enforcement handles Select2 dynamic styling
+
+**Status:** ✅ Resolved in v2.1.1
+
 ## 🔧 Troubleshooting Tools
 
 ### Quick Health Check

@@ -1,5 +1,10 @@
 version: '3.8'
 
+# Dell Switch Port Tracer v2.1.1 - Docker Compose Configuration
+# Features: Enhanced UI/UX, VLAN Management v2, Switch Management optimizations
+# UI Improvements: Dropdown width constraints (250px), VLAN naming conventions
+# New Components: Advanced VLAN management with safety checks and validation
+
 services:
   postgres:
     image: postgres:15

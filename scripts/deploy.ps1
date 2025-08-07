@@ -1,5 +1,7 @@
-# Dell Switch Port Tracer - PowerShell Deployment Script
+# Dell Switch Port Tracer v2.1.1 - PowerShell Deployment Script
 # This script builds the Docker image and deploys to Kubernetes
+# Features: Enhanced UI/UX, VLAN Management v2, Database-driven architecture
+# UI Improvements: Dropdown width optimization, VLAN naming conventions
 
 param(
     [Parameter(Position=0)]
@@ -86,10 +88,10 @@ function Test-Kubectl {
 function Build-Image {
     Write-Info "Building Docker image..."
     
-    # Check if switches.json exists
-    if (-not (Test-Path "switches.json")) {
-        Write-Error "switches.json not found. Please ensure the switches configuration file exists."
-        return $false
+    # Check if database configuration exists
+    if (-not (Test-Path ".env")) {
+        Write-Warning ".env file not found. Using default database configuration."
+        Write-Info "Make sure PostgreSQL database is configured properly."
     }
     
     # Build the image
