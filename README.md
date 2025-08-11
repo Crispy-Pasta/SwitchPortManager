@@ -1,28 +1,40 @@
-# Dell Switch Port Tracer v2.0
+# Dell Switch Port Tracer v2.1.2
 
 ## 🚀 **Enterprise-Grade MAC Address Tracing Solution**
 
-A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities.
+A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+![Security](https://img.shields.io/badge/security-enhanced-green)
 
 ## 🚀 Features
 
+### 🔐 Security Features
+- **Enhanced Input Validation**: Comprehensive MAC address format validation with security-focused error messages
+- **Sanitized Error Responses**: Error messages exclude potentially harmful examples or security-sensitive information
+- **Command Injection Prevention**: Robust input sanitization to prevent malicious command execution
+- **Role-Based Access Control**: Three security levels with least-privilege access patterns
+
+### 🏢 Enterprise Management
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
 - **Database-Driven Architecture**: PostgreSQL database for enterprise-grade scalability and reliability
 - **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
 - **Database Migration Support**: Seamless migration from SQLite to PostgreSQL with data integrity validation
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
-- **Role-Based Permissions**: Three access levels (OSS, NetAdmin, SuperAdmin) with different capabilities
+- **VLAN Manager**: Advanced VLAN configuration and port management capabilities
+
+### 🔧 Technical Features
 - **Dell Switch Support**: Comprehensive support for Dell N2000, N3000, and N3200 series switches (including N2048, N3248, N3024P models)
 - **Intelligent Filtering**: Automatic uplink port detection and VLAN information filtering
-- **Comprehensive Audit Logging**: Full activity tracking for security and compliance
+- **Comprehensive Audit Logging**: Full activity tracking for security and compliance with syslog support
 - **Responsive Web Interface**: Clean, modern UI with real-time MAC address tracing
 - **Port Configuration Details**: Detailed port mode, VLAN, and description information
 - **Container Ready**: Docker and Kubernetes deployment support
 - **Production Ready**: Health checks, monitoring, and high availability
+- **CPU Protection**: Advanced CPU monitoring and request throttling
+- **Switch Protection**: Connection limits and rate limiting for switch protection
 
 ## 📋 Requirements
 
@@ -255,7 +267,13 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 ### Supported Formats
 - **Colon-separated**: `00:1B:63:84:45:E6`
 - **Hyphen-separated**: `00-1B-63-84-45-E6`
-- **Dot-separated**: `001B.6384.45E6`
+- **Continuous format**: `001B638445E6`
+
+### Security Enhancements
+- **Input Validation**: Strict MAC address format validation using regex patterns
+- **Error Message Sanitization**: Security-focused error responses that provide helpful guidance without exposing sensitive information
+- **No Malicious Examples**: Error messages exclude potentially harmful input examples
+- **Audit Trail**: All invalid input attempts are logged for security monitoring
 
 ### Process Flow
 1. **Site/Floor Selection**: User selects target location
@@ -343,6 +361,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: July 2025  
+**Version**: 2.1.2  
+**Last Updated**: January 2025  
 **Maintainer**: Network Operations Team
+
+## 🔄 Changelog (v2.1.2)
+
+### Security Improvements
+- ✅ Enhanced MAC address input validation with comprehensive format checking
+- ✅ Sanitized error messages that exclude potentially malicious examples
+- ✅ Security-focused error responses that provide guidance without exposing sensitive information
+- ✅ Improved audit logging for invalid input attempts
+
+### Frontend Enhancements
+- ✅ Updated JavaScript error handling to align with secure backend responses
+- ✅ Removed display of incorrect examples in MAC format error messages
+- ✅ Enhanced user experience with clean, helpful error guidance
+
+### Code Quality
+- ✅ Updated documentation and code comments
+- ✅ Improved function documentation for security-related components
+- ✅ Enhanced error handling consistency across the application

@@ -14,6 +14,29 @@
 - `requirements.txt`: Added new dependencies for database integration (`Flask-SQLAlchemy`, `Flask-Migrate`).
 - `README.md`: Updated to reflect the new database-driven architecture and management UI.
 
+## [2.1.2] - 2025-01-11
+
+### Security Enhancements
+- **Enhanced MAC Address Validation**: Implemented comprehensive MAC address format validation with strict regex patterns to prevent command injection attacks
+- **Sanitized Error Messages**: Removed potentially harmful examples from MAC format error responses to prevent exposing malicious input patterns
+- **Security-Focused Error Handling**: Updated `get_mac_format_error_message()` function to exclude incorrect examples and security notes
+- **Frontend Security Updates**: Modified JavaScript error display to align with secure backend responses, removing display of potentially malicious examples
+
+### Code Quality Improvements
+- **Enhanced Documentation**: Updated function documentation for security-related components with detailed parameter descriptions
+- **Improved Code Comments**: Added comprehensive comments explaining security measures and validation logic
+- **Error Response Consistency**: Standardized error message format across frontend and backend components
+
+### Audit and Monitoring
+- **Enhanced Audit Logging**: Improved logging for invalid MAC address attempts with security context
+- **Input Validation Logging**: Added detailed logging for all input validation failures for security monitoring
+
+### Technical Details
+- Modified `is_valid_mac()` function with enhanced regex pattern matching
+- Updated frontend `showMacFormatError()` function to display only safe, helpful information
+- Removed security-sensitive sections from error display templates
+- Enhanced input sanitization across all user-facing input fields
+
 ## [2.1.1] - 2025-08-15
 
 ### Added

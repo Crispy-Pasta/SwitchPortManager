@@ -74,6 +74,7 @@ import secrets
 import threading
 import concurrent.futures
 from collections import defaultdict
+import re
 
 # Import Windows Authentication
 try:
@@ -2034,17 +2035,43 @@ MAIN_TEMPLATE = """
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ site: site, floor: floor, mac: mac })
             })
-            .then(response => response.json())
+            .then(async response => {
+                // Check if the response is ok
+                if (!response.ok) {
+                    // Try to parse error response as JSON
+                    try {
+                        const errorData = await response.json();
+                        // If it's a MAC format error with details, show formatted message
+                        if (errorData.details && errorData.error) {
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('trace-btn').disabled = false;
+                            showMacFormatError(errorData);
+                            return; // Exit here, don't throw
+                        }
+                        // For other errors, throw with the error message
+                        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                    } catch (jsonError) {
+                        // If JSON parsing fails, throw a generic error
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                }
+                return response.json();
+            })
             .then(data => {
-                displayResults(data);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('trace-btn').disabled = false;
+                // Only process successful responses here
+                if (data) {
+                    displayResults(data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('trace-btn').disabled = false;
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('trace-btn').disabled = false;
-                alert('Error occurred during tracing');
+                
+                // Show generic error message for non-MAC format errors
+                alert(error.message || 'Error occurred during tracing');
             });
         }
         
@@ -2143,6 +2170,169 @@ MAIN_TEMPLATE = """
                     `;
                 });
             }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function showMacFormatError(errorObj) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<div class="mac-error-container">';
+            html += '<div class="mac-error-header">';
+            html += '<h3>❌ Invalid MAC Address Format</h3>';
+            html += `<p><strong>You entered:</strong> <code>${errorObj.details.provided}</code></p>`;
+            html += '</div>';
+            
+            html += '<div class="mac-error-content">';
+            
+            // Valid formats section
+            html += '<div class="mac-section">';
+            html += '<h4>✅ Supported Formats:</h4>';
+            html += '<ul>';
+            errorObj.details.valid_formats.forEach(format => {
+                html += `<li><code>${format}</code></li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+            
+            // Requirements section
+            html += '<div class="mac-section">';
+            html += '<h4>📋 Requirements:</h4>';
+            html += '<ul>';
+            errorObj.details.requirements.forEach(req => {
+                html += `<li>${req}</li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+            
+            // Examples section
+            html += '<div class="mac-examples">';
+            html += '<div class="mac-example-good">';
+            html += '<h5>✅ Correct Examples:</h5>';
+            html += '<ul>';
+            errorObj.details.examples.correct.forEach(example => {
+                html += `<li><code>${example}</code></li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+            html += '</div>';
+            
+            html += '</div></div>';
+            
+            // Add CSS for MAC error styling
+            html += `
+            <style>
+            .mac-error-container {
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 15px 0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .mac-error-header {
+                border-bottom: 1px solid #ffeaa7;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            .mac-error-header h3 {
+                color: #856404;
+                margin: 0 0 10px 0;
+                font-size: 18px;
+            }
+            .mac-error-header p {
+                color: #856404;
+                margin: 0;
+            }
+            .mac-error-content {
+                display: grid;
+                gap: 20px;
+            }
+            .mac-section {
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                border: 1px solid #ffeaa7;
+            }
+            .mac-section h4 {
+                color: #856404;
+                margin: 0 0 10px 0;
+                font-size: 16px;
+            }
+            .mac-section ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .mac-section li {
+                margin-bottom: 5px;
+                color: #856404;
+            }
+            .mac-examples {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin-top: 10px;
+            }
+            .mac-example-good, .mac-example-bad {
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                border: 1px solid #ffeaa7;
+            }
+            .mac-example-good h5 {
+                color: #28a745;
+                margin: 0 0 10px 0;
+                font-size: 14px;
+            }
+            .mac-example-bad h5 {
+                color: #dc3545;
+                margin: 0 0 10px 0;
+                font-size: 14px;
+            }
+            .mac-example-good ul, .mac-example-bad ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .mac-example-good li {
+                color: #28a745;
+                margin-bottom: 3px;
+            }
+            .mac-example-bad li {
+                color: #dc3545;
+                margin-bottom: 3px;
+            }
+            .error-reason {
+                font-size: 12px;
+                font-style: italic;
+                color: #6c757d;
+            }
+            .mac-security-note {
+                background: #e7f3ff;
+                border: 1px solid #b3d9ff;
+                border-radius: 6px;
+                padding: 15px;
+                margin-top: 10px;
+            }
+            .mac-security-note p {
+                margin: 0;
+                color: #0056b3;
+                font-size: 14px;
+            }
+            code {
+                background: #f8f9fa;
+                padding: 2px 6px;
+                border-radius: 4px;
+                border: 1px solid #dee2e6;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+            }
+            @media (max-width: 768px) {
+                .mac-examples {
+                    grid-template-columns: 1fr;
+                }
+            }
+            </style>
+            `;
             
             resultsDiv.innerHTML = html;
         }
@@ -2282,6 +2472,90 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 503
 
+def is_valid_mac(mac):
+    """Validate MAC address format to prevent command injection attacks.
+    
+    This function provides comprehensive MAC address validation using strict regex patterns
+    to ensure only legitimate MAC address formats are accepted. This prevents command
+    injection attempts through malformed MAC address inputs.
+    
+    Args:
+        mac (str): MAC address string to validate
+        
+    Returns:
+        bool: True if MAC address format is valid, False otherwise
+        
+    Supported Formats:
+        - Colon-separated: 00:1B:63:84:45:E6
+        - Hyphen-separated: 00-1B-63-84-45-E6  
+        - Continuous format: 001B638445E6
+        
+    Security Features:
+        - Strict regex validation prevents injection attacks
+        - Only hexadecimal characters (0-9, A-F, a-f) allowed
+        - Exact length enforcement (12 hex characters)
+        - No special characters except colons and hyphens in specific positions
+    """
+    # Comprehensive regex pattern for MAC address validation:
+    # - ([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2}) matches colon/hyphen separated format
+    # - ([0-9A-Fa-f]{12}) matches continuous 12-character format
+    pattern = re.compile(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{12})$')
+    return pattern.match(mac)
+
+def get_mac_format_error_message(mac):
+    """Generate a security-focused error message for invalid MAC address formats.
+    
+    This function creates user-friendly error messages that provide helpful guidance
+    for entering valid MAC addresses while maintaining security best practices.
+    
+    Security Features:
+        - Only displays valid format examples (no incorrect/malicious examples)
+        - Excludes potentially harmful input patterns from error messages
+        - Provides educational content without exposing attack vectors
+        - Maintains user experience while prioritizing security
+    
+    Args:
+        mac (str): The invalid MAC address that was provided by the user
+        
+    Returns:
+        dict: Structured error response containing:
+            - error: Brief error description
+            - details: Comprehensive information including:
+                - provided: The user's original input (for context)
+                - valid_formats: List of supported MAC address formats
+                - requirements: Technical requirements for valid MAC addresses
+                - examples: Only correct examples to guide proper usage
+                
+    Note:
+        This function intentionally excludes incorrect examples and security
+        warnings to prevent exposing potential attack patterns to users.
+    """
+    return {
+        'error': 'Invalid MAC address format',
+        'details': {
+            'provided': mac,
+            'valid_formats': [
+                'Colon-separated: 00:1B:63:84:45:E6',
+                'Hyphen-separated: 00-1B-63-84-45-E6', 
+                'Continuous format: 001B638445E6'
+            ],
+            'requirements': [
+                'Must be exactly 12 hexadecimal characters (0-9, A-F)',
+                'Case insensitive (both uppercase and lowercase accepted)',
+                'No special characters except colons (:) or hyphens (-)'
+            ],
+            'examples': {
+                'correct': [
+                    '00:1B:63:84:45:E6',
+                    '00-1B-63-84-45-E6',
+                    '001B638445E6',
+                    'aa:bb:cc:dd:ee:ff',
+                    'AA-BB-CC-DD-EE-FF'
+                ]
+            }
+        }
+    }
+
 @app.route('/trace', methods=['POST'])
 def trace():
     if 'username' not in session:
@@ -2295,6 +2569,12 @@ def trace():
     
     if not all([site, floor, mac]):
         return jsonify({'error': 'Missing required fields'}), 400
+
+    # MAC address validation to prevent command injection
+    if not is_valid_mac(mac):
+        audit_logger.warning(f"User: {username} - INVALID MAC FORMAT - MAC: {mac}")
+        detailed_error = get_mac_format_error_message(mac)
+        return jsonify(detailed_error), 400
     
     # Log the trace request
     audit_logger.info(f"User: {username} - TRACE REQUEST - Site: {site}, Floor: {floor}, MAC: {mac}")
