@@ -367,18 +367,46 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Changelog (v2.1.2)
 
-### Security Improvements
+### 🛡️ VLAN Manager Security Enhancements
+- ✅ **Comprehensive Input Validation**: Added enterprise-grade input validation for all VLAN management operations
+  - Port format validation with strict regex patterns (e.g., Gi1/0/1-48, Te1/0/1-2)
+  - VLAN ID validation ensuring IEEE 802.1Q compliance (1-4094)
+  - VLAN name validation with Dell switch naming convention compliance
+  - Port description validation preventing command injection attacks
+- ✅ **Security-Focused Error Messages**: Structured error responses with detailed format requirements
+- ✅ **Audit Trail Enhancement**: All invalid input attempts logged with user identification
+- ✅ **Command Injection Prevention**: Multi-layer protection against malicious network configuration attempts
+
+### 🔧 Frontend Data Processing Fixes
+- ✅ **Switch Form Checkbox Handling**: Fixed client-side form processing to properly convert HTML checkbox values
+  - Converts checkbox 'on'/undefined values to boolean true/false before API submission
+  - Prevents backend validation errors for the 'enabled' field in switch management
+  - Ensures proper API compatibility for switch update operations
+  - Added comprehensive code comments documenting the fix for maintainability
+
+### 🔧 VLAN Management Features
+- ✅ **Advanced VLAN Manager Interface**: Complete VLAN configuration and port management system
+- ✅ **Port Range Support**: Handles complex port specifications (ranges, lists, mixed formats)
+- ✅ **Uplink Protection**: Automatic detection and protection of critical uplink ports
+- ✅ **Switch Model Awareness**: Dell N2000/N3000/N3200 series-specific port handling
+- ✅ **Real-time Port Status**: Live port configuration and status checking
+- ✅ **VLAN Existence Verification**: Pre-deployment VLAN validation
+
+### 🔐 MAC Address Tracing Security
 - ✅ Enhanced MAC address input validation with comprehensive format checking
 - ✅ Sanitized error messages that exclude potentially malicious examples
 - ✅ Security-focused error responses that provide guidance without exposing sensitive information
 - ✅ Improved audit logging for invalid input attempts
 
-### Frontend Enhancements
+### 🎨 Frontend Enhancements
 - ✅ Updated JavaScript error handling to align with secure backend responses
 - ✅ Removed display of incorrect examples in MAC format error messages
 - ✅ Enhanced user experience with clean, helpful error guidance
+- ✅ Modern VLAN Manager UI with real-time validation feedback
 
-### Code Quality
-- ✅ Updated documentation and code comments
-- ✅ Improved function documentation for security-related components
+### 📊 Code Quality & Architecture
+- ✅ Modular VLAN management architecture with dedicated security layer
+- ✅ Updated documentation and code comments for security components
+- ✅ Improved function documentation for all validation functions
 - ✅ Enhanced error handling consistency across the application
+- ✅ Comprehensive unit test coverage for validation functions

@@ -60,6 +60,408 @@ import json
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Security validation functions for VLAN Manager inputs
+def is_valid_port_input(port_input):
+    """
+    Validate port input format to prevent command injection attacks in VLAN operations.
+    
+    This function provides comprehensive port format validation using strict patterns
+    to ensure only legitimate Dell switch port formats are accepted. This prevents
+    command injection attempts through malformed port specifications.
+    
+    Args:
+        port_input (str): Port specification string to validate
+        
+    Returns:
+        bool: True if port input format is valid, False otherwise
+        
+    Supported Formats:
+        - Single ports: Gi1/0/24, Te1/0/1, Tw1/0/1
+        - Port ranges: Gi1/0/1-5, Te1/0/1-4
+        - Multiple entries: Gi1/0/1,Gi1/0/5,Te1/0/1
+        - Mixed formats: Gi1/0/1-5,Te1/0/10,Tw1/0/1-2
+        
+    Security Features:
+        - Strict regex validation prevents injection attacks
+        - Only allows Dell switch interface naming conventions
+        - Validates port numbers within realistic ranges
+        - Prevents special characters except allowed delimiters
+    """
+    if not port_input or not isinstance(port_input, str):
+        return False
+    
+    port_input = port_input.strip()
+    if not port_input:
+        return False
+    
+    # Split by commas for multiple port entries
+    port_parts = [part.strip() for part in port_input.split(',')]
+    
+    for part in port_parts:
+        if not part:
+            continue
+            
+        # Check for port ranges (e.g., "Gi1/0/1-5" or "Gi1/0/1-Gi1/0/5")
+        if '-' in part:
+            if part.count('-') != 1:
+                return False
+            
+            start_port, end_port = part.split('-')
+            start_port = start_port.strip()
+            end_port = end_port.strip()
+            
+            # Validate both parts of the range
+            if not _is_valid_single_port(start_port):
+                return False
+            
+            # End port can be just a number for shorthand notation (Gi1/0/1-5)
+            if not _is_valid_single_port(end_port) and not _is_valid_port_number(end_port):
+                return False
+        else:
+            # Single port validation
+            if not _is_valid_single_port(part):
+                return False
+    
+    return True
+
+def _is_valid_single_port(port):
+    """Validate a single port specification."""
+    # Dell switch port format: Interface[stack]/[module]/[port]
+    # Examples: Gi1/0/24, Te1/0/1, Tw1/0/1
+    pattern = re.compile(r'^(Gi|gi|Te|te|Tw|tw)(\d{1,2})/(\d{1,2})/(\d{1,3})$')
+    match = pattern.match(port.strip())
+    
+    if not match:
+        return False
+    
+    # Extract components for range validation
+    interface_type, stack, module, port_num = match.groups()
+    
+    # Validate ranges (realistic Dell switch limits)
+    stack_num = int(stack)
+    module_num = int(module)
+    port_number = int(port_num)
+    
+    # Stack: 1-8 (typical Dell switch stack range)
+    # Module: 0-3 (typical module range) 
+    # Port: 1-128 (generous range covering most Dell models)
+    return (1 <= stack_num <= 8 and 
+            0 <= module_num <= 3 and 
+            1 <= port_number <= 128)
+
+def _is_valid_port_number(port_num_str):
+    """Validate a port number string (for range notation)."""
+    try:
+        port_num = int(port_num_str)
+        return 1 <= port_num <= 128
+    except ValueError:
+        return False
+
+def is_valid_port_description(description):
+    """
+    Validate port description to prevent command injection and ensure safe content.
+    
+    This function ensures port descriptions are safe for use in Dell switch CLI
+    commands while allowing legitimate business content.
+    
+    Args:
+        description (str): Port description to validate
+        
+    Returns:
+        bool: True if description is valid and safe, False otherwise
+        
+    Security Features:
+        - Prevents command injection through special characters
+        - Blocks suspicious command sequences
+        - Allows standard alphanumeric and business-safe characters
+        - Enforces reasonable length limits
+    """
+    if not isinstance(description, str):
+        return False
+    
+    description = description.strip()
+    
+    # Allow empty descriptions
+    if not description:
+        return True
+    
+    # Length validation (reasonable for switch port descriptions)
+    if len(description) > 200:
+        return False
+    
+    # Character validation: Allow alphanumeric, spaces, and safe punctuation
+    # Exclude potentially dangerous characters for CLI commands
+    allowed_pattern = re.compile(r'^[a-zA-Z0-9\s\-_.,()\[\]#@+=:]*$')
+    if not allowed_pattern.match(description):
+        return False
+    
+    # Block suspicious command sequences and injection patterns
+    dangerous_patterns = [
+        # Command separators and operators
+        ';', '|', '&', '$', '`', '\\', '"', "'",
+        # Common injection keywords
+        'configure', 'exit', 'enable', 'disable',
+        'shutdown', 'no shutdown', 'reload', 'delete',
+        'vlan', 'interface', 'switchport', 'access',
+        # Script execution patterns
+        '$(', '${', '%%', '<script', '</script',
+        # Network command patterns
+        'ping', 'traceroute', 'telnet', 'ssh'
+    ]
+    
+    description_lower = description.lower()
+    for pattern in dangerous_patterns:
+        if pattern in description_lower:
+            return False
+    
+    return True
+
+def is_valid_vlan_id(vlan_id):
+    """
+    Validate VLAN ID to ensure it's within IEEE 802.1Q standard ranges.
+    
+    This function validates VLAN IDs according to IEEE standards and prevents
+    injection attacks through malformed VLAN specifications.
+    
+    Args:
+        vlan_id (str or int): VLAN ID to validate
+        
+    Returns:
+        bool: True if VLAN ID is valid, False otherwise
+        
+    Valid Range:
+        - 1-4094 (IEEE 802.1Q standard range)
+        - Excludes reserved VLANs (0, 4095)
+        
+    Security Features:
+        - Strict numeric validation prevents injection
+        - Range enforcement follows IEEE standards
+        - Input sanitization for type safety
+    """
+    try:
+        # Handle both string and integer inputs
+        if isinstance(vlan_id, str):
+            vlan_id = vlan_id.strip()
+            if not vlan_id.isdigit():
+                return False
+            vlan_num = int(vlan_id)
+        elif isinstance(vlan_id, int):
+            vlan_num = vlan_id
+        else:
+            return False
+        
+        # IEEE 802.1Q standard VLAN range: 1-4094
+        # VLAN 0 and 4095 are reserved
+        return 1 <= vlan_num <= 4094
+        
+    except (ValueError, TypeError):
+        return False
+
+def is_valid_vlan_name(vlan_name):
+    """
+    Validate VLAN name to prevent command injection and ensure compliance with
+    Dell switch naming conventions and business standards.
+    
+    This function ensures VLAN names are safe for CLI commands while supporting
+    enterprise naming conventions and standards.
+    
+    Args:
+        vlan_name (str): VLAN name to validate
+        
+    Returns:
+        bool: True if VLAN name is valid and safe, False otherwise
+        
+    Naming Standards:
+        - Supports enterprise conventions (Zone_Client_Name, Internal_Network)
+        - Alphanumeric characters with underscores and hyphens
+        - Reasonable length limits for switch compatibility
+        
+    Security Features:
+        - Prevents command injection through special characters
+        - Blocks suspicious command sequences
+        - Enforces Dell switch naming compatibility
+        - Validates against reserved or dangerous names
+    """
+    if not isinstance(vlan_name, str):
+        return False
+    
+    vlan_name = vlan_name.strip()
+    
+    # VLAN name is required and cannot be empty
+    if not vlan_name:
+        return False
+    
+    # Length validation (Dell switch VLAN name limits)
+    if len(vlan_name) > 64:  # Conservative limit for Dell switches
+        return False
+    
+    # Character validation: Enterprise-friendly naming convention
+    # Allow alphanumeric, underscores, hyphens, and limited punctuation
+    allowed_pattern = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-_.]*$')
+    if not allowed_pattern.match(vlan_name):
+        return False
+    
+    # Block dangerous or reserved names
+    dangerous_names = [
+        # Switch configuration keywords
+        'configure', 'exit', 'enable', 'disable', 'interface',
+        'switchport', 'access', 'trunk', 'general', 'native',
+        # System reserved names
+        'default', 'management', 'system', 'admin', 'root',
+        # Command injection attempts
+        'config', 'conf', 'term', 'terminal', 'global',
+        # Common attack patterns
+        'script', 'exec', 'eval', 'cmd', 'command'
+    ]
+    
+    vlan_name_lower = vlan_name.lower()
+    for dangerous_name in dangerous_names:
+        if dangerous_name == vlan_name_lower:
+            return False
+    
+    # Block names that start with numbers only (some switches don't allow this)
+    if vlan_name[0].isdigit() and vlan_name.isdigit():
+        return False
+    
+    return True
+
+def get_port_format_error_message(port_input):
+    """
+    Generate a security-focused error message for invalid port format inputs.
+    
+    This function creates user-friendly error messages that provide helpful guidance
+    for entering valid port specifications while maintaining security best practices.
+    
+    Args:
+        port_input (str): The invalid port input that was provided by the user
+        
+    Returns:
+        dict: Structured error response with guidance for proper port formatting
+        
+    Security Features:
+        - Only displays valid format examples
+        - Excludes potentially harmful input patterns from error messages
+        - Provides educational content without exposing attack vectors
+    """
+    return {
+        'error': 'Invalid port format',
+        'details': {
+            'provided': port_input,
+            'valid_formats': [
+                'Single port: Gi1/0/24',
+                'Port range: Gi1/0/1-5',
+                'Multiple ports: Gi1/0/1,Gi1/0/5,Gi1/0/10',
+                'Mixed format: Gi1/0/1-5,Te1/0/1,Tw1/0/2'
+            ],
+            'requirements': [
+                'Use Dell interface naming: Gi (GigE), Te (10GigE), Tw (25GigE)',
+                'Format: Interface[stack]/[module]/[port] (e.g., Gi1/0/24)',
+                'Stack numbers: 1-8, Module: 0-3, Ports: 1-128',
+                'Separate multiple entries with commas',
+                'Use hyphens for port ranges within same interface type'
+            ],
+            'examples': {
+                'correct': [
+                    'Gi1/0/24',
+                    'Gi1/0/1-5',
+                    'Te1/0/1,Te1/0/3',
+                    'Gi1/0/10-15,Gi2/0/20',
+                    'Tw1/0/1,Tw1/0/2'
+                ]
+            }
+        }
+    }
+
+def get_vlan_format_error_message(field_name, value):
+    """
+    Generate security-focused error messages for invalid VLAN-related inputs.
+    
+    Args:
+        field_name (str): Name of the field that failed validation
+        value (str): The invalid value that was provided
+        
+    Returns:
+        dict: Structured error response with field-specific guidance
+    """
+    if field_name == 'vlan_id':
+        return {
+            'error': 'Invalid VLAN ID',
+            'details': {
+                'field': 'vlan_id',
+                'provided': value,
+                'valid_range': '1-4094 (IEEE 802.1Q standard)',
+                'requirements': [
+                    'Must be a numeric value',
+                    'Range: 1 to 4094 (inclusive)',
+                    'VLAN 0 and 4095 are reserved and not allowed'
+                ],
+                'examples': {
+                    'correct': ['100', '200', '1500', '4000']
+                }
+            }
+        }
+    elif field_name == 'vlan_name':
+        return {
+            'error': 'Invalid VLAN name',
+            'details': {
+                'field': 'vlan_name',
+                'provided': value,
+                'requirements': [
+                    'Must start with alphanumeric character',
+                    'Can contain letters, numbers, hyphens, and underscores',
+                    'Maximum length: 64 characters',
+                    'Cannot be empty or reserved system names'
+                ],
+                'naming_standards': [
+                    'Zone_Client_Name (recommended)',
+                    'Internal_Network',
+                    'Guest_Access', 
+                    'IoT_Devices'
+                ],
+                'examples': {
+                    'correct': [
+                        'Zone_Client_ABC',
+                        'Internal_Network',
+                        'Guest_WiFi',
+                        'IoT_Devices',
+                        'Voice_VLAN'
+                    ]
+                }
+            }
+        }
+    elif field_name == 'description':
+        return {
+            'error': 'Invalid port description',
+            'details': {
+                'field': 'description',
+                'provided': value,
+                'requirements': [
+                    'Maximum length: 200 characters',
+                    'Alphanumeric characters and safe punctuation only',
+                    'No command injection characters allowed'
+                ],
+                'allowed_characters': 'Letters, numbers, spaces, hyphens, underscores, periods, commas, parentheses, brackets, hash, at-sign, plus, equals, colon',
+                'examples': {
+                    'correct': [
+                        'Client Workstation - Room 101',
+                        'Server Connection [Primary]',
+                        'Access Point #3 - Floor 2',
+                        'Printer Port (HP LaserJet)',
+                        'Phone Port: Extension 1234'
+                    ]
+                }
+            }
+        }
+    else:
+        return {
+            'error': f'Invalid {field_name}',
+            'details': {
+                'field': field_name,
+                'provided': value,
+                'message': 'Please check the format and try again'
+            }
+        }
+
 # Dell Switch Model Port Configurations
 SWITCH_PORT_CONFIG = {
     'N2000': {

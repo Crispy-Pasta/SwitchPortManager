@@ -366,9 +366,15 @@ def detect_switch_model_from_config(switch_name, switch_config):
     """Detect switch model from configuration or name patterns."""
     model = switch_config.get('model', '').upper()
     
-    # Extract model from explicit model field
-    # Check for N3248 first (explicit Dell N3248 model detection)
-    if 'N3248' in model:
+    # Extract model from explicit model field with specific N3248 variant detection
+    # Check for N3248PXE first (Te ports are uplinks)
+    if 'N3248PXE' in model or 'N3248-PXE' in model:
+        return 'N3248PXE'
+    # Check for N3248P (Gi ports are uplinks) 
+    elif 'N3248P' in model:
+        return 'N3248P'
+    # Check for base N3248 (assume Te ports are uplinks like N3200)
+    elif 'N3248' in model:
         return 'N3200'
     elif 'N2000' in model or 'N20' in model:
         return 'N2000'
@@ -381,6 +387,10 @@ def detect_switch_model_from_config(switch_name, switch_config):
     name_upper = switch_name.upper()
     if any(pattern in name_upper for pattern in ['N2000', 'N20']):
         return 'N2000'
+    elif any(pattern in name_upper for pattern in ['N3248PXE', 'N3248-PXE']):
+        return 'N3248PXE'
+    elif any(pattern in name_upper for pattern in ['N3248P']):
+        return 'N3248P'
     elif any(pattern in name_upper for pattern in ['N3200', 'N32', 'N3248']):
         return 'N3200'
     elif any(pattern in name_upper for pattern in ['N3000', 'N30']):
@@ -409,6 +419,12 @@ def is_uplink_port(port_name, switch_model=None, port_description=''):
     elif switch_model == 'N3000': 
         # N3000: Gi ports are access, Te ports are uplinks
         return port_name.startswith('Te')
+    elif switch_model == 'N3248P':
+        # N3248P: Gi ports are access, Te ports are uplinks (like standard N3000)
+        return port_name.startswith('Te')
+    elif switch_model == 'N3248PXE':
+        # N3248PXE: Te ports are access, Tw ports are uplinks (like N3200)
+        return port_name.startswith('Tw')
     elif switch_model == 'N3200':
         # N3200: Te ports are access, Tw (TwentyGig) ports are uplinks
         return port_name.startswith('Tw')
@@ -1458,22 +1474,54 @@ MANAGE_TEMPLATE = """
                         
                         <div class="form-group">
                             <label for="switch-name">Switch Name</label>
-                            <input type="text" id="switch-name" name="name" placeholder="e.g., SW-F11-R1-VAS-01" required>
+                            <input type="text" id="switch-name" name="name" placeholder="e.g., SITE_NAME-F11-R1-VAS-01" required 
+                                   pattern="[A-Z0-9_]+-F[0-9]{1,2}-[A-Z0-9]{1,3}-(VAS|AS)-[0-9]{1,2}$" 
+                                   title="Format: SITE_NAME-FLOOR-RACK/CABINET-VAS/AS-NUMBER (e.g., SITE_NAME-F11-R1-VAS-01 or SITE_NAME-F33-C1-AS-01)"
+                                   maxlength="50">
                         </div>
                         
                         <div class="form-group">
                             <label for="switch-ip">IP Address</label>
-                            <input type="text" id="switch-ip" name="ip_address" placeholder="e.g., 10.50.0.10" required>
+                            <input type="text" id="switch-ip" name="ip_address" placeholder="e.g., 10.50.0.10" required
+                                   pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                   title="Valid IPv4 address required (e.g., 192.168.1.100)"
+                                   maxlength="15">
                         </div>
                         
                         <div class="form-group">
                             <label for="switch-model">Model</label>
-                            <input type="text" id="switch-model" name="model" placeholder="e.g., Dell N3248" required>
+                            <select id="switch-model" name="model" required>
+                                <option value="">Select switch model...</option>
+                                <optgroup label="Dell N2000 Series">
+                                    <option value="Dell N2048">Dell N2048</option>
+                                    <option value="Dell N2024">Dell N2024</option>
+                                    <option value="Dell N2048P">Dell N2048P</option>
+                                </optgroup>
+                                <optgroup label="Dell N3000 Series">
+                                    <option value="Dell N3024">Dell N3024</option>
+                                    <option value="Dell N3024P">Dell N3024P</option>
+                                    <option value="Dell N3024F">Dell N3024F</option>
+                                    <option value="Dell N3048">Dell N3048</option>
+                                    <option value="Dell N3048P">Dell N3048P</option>
+                                </optgroup>
+                                <optgroup label="Dell N3200 Series">
+                                    <option value="Dell N3248">Dell N3248</option>
+                                    <option value="Dell N3224P">Dell N3224P</option>
+                                    <option value="Dell N3224PXE">Dell N3224PXE</option>
+                                    <option value="Dell N3248P">Dell N3248P</option>
+                                    <option value="Dell N3248PXE">Dell N3248PXE</option>
+                                </optgroup>
+                                <optgroup label="Other Models">
+                                    <option value="Custom Model">Custom Model (specify in description)</option>
+                                </optgroup>
+                            </select>
                         </div>
                         
                         <div class="form-group">
                             <label for="switch-description">Description</label>
-                            <input type="text" id="switch-description" name="description" placeholder="e.g., Floor 11 VAS Switch">
+                            <input type="text" id="switch-description" name="description" 
+                                   placeholder="e.g., Floor 11 VAS Switch" 
+                                   maxlength="100">
                         </div>
                         
                         <div class="form-group">
@@ -1727,6 +1775,11 @@ MANAGE_TEMPLATE = """
                 saveBtn.disabled = true;
                 saveBtn.textContent = switchId ? '🔄 Updating...' : '🔄 Creating...';
 
+                // 🔧 FIXED: Process checkbox values properly for API compatibility
+                // Converts HTML checkbox value from 'on'/undefined to boolean true/false
+                // This prevents API validation errors for the 'enabled' field
+                data.enabled = data.enabled === 'on' ? true : false;
+                
                 // Convert site_id to floor_id for API compatibility
                 if (data.site_id && data.floor_id) {
                     // The floor_id is already correct, just remove site_id
@@ -3019,7 +3072,37 @@ from vlan_management_v2 import vlan_change_workflow
 
 @app.route('/api/vlan/change', methods=['POST'])
 def api_change_port_vlan_advanced():
-    """Advanced API endpoint for VLAN change workflow with comprehensive safety checks."""
+    """
+    Advanced VLAN Change API Endpoint (v2.1.2)
+    ==========================================
+    
+    Provides comprehensive VLAN management with enterprise-grade input validation,
+    security checks, and detailed audit logging. This endpoint implements the
+    enhanced VLAN Manager security features introduced in version 2.1.2.
+    
+    SECURITY FEATURES:
+    - Multi-layer input validation to prevent command injection attacks
+    - Enterprise-grade port format validation (Dell switch compatibility)
+    - VLAN ID validation according to IEEE 802.1Q standards
+    - VLAN name validation with business naming convention support
+    - Port description sanitization to prevent CLI command injection
+    - Comprehensive audit logging for security compliance
+    
+    VALIDATION DETAILS:
+    - Port formats: Supports Dell interface naming (Gi, Te, Tw) with ranges
+    - VLAN IDs: 1-4094 (IEEE standard), excludes reserved VLANs (0, 4095)
+    - VLAN names: Enterprise naming conventions (Zone_Client_Name, etc.)
+    - Descriptions: Safe characters only, max 200 chars, no injection patterns
+    
+    ACCESS CONTROL:
+    - Requires authentication (session-based)
+    - NetAdmin or SuperAdmin role required
+    - All security violations logged for audit
+    
+    Returns:
+        dict: VLAN change results or detailed validation error messages
+    """
+    # Authentication and authorization checks
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
@@ -3031,43 +3114,118 @@ def api_change_port_vlan_advanced():
         data = request.json
         username = session['username']
         
-        # Required fields
+        # Validate required fields are present
         required_fields = ['switch_id', 'ports', 'vlan_id', 'vlan_name']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Optional fields
-        description = data.get('description', '')
+        # Import enterprise-grade validation functions from VLAN Manager v2
+        from vlan_management_v2 import (is_valid_port_input, is_valid_port_description, 
+                                        is_valid_vlan_id, is_valid_vlan_name,
+                                        get_port_format_error_message, get_vlan_format_error_message)
+        
+        # SECURITY CHECKPOINT 1: Validate port input format
+        # Prevents command injection through malformed port specifications
+        ports_input = data.get('ports', '').strip()
+        if not is_valid_port_input(ports_input):
+            # Log security violation for audit trail
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT FORMAT - Attempted: {ports_input}")
+            detailed_error = get_port_format_error_message(ports_input)
+            return jsonify(detailed_error), 400
+        
+        # SECURITY CHECKPOINT 2: Validate VLAN ID according to IEEE standards
+        # Ensures VLAN ID is within valid range and prevents injection
+        vlan_id = data.get('vlan_id')
+        if not is_valid_vlan_id(vlan_id):
+            # Log security violation for audit trail
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN ID - Attempted: {vlan_id}")
+            detailed_error = get_vlan_format_error_message('vlan_id', str(vlan_id))
+            return jsonify(detailed_error), 400
+        
+        # SECURITY CHECKPOINT 3: Validate VLAN name for business standards
+        # Prevents command injection and enforces enterprise naming conventions
+        vlan_name = data.get('vlan_name', '').strip()
+        if not is_valid_vlan_name(vlan_name):
+            # Log security violation for audit trail
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN NAME - Attempted: {vlan_name}")
+            detailed_error = get_vlan_format_error_message('vlan_name', vlan_name)
+            return jsonify(detailed_error), 400
+        
+        # SECURITY CHECKPOINT 4: Validate port description (optional but critical)
+        # Sanitizes description to prevent CLI command injection attacks
+        description = data.get('description', '').strip()
+        if description and not is_valid_port_description(description):
+            # Log security violation for audit trail
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT DESCRIPTION - Attempted: {description}")
+            detailed_error = get_vlan_format_error_message('description', description)
+            return jsonify(detailed_error), 400
+        
+        # Process optional workflow control flags
         force_change = data.get('force_change', False)
         skip_non_access = data.get('skip_non_access', False)
         
-        # Execute workflow
+        # Execute VLAN change workflow with validated and sanitized inputs
+        # All inputs have passed security validation at this point
         result = vlan_change_workflow(
             switch_id=data['switch_id'],
-            ports_input=data['ports'],
-            description=description,
-            vlan_id=data['vlan_id'],
-            vlan_name=data['vlan_name'],
+            ports_input=ports_input,        # Validated port format
+            description=description,         # Sanitized description
+            vlan_id=vlan_id,                # Validated VLAN ID
+            vlan_name=vlan_name,            # Validated VLAN name
             force_change=force_change,
             skip_non_access=skip_non_access
         )
         
-        # Log the operation
+        # Comprehensive audit logging for security compliance
         if result['status'] == 'success':
-            audit_logger.info(f"User: {username} - VLAN CHANGE - Switch: {result.get('switch_info', {}).get('name', 'unknown')}, VLAN: {data['vlan_id']}, Ports: {data['ports']}")
+            audit_logger.info(f"User: {username} - VLAN CHANGE SUCCESS - Switch: {result.get('switch_info', {}).get('name', 'unknown')}, VLAN: {vlan_id} ({vlan_name}), Ports: {ports_input}, Changed: {len(result.get('ports_changed', []))}")
         else:
-            audit_logger.warning(f"User: {username} - VLAN CHANGE FAILED - Switch ID: {data['switch_id']}, Error: {result.get('error', 'unknown')}")
+            audit_logger.warning(f"User: {username} - VLAN CHANGE FAILED - Switch ID: {data['switch_id']}, VLAN: {vlan_id}, Error: {result.get('error', 'unknown')}")
         
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"VLAN change API error: {str(e)}")
+        # Log unexpected errors for debugging and security monitoring
+        logger.error(f"VLAN change API unexpected error: {str(e)}")
+        audit_logger.error(f"User: {session.get('username', 'unknown')} - VLAN CHANGE API ERROR: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/vlan/check', methods=['POST'])
 def api_check_vlan():
-    """Check VLAN existence on switch."""
+    """
+    VLAN Existence Check API Endpoint (v2.1.2)
+    ==========================================
+    
+    Secure API endpoint for checking VLAN existence on Dell switches with
+    comprehensive input validation and security features.
+    
+    SECURITY FEATURES:
+    - IEEE 802.1Q VLAN ID validation (1-4094 range)
+    - Command injection prevention through strict input validation
+    - Comprehensive audit logging for security compliance
+    - Authentication and role-based authorization
+    
+    FUNCTIONALITY:
+    - Connects to specified switch via secure SSH
+    - Queries VLAN table for existence verification
+    - Returns VLAN details including name and configuration status
+    - Supports multiple Dell switch models (N2000, N3000, N3200)
+    
+    SUPPORTED MODELS:
+    - Dell N2048 (N2000 series) with specialized command handling
+    - Dell N3000 series switches
+    - Dell N3200 series switches (N3248)
+    
+    ACCESS CONTROL:
+    - NetAdmin or SuperAdmin role required
+    - Session-based authentication
+    - All invalid attempts logged for security monitoring
+    
+    Returns:
+        dict: VLAN information or detailed validation error messages
+    """
+    # Authentication and authorization validation
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
@@ -3076,20 +3234,31 @@ def api_check_vlan():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     try:
-        from vlan_management_v2 import VLANManager
+        from vlan_management_v2 import VLANManager, is_valid_vlan_id, get_vlan_format_error_message
         data = request.json
+        username = session['username']
         switch_id = data.get('switch_id')
         vlan_id = data.get('vlan_id')
         
+        # Validate required parameters
         if not all([switch_id, vlan_id]):
             return jsonify({'error': 'Missing switch_id or vlan_id'}), 400
         
-        # Get switch info
+        # SECURITY CHECKPOINT: Validate VLAN ID according to IEEE 802.1Q standards
+        # Prevents command injection and ensures compliance with VLAN standards
+        if not is_valid_vlan_id(vlan_id):
+            # Log security violation with detailed information for audit
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN ID - Switch ID: {switch_id}, Attempted VLAN: {vlan_id}")
+            detailed_error = get_vlan_format_error_message('vlan_id', str(vlan_id))
+            return jsonify(detailed_error), 400
+        
+        # Database query to retrieve switch information
         switch = Switch.query.get(switch_id)
         if not switch:
+            audit_logger.warning(f"User: {username} - VLAN CHECK FAILED - Switch not found: ID {switch_id}")
             return jsonify({'error': 'Switch not found'}), 404
         
-        # Initialize VLAN manager
+        # Initialize secure VLAN manager connection
         vlan_manager = VLANManager(
             switch.ip_address,
             SWITCH_USERNAME,
@@ -3097,22 +3266,74 @@ def api_check_vlan():
             switch.model
         )
         
+        # Attempt secure SSH connection to switch
         if not vlan_manager.connect():
+            audit_logger.error(f"User: {username} - VLAN CHECK CONNECTION FAILED - Switch: {switch.name} ({switch.ip_address})")
             return jsonify({'error': 'Could not connect to switch'}), 500
         
         try:
+            # Execute VLAN existence check with model-specific command handling
             vlan_info = vlan_manager.get_vlan_info(vlan_id)
+            
+            # Log successful VLAN check for audit trail
+            audit_logger.info(f"User: {username} - VLAN CHECK SUCCESS - Switch: {switch.name} ({switch.ip_address}), VLAN: {vlan_id}, Exists: {vlan_info.get('exists', False)}")
+            
             return jsonify(vlan_info)
+            
         finally:
+            # Always ensure secure disconnection from switch
             vlan_manager.disconnect()
             
     except Exception as e:
-        logger.error(f"VLAN check API error: {str(e)}")
+        # Log unexpected errors for security monitoring and debugging
+        logger.error(f"VLAN check API unexpected error: {str(e)}")
+        audit_logger.error(f"User: {session.get('username', 'unknown')} - VLAN CHECK API ERROR - Switch ID: {switch_id}, VLAN: {vlan_id}, Error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/port/status', methods=['POST'])
 def api_check_port_status():
-    """Check port status on switch."""
+    """
+    Port Status Check API Endpoint (v2.1.2)
+    =======================================
+    
+    Secure API endpoint for retrieving detailed port status information from
+    Dell switches with comprehensive input validation and security features.
+    
+    SECURITY FEATURES:
+    - Enterprise-grade port format validation (Dell switch compatibility)
+    - Command injection prevention through strict input validation
+    - Comprehensive audit logging for security compliance
+    - Authentication and role-based authorization
+    
+    FUNCTIONALITY:
+    - Connects to specified switch via secure SSH
+    - Retrieves port operational status (up/down)
+    - Queries port mode configuration (access/trunk/general)
+    - Returns VLAN assignments and descriptions
+    - Identifies uplink ports based on model and description
+    
+    PORT INFORMATION RETURNED:
+    - Operational status (up/down/unknown)
+    - Port mode (access/trunk/general)
+    - Current VLAN assignment
+    - Port description (if configured)
+    - Uplink detection flag
+    - Raw configuration output for debugging
+    
+    SUPPORTED MODELS:
+    - Dell N2048 (N2000 series) with specialized command handling
+    - Dell N3000 series switches
+    - Dell N3200 series switches (N3248)
+    
+    ACCESS CONTROL:
+    - NetAdmin or SuperAdmin role required
+    - Session-based authentication
+    - All invalid attempts logged for security monitoring
+    
+    Returns:
+        dict: Port status information or detailed validation error messages
+    """
+    # Authentication and authorization validation
     if 'username' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
@@ -3121,20 +3342,31 @@ def api_check_port_status():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     try:
-        from vlan_management_v2 import VLANManager
+        from vlan_management_v2 import VLANManager, is_valid_port_input, get_port_format_error_message
         data = request.json
+        username = session['username']
         switch_id = data.get('switch_id')
-        ports_input = data.get('ports')
+        ports_input = data.get('ports', '').strip()
         
+        # Validate required parameters
         if not all([switch_id, ports_input]):
             return jsonify({'error': 'Missing switch_id or ports'}), 400
         
-        # Get switch info
+        # SECURITY CHECKPOINT: Validate port input format
+        # Prevents command injection through malformed port specifications
+        if not is_valid_port_input(ports_input):
+            # Log security violation with detailed information for audit
+            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT FORMAT - Switch ID: {switch_id}, Attempted Ports: {ports_input}")
+            detailed_error = get_port_format_error_message(ports_input)
+            return jsonify(detailed_error), 400
+        
+        # Database query to retrieve switch information
         switch = Switch.query.get(switch_id)
         if not switch:
+            audit_logger.warning(f"User: {username} - PORT STATUS CHECK FAILED - Switch not found: ID {switch_id}")
             return jsonify({'error': 'Switch not found'}), 404
         
-        # Initialize VLAN manager
+        # Initialize secure VLAN manager connection
         vlan_manager = VLANManager(
             switch.ip_address,
             SWITCH_USERNAME,
@@ -3142,28 +3374,44 @@ def api_check_port_status():
             switch.model
         )
         
+        # Attempt secure SSH connection to switch
         if not vlan_manager.connect():
+            audit_logger.error(f"User: {username} - PORT STATUS CONNECTION FAILED - Switch: {switch.name} ({switch.ip_address})")
             return jsonify({'error': 'Could not connect to switch'}), 500
         
         try:
-            # Parse ports
+            # Parse and validate port specifications
             ports = vlan_manager.parse_port_range(ports_input)
             port_statuses = []
             
+            # Query each port for detailed status information
             for port in ports:
+                # Get comprehensive port status including mode, VLAN, and description
                 status = vlan_manager.get_port_status(port)
+                
+                # Add uplink detection based on switch model and port characteristics
                 status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                
                 port_statuses.append(status)
+            
+            # Log successful port status check for audit trail
+            audit_logger.info(f"User: {username} - PORT STATUS SUCCESS - Switch: {switch.name} ({switch.ip_address}), Ports: {ports_input}, Count: {len(port_statuses)}")
             
             return jsonify({
                 'ports': port_statuses,
-                'switch_model': switch.model
+                'switch_model': switch.model,
+                'switch_name': switch.name,
+                'switch_ip': switch.ip_address
             })
+            
         finally:
+            # Always ensure secure disconnection from switch
             vlan_manager.disconnect()
             
     except Exception as e:
-        logger.error(f"Port status API error: {str(e)}")
+        # Log unexpected errors for security monitoring and debugging
+        logger.error(f"Port status API unexpected error: {str(e)}")
+        audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id}, Ports: {ports_input}, Error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 
