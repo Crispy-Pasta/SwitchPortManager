@@ -155,34 +155,87 @@ button:disabled {
   margin-top: 24px;
 }
 
+/* Trace Results Styling - Fixed for Better Readability */
 .result-item {
   padding: 16px;
   margin: 12px 0;
   border-radius: 8px;
-  border: 1px solid var(--light-blue);
+  border: 2px solid var(--light-blue);
   background: #f4f8fb;
-  color: var(--deep-navy);
+  color: var(--deep-navy) !important; /* Use dark navy text for good contrast */
+  font-weight: 500;
+  line-height: 1.5;
 }
 
+/* Ensure all text elements within result items are dark navy */
+.result-item * {
+  color: var(--deep-navy) !important;
+}
+
+/* Ensure strong elements stand out */
+.result-item strong {
+  color: var(--deep-navy) !important;
+  font-weight: 700;
+}
+
+/* Trace Results Header - Make it white for visibility on dark background */
+.results h3 {
+  color: var(--white) !important;
+  font-weight: 700;
+  margin-bottom: 20px;
+  font-size: 1.4em;
+  background: var(--deep-navy);
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* MAC Found Results - Lighter Green Background with Dark Text */
 .found {
-  background: #e6f7e6;
-  border-color: #b2e2b2;
+  background: #d4edda !important; /* Light green background */
+  border-color: #c3e6cb !important;
+  color: var(--deep-navy) !important;
 }
 
+/* Ensure all content in found results has dark text */
+.found * {
+  color: var(--deep-navy) !important;
+}
+
+/* Uplink Detected Results - Light Orange Background with Dark Text */
 .found.uplink-detected {
-  background: #fff8e6;
-  border-color: #ffd699;
+  background: #fff3cd !important; /* Light yellow/orange background */
+  border-color: #ffeaa7 !important;
+  color: var(--deep-navy) !important;
 }
 
+/* Ensure all content in uplink detected results has dark text */
+.found.uplink-detected * {
+  color: var(--deep-navy) !important;
+}
+
+/* MAC Not Found Results - Light Yellow Background with Dark Text */
 .not-found {
-  background: #fff2e6;
-  border-color: #ffd6b2;
+  background: #fff3cd !important; /* Light yellow background */
+  border-color: #ffeaa7 !important;
+  color: var(--deep-navy) !important;
 }
 
+/* Ensure all content in not-found results has dark text */
+.not-found * {
+  color: var(--deep-navy) !important;
+}
+
+/* Error Results - Light Red Background with Dark Text */
 .error {
-  background: #fff6e6;
-  border-color: #ffe0b2;
-  color: var(--orange);
+  background: #f8d7da !important; /* Light red background */
+  border-color: #f5c6cb !important;
+  color: var(--deep-navy) !important;
+}
+
+/* Ensure all content in error results has dark text */
+.error * {
+  color: var(--deep-navy) !important;
 }
 
 .loading {
@@ -334,7 +387,7 @@ a:hover {
   padding: 12px 16px;
   background: transparent;
   border: none;
-  color: var(--deep-navy);
+  color: var(--white) !important;
   font-weight: bold;
   font-size: 0.95em;
 }

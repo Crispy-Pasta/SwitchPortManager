@@ -571,7 +571,28 @@ def apply_role_based_filtering(results, user_role):
     return filtered_results
 
 class DellSwitchSSH:
-    """Dell switch SSH connection handler with protection monitoring."""
+    """Dell switch SSH connection handler with protection monitoring.
+    
+    This class handles SSH connections to Dell switches with enhanced error handling,
+    connection management, and troubleshooting capabilities for network operations.
+    
+    Troubleshooting Guide:
+    - Connection Timeouts: Check network connectivity and switch SSH settings
+    - Authentication Failures: Verify SWITCH_USERNAME/SWITCH_PASSWORD in .env
+    - Session Limits: Dell switches support ~10 concurrent SSH sessions
+    - Command Timeouts: Commands have built-in delays for switch response times
+    - Lost Connections: Automatic cleanup and reconnection handling
+    
+    Monitoring Features:
+    - Command execution tracking for performance analysis
+    - Connection state management with proper cleanup
+    - Switch protection integration for load balancing
+    
+    Supported Switch Models:
+    - Dell N2000 Series: N2048 (GigE access, 10GE uplink)
+    - Dell N3000 Series: N3024P (GigE access, 10GE uplink) 
+    - Dell N3200 Series: N3248 (10GE access, 25GE uplink)
+    """
     
     def __init__(self, ip_address, username, password, switch_monitor=None):
         self.ip_address = ip_address
@@ -1154,6 +1175,7 @@ MANAGE_TEMPLATE = """
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         .manage-container {
             display: flex;
@@ -2353,20 +2375,214 @@ LOGIN_TEMPLATE = """
 <head>
     <title>Dell Switch Port Tracer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .login-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            padding: 50px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .logo-section {
+            margin-bottom: 40px;
+        }
+        .logo-section img {
+            height: 80px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+        }
+        .app-title {
+            color: var(--deep-navy);
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .app-subtitle {
+            color: #6b7280;
+            font-size: 16px;
+            margin: 0 0 40px 0;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            color: var(--deep-navy);
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1);
+            background: white;
+            transform: translateY(-2px);
+        }
+        .form-input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+        }
+        .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            color: white;
+            border: none;
+            padding: 18px 24px;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+        }
+        .login-btn:hover {
+            background: linear-gradient(135deg, #e68900, #cc7700);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(255, 152, 0, 0.4);
+        }
+        .login-btn:active {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+        }
+        .error-card {
+            background: rgba(254, 242, 242, 0.95);
+            border: 2px solid #fca5a5;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-top: 25px;
+            color: #dc2626;
+            font-size: 14px;
+            text-align: left;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
+        }
+        .error-card strong {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .feature-card {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(240, 249, 255, 0.8);
+            border: 1px solid rgba(186, 230, 253, 0.5);
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+        }
+        .feature-note {
+            color: #0369a1;
+            font-size: 13px;
+            line-height: 1.6;
+            text-align: left;
+        }
+        .feature-note strong {
+            color: var(--deep-navy);
+            font-weight: 600;
+        }
+        .version-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--deep-navy);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 40px 30px;
+                margin: 0 20px;
+                max-width: 400px;
+            }
+            .app-title {
+                font-size: 24px;
+            }
+            .app-subtitle {
+                font-size: 14px;
+            }
+            .version-badge {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+        }
+        /* Floating elements animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .logo-section img {
+            animation: float 6s ease-in-out infinite;
+        }
+    </style>
 </head>
 <body class="login-page">
-    <div class="container">
-        <div style="text-align:center; margin-bottom: 16px;">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 80px; margin-bottom: 6px;">
+    <div class="version-badge">v2.1.2</div>
+    
+    <div class="login-container">
+        <div class="logo-section">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+            <h1 class="app-title">Switch Port Tracer</h1>
+            <p class="app-subtitle">Enterprise Network Management Portal</p>
         </div>
-        <h1 style="text-align:center;">Switch Port Tracer</h1>
+        
         <form method="post">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-input" placeholder="Enter your username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="login-btn">🔐 Sign In</button>
         </form>
+        
         {% if error %}
-        <div class="error">{{ error }}</div>
+        <div class="error-card">
+            <strong>❌ Authentication Failed</strong>
+            {{ error }}
+        </div>
         {% endif %}
     </div>
 </body>
@@ -2382,18 +2598,358 @@ MAIN_TEMPLATE = """
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .main-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px 30px;
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(103, 126, 234, 0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(103, 126, 234, 0.3);
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .username {
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        .user-role {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .logout-btn {
+            color: #dc2626;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .logout-btn:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-section img {
+            height: 40px;
+        }
+        .app-title {
+            color: var(--deep-navy);
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .main-content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .navigation-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid #e5e7eb;
+        }
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .nav-link {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            color: #1e293b !important;
+            text-decoration: none;
+            padding: 16px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.5), 
+                transparent);
+            transition: left 0.5s ease;
+        }
+        .nav-link:hover::before {
+            left: 100%;
+        }
+        .nav-link:hover {
+            background: linear-gradient(135deg, #1976d2, #1565c0);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(25, 118, 210, 0.35),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border-color: #1976d2;
+        }
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--orange), #ea580c);
+            color: white;
+            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            border-color: #ea580c;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        .nav-link.active::before {
+            display: none;
+        }
+        .nav-link.active:hover {
+            background: linear-gradient(135deg, #ea580c, #dc2626);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        .trace-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--orange);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .step-title {
+            color: var(--deep-navy);
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-label {
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        .form-input {
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+        }
+        .form-input:disabled {
+            background: #f9fafb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .switch-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 12px;
+            color: #0369a1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+            .trace-button {
+            max-width: 350px;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+            margin-top: 20px;
+        }
+        .trace-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+        }
+        .trace-button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .loading-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .results-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        @media (max-width: 768px) {
+            .header-card {
+                flex-direction: column;
+                gap: 16px;
+                padding: 20px;
+            }
+            .main-content {
+                padding: 20px;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .nav-links {
+                justify-content: center;
+            }
+        }
+        /* Select2 Styling Override */
+        .select2-container--default .select2-selection--single {
+            height: 48px !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 8px !important;
+            background: white !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 44px !important;
+            padding-left: 16px !important;
+            color: #374151 !important;
+            font-size: 16px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 44px !important;
+            right: 12px !important;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: var(--orange) !important;
+            box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1) !important;
+        }
+        .select2-container--default.select2-container--disabled .select2-selection--single {
+            background: #f9fafb !important;
+            color: #9ca3af !important;
+        }
+    </style>
 </head>
 <body class="main-page">
-    <div class="container">
-        <div class="user-info">Logged in as: {{ username }} | <a href="/logout">Logout</a></div>
-        <div style="text-align:center; margin-bottom: 10px;">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
+    <div class="header-card">
+        <div class="logo-section">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+            <h1 class="app-title">Switch Port Tracer</h1>
         </div>
-        <div style="text-align:center; margin-bottom: 18px;">
-            <h1 style="margin:0;">Switch Port Tracer</h1>
+        <div class="user-profile">
+            <div class="user-avatar">{{ username[0].upper() }}</div>
+            <div class="user-details">
+                <div class="username">{{ username }}</div>
+                <div class="user-role">{{ user_role }}</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
         </div>
-        
-        <div class="navigation-bar">
+    </div>
+    
+    <div class="main-content">
+        <div class="navigation-card">
             <div class="nav-links">
                 <a href="/" class="nav-link active">🔍 Port Tracer</a>
                 {% if user_role in ['netadmin', 'superadmin'] %}
@@ -2404,31 +2960,55 @@ MAIN_TEMPLATE = """
                 {% endif %}
             </div>
         </div>
-        <div class="step">
-            <h3>Step 1: Select Site and Floor</h3>
-            <div style="margin-bottom: 15px;">
-                <select id="site" onchange="loadFloors()">
-                    <option value="">Select Site...</option>
-                    {% for site in sites %}
-                    <option value="{{ site.name }}">{{ site.name }} ({{ site.location }})</option>
-                    {% endfor %}
-                </select>
+        
+        <div class="trace-card">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Select Location</h3>
             </div>
-            <div style="margin-bottom: 15px;">
-                <select id="floor" onchange="loadSwitches()" disabled>
-                    <option value="">Select Floor...</option>
-                </select>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="site">Site</label>
+                    <select id="site" class="form-input" onchange="loadFloors()">
+                        <option value="">Select Site...</option>
+                        {% for site in sites %}
+                        <option value="{{ site.name }}">{{ site.name }} ({{ site.location }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="floor">Floor</label>
+                    <select id="floor" class="form-input" onchange="loadSwitches()" disabled>
+                        <option value="">Select Floor...</option>
+                    </select>
+                </div>
             </div>
-            <div id="switch-info" style="margin-top: 10px; color: #666;"></div>
+            
+            <div id="switch-info" class="switch-info" style="display: none;"></div>
         </div>
-        <div class="step">
-            <h3>Step 2: Enter MAC Address</h3>
-            <input type="text" id="mac" placeholder="MAC Address (e.g., 00:1B:63:84:45:E6)" disabled>
-            <button id="trace-btn" onclick="traceMac()" disabled>🔍 Trace MAC Address</button>
+        
+        <div class="trace-card">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <h3 class="step-title">Enter MAC Address</h3>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="mac">MAC Address</label>
+                <input type="text" id="mac" class="form-input" placeholder="MAC Address (e.g., 00:1B:63:84:45:E6)" disabled style="max-width: 350px;">
+            </div>
+            
+            <button id="trace-btn" class="trace-button" onclick="traceMac()" disabled>
+                🔍 Trace MAC Address
+            </button>
         </div>
-        <div id="loading" class="loading" style="display: none;">
-            <p>🔄 Tracing MAC address across switches...</p>
+        
+        <div id="loading" class="loading-card" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p style="color: var(--deep-navy); font-weight: 500; margin: 0;">Tracing MAC address across switches...</p>
         </div>
+        
         <div id="results" class="results"></div>
     </div>
     <script>
@@ -2437,6 +3017,9 @@ MAIN_TEMPLATE = """
         
         // Initialize Select2 on page load
         $(document).ready(function() {
+            // Debug: Log the sites data structure
+            console.log('Sites Data:', sitesData);
+            
             $('#site').select2({
                 placeholder: 'Search or select site...',
                 allowClear: true
@@ -2500,13 +3083,24 @@ MAIN_TEMPLATE = """
             document.getElementById('mac').disabled = true;
             document.getElementById('trace-btn').disabled = true;
             
+            // Debug: Log selected values and data
+            console.log('Selected Site:', selectedSite);
+            console.log('Selected Floor:', selectedFloor);
+            
             if (selectedSite && selectedFloor) {
                 const site = sitesData.sites.find(s => s.name === selectedSite);
+                console.log('Found Site:', site);
+                
                 if (site) {
                     const floor = site.floors.find(f => f.floor === selectedFloor);
+                    console.log('Found Floor:', floor);
+                    
                     if (floor && floor.switches) {
                         const switchCount = floor.switches.length;
                         let displayMessage;
+                        
+                        console.log('Floor switches:', floor.switches);
+                        console.log('Switch count:', switchCount);
                         
                         if (userRole === 'oss') {
                             // OSS users see only the count
@@ -2518,8 +3112,13 @@ MAIN_TEMPLATE = """
                         }
                         
                         document.getElementById('switch-info').innerHTML = displayMessage;
+                        document.getElementById('switch-info').style.display = 'block';
                         document.getElementById('mac').disabled = false;
                         document.getElementById('trace-btn').disabled = false;
+                    } else {
+                        console.log('No switches found for floor:', floor);
+                        document.getElementById('switch-info').innerHTML = '❌ No switches found for this floor';
+                        document.getElementById('switch-info').style.display = 'block';
                     }
                 }
             }
@@ -2853,11 +3452,37 @@ MAIN_TEMPLATE = """
 # Implement a before_request hook to check CPU load before processing requests
 @app.before_request
 def check_cpu_before_request():
-    # Only check CPU for compute-intensive operations
+    """Monitor CPU load before processing compute-intensive requests.
+    
+    This function acts as a gatekeeper for resource-intensive operations like MAC tracing.
+    It checks system CPU load and rejects requests if the system is under high load to
+    prevent system overload and maintain service stability.
+    
+    CPU Load Monitoring:
+    - Green Zone (0-40%): All requests accepted
+    - Yellow Zone (40-60%): Limited concurrent requests
+    - Red Zone (60%+): New requests rejected with 503 status
+    
+    Only applies to compute-intensive endpoints like '/trace' to avoid impacting
+    regular web interface navigation and administrative functions.
+    
+    Returns:
+        None: Allows request to proceed
+        Response: 503 Service Unavailable if CPU load is too high
+    """
+    # Only check CPU for compute-intensive operations to avoid blocking UI navigation
     if request.endpoint in ['trace']:
+        # Check if system can accept new requests based on current CPU load
         can_accept, reason = cpu_monitor.can_accept_request()
         if not can_accept:
-            return jsonify({'status': 'error', 'message': reason}), 503  # Service Unavailable
+            # Log CPU-based request rejection for monitoring and troubleshooting
+            logger.warning(f"Request rejected due to high CPU load: {reason}")
+            audit_logger.warning(f"CPU Protection - Request rejected from {request.remote_addr}: {reason}")
+            return jsonify({
+                'status': 'error', 
+                'message': f'System under high load: {reason}. Please try again in a moment.',
+                'error_type': 'cpu_overload'
+            }), 503  # Service Unavailable
 
 # Routes
 @app.route('/cpu-status')
