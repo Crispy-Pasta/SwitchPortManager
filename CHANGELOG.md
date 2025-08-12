@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.2.0] - 2025-01-12
+
+### Added
+- **Enhanced Management Interface**: Complete redesign of the admin interface with tabbed navigation
+  - Separated tabs for Switches, Sites, and Floors management
+  - Comprehensive CRUD operations for all entities with proper hierarchical relationships
+  - Real-time data synchronization across tabs
+  - Enhanced UI/UX with modern tab-based design patterns
+
+- **Sites & Floors Administration**: Full lifecycle management for organizational hierarchy
+  - Create, edit, and delete sites with automatic floor and switch cascade handling
+  - Create, edit, and delete floors with proper site association
+  - Intelligent validation preventing orphaned records and maintaining data integrity
+  - Real-time counts and statistics display for sites, floors, and switches
+
+- **API Enhancements**: Complete REST API coverage for all management operations
+  - POST `/api/sites` - Create new sites with validation and audit logging
+  - PUT `/api/sites/{id}` - Update existing sites with conflict detection
+  - DELETE `/api/sites/{id}` - Delete sites with cascading cleanup of related records
+  - POST `/api/floors` - Create new floors with site association validation
+  - PUT `/api/floors/{id}` - Update existing floors with site relationship management
+  - DELETE `/api/floors/{id}` - Delete floors with switch cascade handling
+  - Enhanced authentication and authorization for all endpoints (NetAdmin/SuperAdmin only)
+
+### Fixed
+- **Switch Management API Route**: Corrected the switch creation API endpoint from incorrect `/api/sites` to proper `/api/switches` route
+  - Fixes frontend switch creation functionality
+  - Ensures proper request routing and backend processing
+  - Maintains API consistency and expected behavior
+
+- **Frontend Data Synchronization**: Enhanced cross-tab data refresh functionality
+  - Switch creation/updates now refresh sites and floors data to update counts
+  - Site and floor operations properly refresh dependent dropdowns and lists
+  - Real-time UI updates without requiring page reloads
+  - Consistent data state across all management tabs
+
+### Security Enhancements
+- **Role-Based API Protection**: All new API endpoints protected with proper permission checks
+- **Input Validation**: Comprehensive validation for site and floor names with injection prevention
+- **Audit Logging**: Complete audit trail for all site and floor management operations
+- **Data Integrity**: Cascade delete protection and orphan record prevention
+
+### Technical Improvements
+- **JavaScript Code Organization**: Improved code structure and error handling
+- **CSS Styling**: Enhanced visual design for tabbed interface and management forms
+- **Database Operations**: Optimized queries and proper transaction handling
+- **Error Handling**: Comprehensive error messages and user feedback
+
 ## [2.1.0] - 2025-07-30
 
 ### Added

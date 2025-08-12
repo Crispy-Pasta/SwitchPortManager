@@ -1423,6 +1423,90 @@ MANAGE_TEMPLATE = """
             width: 250px !important;
             min-width: 250px !important;
         }
+        
+        /* Site and Floor Management Styles */
+        .management-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--light-blue);
+        }
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background: #f8f9fa;
+            color: var(--deep-navy);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background: var(--orange);
+            color: white;
+        }
+        .tab-button:hover:not(.active) {
+            background: var(--light-blue);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .site-floor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .site-floor-form {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+        }
+        .site-floor-form h4 {
+            margin: 0 0 15px 0;
+            color: var(--deep-navy);
+        }
+        .site-floor-list {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .site-floor-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .site-floor-item:last-child {
+            border-bottom: none;
+        }
+        .site-floor-item:hover {
+            background: #f8fafc;
+        }
+        .site-floor-name {
+            font-weight: 500;
+            color: var(--deep-navy);
+        }
+        .site-floor-count {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .site-floor-actions {
+            display: flex;
+            gap: 5px;
+        }
+        @media (max-width: 768px) {
+            .site-floor-container {
+                grid-template-columns: 1fr;
+            }
+        }
 
     </style>
 </head>
@@ -1465,10 +1549,18 @@ MANAGE_TEMPLATE = """
             </div>
         </div>
 
-        <div class="manage-container">
-            <div class="form-container">
-                <div class="step">
-                    <h3>📝 Add/Edit Switch</h3>
+        <!-- Management Tabs -->
+        <div class="management-tabs">
+            <button class="tab-button active" onclick="switchTab('switches')">🔌 Switches</button>
+            <button class="tab-button" onclick="switchTab('sites')">🏢 Sites & Floors</button>
+        </div>
+
+        <!-- Switch Management Tab -->
+        <div id="switches-tab" class="tab-content active">
+            <div class="manage-container">
+                <div class="form-container">
+                    <div class="step">
+                        <h3>📝 Add/Edit Switch</h3>
                     <form id="switch-form">
                         <input type="hidden" id="switch-id" name="id">
                         
@@ -1483,7 +1575,7 @@ MANAGE_TEMPLATE = """
                         <div class="form-group">
                             <label for="switch-ip">IP Address</label>
                             <input type="text" id="switch-ip" name="ip_address" placeholder="e.g., 10.50.0.10" required
-                                   pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                   pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                    title="Valid IPv4 address required (e.g., 192.168.1.100)"
                                    maxlength="15">
                         </div>
@@ -1578,6 +1670,72 @@ MANAGE_TEMPLATE = """
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Sites & Floors Management Tab -->
+        <div id="sites-tab" class="tab-content">
+            <div class="site-floor-container">
+                <div class="site-floor-form">
+                    <h4>🏢 Add/Edit Site</h4>
+                    <form id="site-form">
+                        <input type="hidden" id="site-id" name="id">
+                        <div class="form-group">
+                            <label for="site-name">Site Name</label>
+                            <input type="text" id="site-name" name="name" placeholder="e.g., NYC_MAIN" required maxlength="50">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="site-save-btn">💾 Save Site</button>
+                            <button type="button" id="site-clear-btn" class="btn-secondary">🗑️ Clear</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="site-floor-form">
+                    <h4>🏢 Add/Edit Floor</h4>
+                    <form id="floor-form">
+                        <input type="hidden" id="floor-id" name="id">
+                        <div class="form-group">
+                            <label for="floor-site-select">Site</label>
+                            <select id="floor-site-select" name="site_id" required>
+                                <option value="">Select site...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="floor-name">Floor Name</label>
+                            <input type="text" id="floor-name" name="name" placeholder="e.g., Floor 1" required maxlength="50">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="floor-save-btn">💾 Save Floor</button>
+                            <button type="button" id="floor-clear-btn" class="btn-secondary">🗑️ Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="site-floor-container">
+                <div>
+                    <div class="site-floor-form">
+                        <h4>📋 Sites</h4>
+                    </div>
+                    <div class="site-floor-list" id="sites-list">
+                        <div class="site-floor-item">
+                            <div class="loading">Loading sites...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="site-floor-form">
+                        <h4>📋 Floors</h4>
+                    </div>
+                    <div class="site-floor-list" id="floors-list">
+                        <div class="site-floor-item">
+                            <div class="loading">Select a site to view floors...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1804,6 +1962,10 @@ MANAGE_TEMPLATE = """
                         document.getElementById('switch-id').value = '';
                         $('#floor-select').val('').trigger('change');
                         loadSwitches();
+                        // Also refresh sites and floors data to show updated switch counts
+                        if (typeof loadSitesAndFloors === 'function') {
+                            loadSitesAndFloors();
+                        }
                     }
                 })
                 .catch(error => {
@@ -1847,7 +2009,7 @@ MANAGE_TEMPLATE = """
                     const switchId = event.target.dataset.id;
                     const switchData = allSwitches.find(s => s.id == switchId);
                     
-                    if (confirm(`Are you sure you want to delete switch "${switchData.name}" (${switchData.ip_address})?\\n\\nThis action cannot be undone.`)) {
+                    if (confirm(`Are you sure you want to delete switch "${switchData.name}" (${switchData.ip_address})?\\\\n\\\\nThis action cannot be undone.`)) {
                         fetch(`/api/switches/${switchId}`, { method: 'DELETE' })
                             .then(response => response.json())
                             .then(result => {
@@ -1886,6 +2048,300 @@ MANAGE_TEMPLATE = """
             loadSites().then(() => {
                 loadSwitches();
             });
+        });
+        
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Load site and floor data when switching to Sites & Floors tab
+            if (tabName === 'sites') {
+                loadSitesAndFloors();
+            }
+        }
+        
+        // Sites & Floors Management JavaScript
+        let selectedSiteId = null;
+        let allSitesAndFloors = [];
+        
+        function loadSitesAndFloors() {
+            const sitesListDiv = document.getElementById('sites-list');
+            const floorsListDiv = document.getElementById('floors-list');
+            
+            // Load sites
+            sitesListDiv.innerHTML = '<div class="site-floor-item"><div class="loading">Loading sites...</div></div>';
+            
+            fetch('/api/sites')
+                .then(response => response.json())
+                .then(data => {
+                    allSitesAndFloors = data;
+                    renderSitesList(data);
+                    populateSiteDropdowns(data);
+                    // Reset floors list
+                    floorsListDiv.innerHTML = '<div class="site-floor-item"><div class="loading">Select a site to view floors...</div></div>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    sitesListDiv.innerHTML = '<div class="site-floor-item"><div class="loading">❌ Error loading sites</div></div>';
+                });
+        }
+        
+        function renderSitesList(sites) {
+            const sitesListDiv = document.getElementById('sites-list');
+            
+            if (sites.length === 0) {
+                sitesListDiv.innerHTML = '<div class="site-floor-item"><div class="loading">No sites found</div></div>';
+                return;
+            }
+            
+            let html = '';
+            sites.forEach(site => {
+                const floorCount = site.floors ? site.floors.length : 0;
+                html += `
+                    <div class="site-floor-item" data-site-id="${site.id}">
+                        <div>
+                            <div class="site-floor-name">${site.name}</div>
+                            <div class="site-floor-count">${floorCount} floor(s)</div>
+                        </div>
+                        <div class="site-floor-actions">
+                            <button class="btn-small btn-edit" onclick="editSite(${site.id}, '${site.name}')" title="Edit site">
+                                ✏️
+                            </button>
+                            <button class="btn-small btn-delete" onclick="deleteSite(${site.id}, '${site.name}')" title="Delete site">
+                                🗑️
+                            </button>
+                            <button class="btn-small" onclick="selectSiteForFloors(${site.id}, '${site.name}')" title="View floors" style="background: var(--orange); color: white;">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            sitesListDiv.innerHTML = html;
+        }
+        
+        function selectSiteForFloors(siteId, siteName) {
+            selectedSiteId = siteId;
+            const site = allSitesAndFloors.find(s => s.id == siteId);
+            
+            // Highlight selected site
+            document.querySelectorAll('.site-floor-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelector(`[data-site-id="${siteId}"]`).classList.add('selected');
+            
+            if (site) {
+                renderFloorsList(site.floors || []);
+            }
+        }
+        
+        function renderFloorsList(floors) {
+            const floorsListDiv = document.getElementById('floors-list');
+            
+            if (floors.length === 0) {
+                floorsListDiv.innerHTML = '<div class="site-floor-item"><div class="loading">No floors found for this site</div></div>';
+                return;
+            }
+            
+            let html = '';
+            floors.forEach(floor => {
+                html += `
+                    <div class="site-floor-item">
+                        <div>
+                            <div class="site-floor-name">${floor.name}</div>
+                        </div>
+                        <div class="site-floor-actions">
+                            <button class="btn-small btn-edit" onclick="editFloor(${floor.id}, '${floor.name}', ${selectedSiteId})" title="Edit floor">
+                                ✏️
+                            </button>
+                            <button class="btn-small btn-delete" onclick="deleteFloor(${floor.id}, '${floor.name}')" title="Delete floor">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            floorsListDiv.innerHTML = html;
+        }
+        
+        function populateSiteDropdowns(sites) {
+            const floorSiteSelect = document.getElementById('floor-site-select');
+            
+            // Clear existing options
+            floorSiteSelect.innerHTML = '<option value="">Select site...</option>';
+            
+            sites.forEach(site => {
+                const option = document.createElement('option');
+                option.value = site.id;
+                option.textContent = site.name;
+                floorSiteSelect.appendChild(option);
+            });
+        }
+        
+        // Site management functions
+        function editSite(siteId, siteName) {
+            document.getElementById('site-id').value = siteId;
+            document.getElementById('site-name').value = siteName;
+            document.getElementById('site-save-btn').textContent = '💾 Update Site';
+        }
+        
+        function deleteSite(siteId, siteName) {
+            if (confirm(`Are you sure you want to delete site "${siteName}"?\n\nThis will also delete all floors and switches in this site.\n\nThis action cannot be undone.`)) {
+                fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.error) {
+                            showToast(result.error, 'error');
+                        } else {
+                            showToast(result.message, 'success');
+                            loadSitesAndFloors();
+                            selectedSiteId = null;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error deleting site', 'error');
+                    });
+            }
+        }
+        
+        // Floor management functions
+        function editFloor(floorId, floorName, siteId) {
+            document.getElementById('floor-id').value = floorId;
+            document.getElementById('floor-name').value = floorName;
+            document.getElementById('floor-site-select').value = siteId;
+            document.getElementById('floor-save-btn').textContent = '💾 Update Floor';
+        }
+        
+        function deleteFloor(floorId, floorName) {
+            if (confirm(`Are you sure you want to delete floor "${floorName}"?\n\nThis will also delete all switches on this floor.\n\nThis action cannot be undone.`)) {
+                fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.error) {
+                            showToast(result.error, 'error');
+                        } else {
+                            showToast(result.message, 'success');
+                            loadSitesAndFloors();
+                            // Refresh the floors list for the selected site
+                            if (selectedSiteId) {
+                                const site = allSitesAndFloors.find(s => s.id == selectedSiteId);
+                                if (site) {
+                                    selectSiteForFloors(selectedSiteId, site.name);
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error deleting floor', 'error');
+                    });
+            }
+        }
+        
+        // Site form submission
+        document.getElementById('site-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const siteId = document.getElementById('site-id').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            const saveBtn = document.getElementById('site-save-btn');
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = siteId ? '🔄 Updating...' : '🔄 Creating...';
+            
+            const url = siteId ? `/api/sites/${siteId}` : '/api/sites';
+            const method = siteId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    showToast(result.error, 'error');
+                } else {
+                    showToast(result.message, 'success');
+                    document.getElementById('site-form').reset();
+                    document.getElementById('site-id').value = '';
+                    loadSitesAndFloors();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error saving site', 'error');
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = siteId ? '💾 Update Site' : '💾 Save Site';
+            });
+        });
+        
+        // Floor form submission
+        document.getElementById('floor-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const floorId = document.getElementById('floor-id').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            const saveBtn = document.getElementById('floor-save-btn');
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = floorId ? '🔄 Updating...' : '🔄 Creating...';
+            
+            const url = floorId ? `/api/floors/${floorId}` : '/api/floors';
+            const method = floorId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    showToast(result.error, 'error');
+                } else {
+                    showToast(result.message, 'success');
+                    document.getElementById('floor-form').reset();
+                    document.getElementById('floor-id').value = '';
+                    loadSitesAndFloors();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error saving floor', 'error');
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = floorId ? '💾 Update Floor' : '💾 Save Floor';
+            });
+        });
+        
+        // Clear form buttons for Sites & Floors
+        document.getElementById('site-clear-btn').addEventListener('click', () => {
+            document.getElementById('site-form').reset();
+            document.getElementById('site-id').value = '';
+            document.getElementById('site-save-btn').textContent = '💾 Save Site';
+        });
+        
+        document.getElementById('floor-clear-btn').addEventListener('click', () => {
+            document.getElementById('floor-form').reset();
+            document.getElementById('floor-id').value = '';
+            document.getElementById('floor-save-btn').textContent = '💾 Save Floor';
         });
     </script>
 </body>
@@ -2744,6 +3200,254 @@ def api_get_sites():
     except Exception as e:
         logger.error(f"Error fetching sites: {str(e)}")
         return jsonify({'error': 'Failed to fetch sites'}), 500
+
+@app.route('/api/sites', methods=['POST'])
+def api_create_site():
+    """API endpoint to create a new site."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        # Validate required fields
+        if not data.get('name'):
+            return jsonify({'error': 'Missing required field: name'}), 400
+        
+        # Check if site name already exists
+        existing_site = Site.query.filter(Site.name == data['name']).first()
+        if existing_site:
+            return jsonify({'error': 'Site name already exists'}), 400
+        
+        # Create new site
+        new_site = Site(name=data['name'])
+        db.session.add(new_site)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SITE CREATED - {data['name']}")
+        
+        return jsonify({'message': 'Site created successfully', 'id': new_site.id}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating site: {str(e)}")
+        return jsonify({'error': 'Failed to create site'}), 500
+
+@app.route('/api/sites/<int:site_id>', methods=['PUT'])
+def api_update_site(site_id):
+    """API endpoint to update an existing site."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        site = Site.query.get_or_404(site_id)
+        data = request.json
+        username = session['username']
+        
+        # Store old value for audit log
+        old_name = site.name
+        
+        # Check if new name conflicts with other sites
+        if data.get('name') and data['name'] != site.name:
+            existing = Site.query.filter(Site.name == data['name'], Site.id != site_id).first()
+            if existing:
+                return jsonify({'error': 'Site name already exists'}), 400
+        
+        # Update site fields
+        if 'name' in data:
+            site.name = data['name']
+        
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SITE UPDATED - {old_name} -> {site.name}")
+        
+        return jsonify({'message': 'Site updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating site: {str(e)}")
+        return jsonify({'error': 'Failed to update site'}), 500
+
+@app.route('/api/sites/<int:site_id>', methods=['DELETE'])
+def api_delete_site(site_id):
+    """API endpoint to delete a site and all associated floors and switches."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        site = Site.query.get_or_404(site_id)
+        username = session['username']
+        
+        # Store values for audit log
+        site_name = site.name
+        floor_count = len(site.floors)
+        switch_count = sum(len(floor.switches) for floor in site.floors)
+        
+        # Delete site (cascading deletes will handle floors and switches)
+        db.session.delete(site)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - SITE DELETED - {site_name} (with {floor_count} floors and {switch_count} switches)")
+        
+        return jsonify({'message': 'Site deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting site: {str(e)}")
+        return jsonify({'error': 'Failed to delete site'}), 500
+
+@app.route('/api/floors', methods=['POST'])
+def api_create_floor():
+    """API endpoint to create a new floor."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        data = request.json
+        username = session['username']
+        
+        # Validate required fields
+        required_fields = ['name', 'site_id']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Check if site exists
+        site = Site.query.get(data['site_id'])
+        if not site:
+            return jsonify({'error': 'Site not found'}), 404
+        
+        # Check if floor name already exists in this site
+        existing_floor = Floor.query.filter(
+            Floor.name == data['name'], 
+            Floor.site_id == data['site_id']
+        ).first()
+        if existing_floor:
+            return jsonify({'error': 'Floor name already exists in this site'}), 400
+        
+        # Create new floor
+        new_floor = Floor(
+            name=data['name'],
+            site_id=data['site_id']
+        )
+        db.session.add(new_floor)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - FLOOR CREATED - {data['name']} in site {site.name}")
+        
+        return jsonify({'message': 'Floor created successfully', 'id': new_floor.id}), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating floor: {str(e)}")
+        return jsonify({'error': 'Failed to create floor'}), 500
+
+@app.route('/api/floors/<int:floor_id>', methods=['PUT'])
+def api_update_floor(floor_id):
+    """API endpoint to update an existing floor."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        floor = Floor.query.get_or_404(floor_id)
+        data = request.json
+        username = session['username']
+        
+        # Store old values for audit log
+        old_name = floor.name
+        old_site_name = floor.site.name
+        
+        # Check if new name conflicts with other floors in the same site
+        if data.get('name') and data['name'] != floor.name:
+            site_id = data.get('site_id', floor.site_id)
+            existing = Floor.query.filter(
+                Floor.name == data['name'], 
+                Floor.site_id == site_id,
+                Floor.id != floor_id
+            ).first()
+            if existing:
+                return jsonify({'error': 'Floor name already exists in this site'}), 400
+        
+        # Update floor fields
+        if 'name' in data:
+            floor.name = data['name']
+        if 'site_id' in data:
+            # Verify new site exists
+            new_site = Site.query.get(data['site_id'])
+            if not new_site:
+                return jsonify({'error': 'New site not found'}), 404
+            floor.site_id = data['site_id']
+        
+        db.session.commit()
+        
+        # Log the action
+        new_site_name = floor.site.name
+        audit_logger.info(f"User: {username} - FLOOR UPDATED - {old_name} in {old_site_name} -> {floor.name} in {new_site_name}")
+        
+        return jsonify({'message': 'Floor updated successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating floor: {str(e)}")
+        return jsonify({'error': 'Failed to update floor'}), 500
+
+@app.route('/api/floors/<int:floor_id>', methods=['DELETE'])
+def api_delete_floor(floor_id):
+    """API endpoint to delete a floor and all associated switches."""
+    if 'username' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        floor = Floor.query.get_or_404(floor_id)
+        username = session['username']
+        
+        # Store values for audit log
+        floor_name = floor.name
+        site_name = floor.site.name
+        switch_count = len(floor.switches)
+        
+        # Delete floor (cascading deletes will handle switches)
+        db.session.delete(floor)
+        db.session.commit()
+        
+        # Log the action
+        audit_logger.info(f"User: {username} - FLOOR DELETED - {floor_name} in site {site_name} (with {switch_count} switches)")
+        
+        return jsonify({'message': 'Floor deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting floor: {str(e)}")
+        return jsonify({'error': 'Failed to delete floor'}), 500
 
 @app.route('/api/switches', methods=['POST'])
 def api_create_switch():

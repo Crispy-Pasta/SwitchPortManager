@@ -1,10 +1,10 @@
-# Dell Switch Port Tracer v2.1.2
+# Dell Switch Port Tracer v2.2.0
 
 ## 🚀 **Enterprise-Grade MAC Address Tracing Solution**
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.1.2-blue)
+![Version](https://img.shields.io/badge/version-2.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -19,6 +19,8 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 
 ### 🏢 Enterprise Management
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
+- **Comprehensive Management Interface**: Tabbed interface for managing Sites, Floors, and Switches with full CRUD operations
+- **Site & Floor Administration**: Create, edit, and delete sites and floors with proper hierarchical relationships
 - **Database-Driven Architecture**: PostgreSQL database for enterprise-grade scalability and reliability
 - **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
 - **Database Migration Support**: Seamless migration from SQLite to PostgreSQL with data integrity validation
@@ -361,8 +363,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 2.1.2  
-**Last Updated**: January 2025  
+**Version**: 2.2.0  
+**Last Updated**: January 2025
 **Maintainer**: Network Operations Team
 
 ## 🔄 Changelog (v2.1.2)
