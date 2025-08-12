@@ -62,7 +62,40 @@
 - `requirements.txt`: Added new dependencies for database integration (`Flask-SQLAlchemy`, `Flask-Migrate`).
 - `README.md`: Updated to reflect the new database-driven architecture and management UI.
 
-## [2.1.2] - 2025-01-11
+## [2.1.2] - 2025-01-12
+
+### 🛠️ CPU Safety Monitor Re-enabled
+- **Enhanced CPU Load Monitoring**: Re-enabled CPU safety monitor with comprehensive load balancing and request throttling
+- **Three-Zone CPU Management**: Green Zone (0-40%), Yellow Zone (40-60%), Red Zone (60%+) with intelligent request handling
+- **Detailed Troubleshooting Documentation**: Added comprehensive comments explaining CPU protection zones and effects
+- **Performance Logging**: Enhanced logging for CPU protection events and rejected requests for better monitoring
+
+### 🎨 UI/UX Improvements
+- **Fixed Trace Results Text Color**: Updated trace results header text from navy blue to white for better readability on dark backgrounds
+- **Fixed Additional Information Text**: Changed "Additional Information:" text color to white for visibility
+- **Enhanced Contrast**: Improved accessibility and readability across all trace result types
+- **CSS Optimization**: Refined styling for optimal contrast ratios and user experience
+
+### 🔧 Enhanced Troubleshooting Documentation
+- **DellSwitchSSH Class Documentation**: Added comprehensive troubleshooting guide including:
+  - Connection timeout solutions and network connectivity checks
+  - Authentication failure troubleshooting (SWITCH_USERNAME/SWITCH_PASSWORD validation)
+  - Dell switch SSH session limits (~10 concurrent sessions)
+  - Command timeout handling and switch response delays
+  - Lost connection recovery and automatic cleanup procedures
+- **Switch Model Compatibility**: Detailed support documentation for N2000/N3000/N3200 series
+- **Monitoring Integration**: Enhanced switch protection integration documentation
+
+### 📚 Documentation Updates
+- **Comprehensive README.md**: Updated with extensive troubleshooting sections including:
+  - Step-by-step solutions for HTTP 503 Service Unavailable errors
+  - Switch connection timeout resolution procedures
+  - Database connection troubleshooting guides
+  - Trace results visibility fixes
+  - Windows Authentication troubleshooting
+  - VLAN Manager loading issues and solutions
+- **Log File Monitoring**: Enhanced documentation for application and audit log analysis
+- **Performance Optimization**: Added system monitoring endpoints and metrics guidance
 
 ### Security Enhancements
 - **Enhanced MAC Address Validation**: Implemented comprehensive MAC address format validation with strict regex patterns to prevent command injection attacks
@@ -72,18 +105,23 @@
 
 ### Code Quality Improvements
 - **Enhanced Documentation**: Updated function documentation for security-related components with detailed parameter descriptions
-- **Improved Code Comments**: Added comprehensive comments explaining security measures and validation logic
+- **Improved Code Comments**: Added comprehensive comments explaining security measures and validation logic throughout codebase
 - **Error Response Consistency**: Standardized error message format across frontend and backend components
+- **Maintainability**: Enhanced code structure with better troubleshooting guidance for future maintenance
 
 ### Audit and Monitoring
 - **Enhanced Audit Logging**: Improved logging for invalid MAC address attempts with security context
 - **Input Validation Logging**: Added detailed logging for all input validation failures for security monitoring
+- **CPU Protection Logging**: Added comprehensive logging for CPU-based request rejections
+- **Performance Tracking**: Enhanced audit trail with timing and concurrency metrics
 
 ### Technical Details
 - Modified `is_valid_mac()` function with enhanced regex pattern matching
 - Updated frontend `showMacFormatError()` function to display only safe, helpful information
 - Removed security-sensitive sections from error display templates
 - Enhanced input sanitization across all user-facing input fields
+- Re-enabled `check_cpu_before_request()` function with detailed load zone documentation
+- Updated CSS styling for `.additional-info` and `.results h3` elements for better visibility
 
 ## [2.1.1] - 2025-08-15
 
