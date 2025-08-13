@@ -14,6 +14,7 @@ MAC address tracing and advanced VLAN management capabilities.
 - Real-time MAC address tracing with port configuration details
 - Comprehensive audit logging and monitoring
 - Modern, responsive web interface with KMC branding
+- Consistent UI/UX design with standardized modal dialogs and button sizing
 
 🔧 VLAN MANAGEMENT CAPABILITIES:
 - Port VLAN assignment with safety validation
@@ -47,7 +48,7 @@ MAC address tracing and advanced VLAN management capabilities.
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
 Version: 2.1.2
 Author: Network Operations Team
-Last Updated: January 2025 - VLAN Manager & Enhanced UI
+Last Updated: January 2025 - UI Consistency & Modal Improvements
 License: MIT
 
 🔧 TROUBLESHOOTING:
@@ -1542,8 +1543,26 @@ INVENTORY_TEMPLATE = """
         .site-actions {
             display: flex;
             align-items: center;
-            gap: 2px;
+            gap: 4px;
             flex-shrink: 0;
+            white-space: nowrap;
+        }
+        
+        .site-actions .action-btn {
+            white-space: nowrap;
+            font-size: 9px;
+            padding: 2px 6px;
+            border: none;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            min-width: auto;
+        }
+        
+        .site-actions .action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
         
         /* Contextual Floor Actions */
@@ -1646,12 +1665,32 @@ INVENTORY_TEMPLATE = """
         }
         
         .floor-switch-count {
-            background: #e5e7eb;
-            color: #374151;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        
+        .floor-switch-count .action-btn {
+            white-space: nowrap;
+            font-size: 9px;
+            padding: 1px 4px;
+            border: 1px solid #64748b;
+            background: white;
+            color: #64748b;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .floor-switch-count .action-btn:hover {
+            background: var(--orange);
+            color: white;
+            border-color: var(--orange);
         }
         
         .floor-item.selected .floor-switch-count {
@@ -1786,21 +1825,80 @@ INVENTORY_TEMPLATE = """
             display: flex;
             gap: 12px;
             align-items: center;
+            flex-wrap: wrap;
+            padding: 16px 0;
         }
         
+        /* Standardized Add Switch Button */
+        .add-switch-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(255, 114, 0, 0.2);
+            white-space: nowrap;
+            height: 40px;
+            min-width: 120px;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .add-switch-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .add-switch-btn:hover::before {
+            left: 100%;
+        }
+        
+        .add-switch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(255, 114, 0, 0.4);
+            filter: brightness(1.1);
+        }
+        
+        .add-switch-btn .btn-icon {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        /* Standardized Search Box */
         .search-box {
             position: relative;
+            flex: 1;
+            max-width: 300px;
+            min-width: 200px;
         }
         
         .search-input {
-            padding: 8px 32px 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+            width: 100%;
+            padding: 10px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 14px;
-            width: 200px;
-            box-sizing: border-box;
             background-color: white;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            height: 40px;
         }
         
         .search-input:focus {
@@ -1809,20 +1907,72 @@ INVENTORY_TEMPLATE = """
             box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
         }
         
+        .search-input::placeholder {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        
+        /* Filter Buttons Container */
+        .filter-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        
+        /* Standardized Filter Buttons */
+        .filter-btn {
+            padding: 10px 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            color: #374151;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: 40px;
+            min-width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .filter-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+            background: rgba(255, 114, 0, 0.05);
+            transform: translateY(-1px);
+        }
+        
+        .filter-btn.active {
+            background: var(--orange);
+            color: white;
+            border-color: var(--orange);
+            box-shadow: 0 2px 8px rgba(255, 114, 0, 0.2);
+        }
+        
+        .filter-btn.active:hover {
+            background: #e68900;
+            border-color: #e68900;
+        }
+        
+        /* Sidebar Search Styling */
         .tree-header .search-box {
             margin-top: 12px;
+            max-width: none;
+            min-width: auto;
         }
         
         .tree-header .search-input {
-            width: 100%;
-            max-width: 280px;
             font-size: 13px;
             padding: 8px 12px;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.9);
+            height: 36px;
         }
         
+        /* Management Buttons in Sidebar */
         .management-buttons {
             display: flex;
             gap: 8px;
@@ -1831,49 +1981,25 @@ INVENTORY_TEMPLATE = """
         }
         
         .management-buttons .action-btn {
-            padding: 6px 12px;
+            padding: 8px 12px;
             border: 1px solid var(--orange);
             background: var(--orange);
             color: white;
             border-radius: 6px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
+            height: 32px;
+            display: flex;
+            align-items: center;
         }
         
         .management-buttons .action-btn:hover {
             background: #e68900;
             border-color: #e68900;
             transform: translateY(-1px);
-        }
-        
-        .tree-header .search-input::placeholder {
-            color: #9ca3af;
-            font-size: 13px;
-        }
-        
-        .filter-btn {
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            background: white;
-            color: #374151;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .filter-btn:hover {
-            border-color: var(--orange);
-            color: var(--orange);
-        }
-        
-        .filter-btn.active {
-            background: var(--orange);
-            color: white;
-            border-color: var(--orange);
         }
         
         .switches-table {
@@ -2033,14 +2159,14 @@ INVENTORY_TEMPLATE = """
             background: white;
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
+            max-width: 450px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
         }
         
         .modal-header {
-            padding: 20px 24px;
+            padding: 16px 20px;
             border-bottom: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-between;
@@ -2076,25 +2202,25 @@ INVENTORY_TEMPLATE = """
         }
         
         .modal-body {
-            padding: 24px;
+            padding: 16px 20px;
         }
         
         .modal-body .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         
         .modal-body .form-group label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             font-weight: 600;
             color: var(--deep-navy);
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .modal-body .form-group input,
         .modal-body .form-group select {
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border: 1px solid #e1e8ed;
             border-radius: 6px;
             font-size: 14px;
@@ -2119,7 +2245,7 @@ INVENTORY_TEMPLATE = """
             display: flex;
             align-items: center;
             gap: 8px;
-            margin: 12px 0;
+            margin: 8px 0;
         }
         
         .modal-body .checkbox-group input[type="checkbox"] {
@@ -2137,8 +2263,12 @@ INVENTORY_TEMPLATE = """
         
         .modal-body .form-actions {
             display: flex;
-            gap: 12px;
-            margin-top: 20px;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            flex-wrap: nowrap;
+            align-items: center;
         }
         
         /* Delete Confirmation Modal */
@@ -2189,21 +2319,25 @@ INVENTORY_TEMPLATE = """
         
         .delete-actions {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             justify-content: flex-end;
             margin-top: 20px;
+            flex-wrap: nowrap;
+            align-items: center;
         }
         
         .btn-cancel {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: #f9fafb;
             color: #374151;
             border: 1px solid #d1d5db;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
         }
         
         .btn-cancel:hover {
@@ -2212,16 +2346,18 @@ INVENTORY_TEMPLATE = """
         }
         
         .btn-delete {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: linear-gradient(135deg, #dc2626, #b91c1c);
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+            white-space: nowrap;
+            display: inline-block;
         }
         
         .btn-delete:hover {
@@ -2237,12 +2373,16 @@ INVENTORY_TEMPLATE = """
             background: var(--orange);
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 12px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
         }
         
         .modal-body .btn-primary:hover {
@@ -2253,16 +2393,70 @@ INVENTORY_TEMPLATE = """
             background: #6c757d;
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 12px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
         }
         
         .modal-body .btn-secondary:hover {
             background: #5a6268;
+        }
+        
+        .modal-body .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+        
+        .modal-body .btn-danger:hover {
+            background: linear-gradient(135deg, #b91c1c, #991b1b);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        /* UI CONSISTENCY IMPROVEMENT (January 2025)
+         * Standardized button sizing across all modal dialogs
+         * 
+         * PROBLEM SOLVED: Edit site/floor modals had inconsistent button sizes
+         * - Update and Delete buttons were larger than Cancel button
+         * - Inconsistent padding, width, and visual appearance
+         * 
+         * SOLUTION: Comprehensive button standardization with !important declarations
+         * - All modal form action buttons now have identical dimensions
+         * - Consistent 80px minimum width for professional appearance
+         * - Unified padding, font size, and styling across all button types
+         * - Prevents text wrapping with white-space: nowrap
+         * - Applies to Update (btn-primary), Delete (btn-danger), Cancel (btn-secondary)
+         */
+        .modal-body .form-actions button {
+            min-width: 80px !important;        /* Consistent minimum width */
+            text-align: center !important;     /* Center button text */
+            padding: 8px 12px !important;      /* Uniform padding */
+            border-radius: 6px !important;     /* Consistent border radius */
+            font-size: 12px !important;        /* Standardized font size */
+            font-weight: 500 !important;       /* Consistent font weight */
+            cursor: pointer !important;        /* Ensure pointer cursor */
+            transition: all 0.2s ease !important; /* Smooth hover effects */
+            white-space: nowrap !important;     /* Prevent text wrapping */
+            display: inline-block !important;   /* Consistent display type */
         }
         
         /* Toast Styles */
@@ -2352,8 +2546,7 @@ INVENTORY_TEMPLATE = """
             <a href="/" class="nav-link">🔍 Port Tracer</a>
             {% if user_role in ['netadmin', 'superadmin'] %}
             <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-            <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
-            <a href="/inventory" class="nav-link active">🏢 Switch Inventory</a>
+            <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
             {% endif %}
         </div>
     </div>
@@ -2446,14 +2639,19 @@ INVENTORY_TEMPLATE = """
                         Switch Details
                     </h3>
                     
-                    <div class="switches-controls" id="switches-controls" style="display: none;">
-                        <div class="search-box">
-                            <input type="text" class="search-input" id="switch-search" placeholder="Search switches...">
+                        <div class="switches-controls" id="switches-controls" style="display: none;">
+                            <button class="add-switch-btn" id="add-switch-btn" onclick="showAddSwitchToFloorModal()" title="Add switch to selected floor" style="display: none;">
+                                <span class="btn-icon">+</span> Add Switch
+                            </button>
+                            <div class="search-box">
+                                <input type="text" class="search-input" id="switch-search" placeholder="Search switches...">
+                            </div>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="active">Active</button>
+                                <button class="filter-btn" data-filter="inactive">Inactive</button>
+                            </div>
                         </div>
-                        <button class="filter-btn active" data-filter="all">All</button>
-                        <button class="filter-btn" data-filter="active">Active</button>
-                        <button class="filter-btn" data-filter="inactive">Inactive</button>
-                    </div>
                 </div>
                 
                 <div id="switches-content">
@@ -2474,8 +2672,48 @@ INVENTORY_TEMPLATE = """
         let allSwitches = [];
         let filteredSwitches = [];
         
+        // Add switch to floor from main inventory view - GLOBAL FUNCTION
+        function showAddSwitchToFloorModal() {
+            console.log('showAddSwitchToFloorModal called');
+            console.log('currentFloorData:', currentFloorData);
+            console.log('currentSiteData:', currentSiteData);
+            
+            // Check if we have current floor data from inventory view
+            if (typeof currentFloorData !== 'undefined' && currentFloorData && currentFloorData.id) {
+                console.log('Using currentFloorData for modal');
+                // Use current floor data from inventory
+                if (typeof openAddSwitchModalWithFloor === 'function') {
+                    openAddSwitchModalWithFloor(
+                        currentFloorData.id, 
+                        currentFloorData.name, 
+                        currentSiteData ? currentSiteData.name : 'Unknown Site'
+                    );
+                } else {
+                    console.error('openAddSwitchModalWithFloor function not available');
+                    alert('Error: Modal function not available');
+                }
+            } else {
+                console.log('currentFloorData not available, showing generic modal');
+                // Show generic add switch modal that allows selection of site and floor
+                if (typeof showGenericAddSwitchModal === 'function') {
+                    showGenericAddSwitchModal();
+                } else {
+                    alert('Please select a floor first');
+                }
+            }
+        }
+        
+        // Make the function globally available
+        window.showAddSwitchToFloorModal = showAddSwitchToFloorModal;
+        
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
+            // Hide Add Switch button initially since no floor is selected
+            const addSwitchBtn = document.getElementById('add-switch-btn');
+            if (addSwitchBtn) {
+                addSwitchBtn.style.display = 'none';
+            }
+            
             loadSites();
             setupEventListeners();
         });
@@ -2557,6 +2795,10 @@ INVENTORY_TEMPLATE = """
                         }
                     });
                 }
+                
+                // Debug logging for switch count calculation
+                console.log(`Site ${site.name}: ${totalSwitches} switches calculated from allSwitches array`);
+                
                 const floorCount = site.floors ? site.floors.length : 0;
                 
                 // Escape single quotes in site name for onclick handlers
@@ -2576,8 +2818,8 @@ INVENTORY_TEMPLATE = """
                                         </div>
                                         <div class="site-actions">
                                             <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
-                                                title="Edit site" style="padding: 2px 6px; font-size: 10px; margin-right: 8px;">
-                                                ✏️ Edit
+                                                title="Edit site">
+                                                ✏️
                                             </button>
                                             <div class="expand-icon">▶</div>
                                         </div>
@@ -2595,6 +2837,16 @@ INVENTORY_TEMPLATE = """
             container.innerHTML = html;
         }
         
+        // Helper function to format floor names with 'F' prefix for numeric floors
+        function formatFloorName(floorName) {
+            // Check if floor name is just a number (like "1", "2", "11", etc.)
+            if (/^\d+$/.test(floorName)) {
+                return `F${floorName}`;
+            }
+            // For non-numeric floors like "GF", "PH", "B1", etc., return as-is
+            return floorName;
+        }
+        
         // Render floors for a site
         function renderFloors(floors, siteId, siteName) {
             if (floors.length === 0) {
@@ -2604,16 +2856,17 @@ INVENTORY_TEMPLATE = """
             return floors.map(floor => {
                 // Escape single quotes in floor name for onclick handlers
                 const escapedName = floor.name.replace(/'/g, "\\'");
+                const displayName = formatFloorName(floor.name);
                 return `
                     <div class="floor-item" onclick="selectFloor('${siteId}', '${siteName}', '${floor.id}', '${floor.name}')" id="floor-${floor.id}">
                         <div class="floor-name">
                             <span>🏢</span>
-                            <span>${floor.name}</span>
+                            <span>${displayName}</span>
                         </div>
                         <div class="floor-switch-count">
                             <button class="action-btn" onclick="event.stopPropagation(); editFloor(${floor.id}, '${escapedName}', ${siteId})" 
-                                title="Edit floor" style="margin-left: 8px; padding: 1px 4px; font-size: 9px;">
-                                ✏️ Edit
+                                title="Edit floor">
+                                ✏️
                             </button>
                         </div>
                     </div>
@@ -2639,11 +2892,17 @@ INVENTORY_TEMPLATE = """
             window.selectedSiteId = siteId;
             window.selectedSiteName = siteName;
             
-            // Clear any floor selection
+            // Clear any floor selection and hide Add Switch button
             document.querySelectorAll('.floor-item').forEach(item => {
                 item.classList.remove('selected');
             });
             currentFloorData = null;
+            
+            // Hide the Add Switch button since no specific floor is selected
+            const addSwitchBtn = document.getElementById('add-switch-btn');
+            if (addSwitchBtn) {
+                addSwitchBtn.style.display = 'none';
+            }
             
             // Load all switches for this site
             loadSiteSwitches(siteId, siteName);
@@ -2706,24 +2965,31 @@ INVENTORY_TEMPLATE = """
             currentSiteData = { id: siteId, name: siteName };
             currentFloorData = { id: floorId, name: floorName };
             
+            // Show the Add Switch button since a floor is now selected
+            const addSwitchBtn = document.getElementById('add-switch-btn');
+            if (addSwitchBtn) {
+                addSwitchBtn.style.display = 'flex';
+            }
+            
             // Load switches for this floor
             await loadFloorSwitches(floorId);
         }
         
         // Update content header for floor view
         function updateContentHeader(siteName, floorName) {
+            const displayFloorName = formatFloorName(floorName);
             document.getElementById('current-site').textContent = siteName;
-            document.getElementById('current-floor').textContent = floorName;
+            document.getElementById('current-floor').textContent = displayFloorName;
             document.getElementById('current-floor').style.display = 'inline';
             document.getElementById('floor-separator').style.display = 'inline';
             
             document.getElementById('content-title').innerHTML = `
                 <span>🏢</span>
-                ${floorName} - Switch Inventory
+                ${displayFloorName} - Switch Inventory
             `;
             
             document.getElementById('content-description').textContent = 
-                `Viewing switches for ${floorName} in ${siteName}`;
+                `Viewing switches for ${displayFloorName} in ${siteName}`;
         }
         
         // Update content header for site view (all floors)
@@ -2810,11 +3076,12 @@ INVENTORY_TEMPLATE = """
             }
         }
         
-        // Render switches table
-        function renderSwitches() {
+        // Render switches table with proper filtering
+        function renderSwitches(switchesToRender = null) {
             const content = document.getElementById('switches-content');
+            const switches = switchesToRender || filteredSwitches || allSwitches || [];
             
-            if (filteredSwitches.length === 0) {
+            if (switches.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">🔌</div>
@@ -2840,7 +3107,7 @@ INVENTORY_TEMPLATE = """
                     <tbody>
             `;
             
-            filteredSwitches.forEach(sw => {
+            switches.forEach(sw => {
                 const statusClass = sw.enabled ? 'active' : 'inactive';
                 const statusIcon = sw.enabled ? '✅' : '❌';
                 const statusText = sw.enabled ? 'Active' : 'Inactive';
@@ -2903,7 +3170,9 @@ INVENTORY_TEMPLATE = """
                 sw.name.toLowerCase().includes(query) ||
                 sw.model.toLowerCase().includes(query) ||
                 sw.ip_address.toLowerCase().includes(query) ||
-                (sw.description && sw.description.toLowerCase().includes(query))
+                (sw.description && sw.description.toLowerCase().includes(query)) ||
+                (sw.site_name && sw.site_name.toLowerCase().includes(query)) ||
+                (sw.floor_name && sw.floor_name.toLowerCase().includes(query))
             );
             
             renderSwitches();
@@ -2991,13 +3260,20 @@ INVENTORY_TEMPLATE = """
             }
             
             siteItems.forEach(siteItem => {
-                const siteName = siteItem.querySelector('.site-name span:last-child').textContent.toLowerCase();
+                // Fix: Use correct selector path for site name
+                const siteNameElement = siteItem.querySelector('.site-header-content .site-left span:nth-child(2)');
+                if (!siteNameElement) return; // Skip if element not found
+                
+                const siteName = siteNameElement.textContent.toLowerCase();
                 const floorItems = siteItem.querySelectorAll('.floor-item');
                 let hasVisibleFloors = false;
                 
                 // Filter floors within each site
                 floorItems.forEach(floorItem => {
-                    const floorName = floorItem.querySelector('.floor-name span:last-child').textContent.toLowerCase();
+                    const floorNameElement = floorItem.querySelector('.floor-name span:nth-child(2)');
+                    if (!floorNameElement) return; // Skip if element not found
+                    
+                    const floorName = floorNameElement.textContent.toLowerCase();
                     const shouldShow = siteName.includes(searchTerm) || floorName.includes(searchTerm);
                     floorItem.style.display = shouldShow ? 'flex' : 'none';
                     if (shouldShow) hasVisibleFloors = true;
@@ -3011,8 +3287,10 @@ INVENTORY_TEMPLATE = """
                 if (searchTerm && shouldShowSite) {
                     const floorsContainer = siteItem.querySelector('.floors-container');
                     const siteHeader = siteItem.querySelector('.site-header');
-                    floorsContainer.classList.add('expanded');
-                    siteHeader.classList.add('expanded');
+                    if (floorsContainer && siteHeader) {
+                        floorsContainer.classList.add('expanded');
+                        siteHeader.classList.add('expanded');
+                    }
                 }
             });
         });
@@ -3023,7 +3301,9 @@ INVENTORY_TEMPLATE = """
                 <form id="add-site-form">
                     <div class="form-group">
                         <label for="new-site-name">Site Name</label>
-                        <input type="text" id="new-site-name" name="name" required placeholder="e.g., NYC_MAIN" maxlength="50">
+                            <input type="text" id="new-site-name" name="name" required placeholder="e.g., NYC_MAIN" maxlength="50" 
+                               pattern="^[A-Za-z0-9_-]+$" 
+                               title="Only letters, numbers, underscores, and hyphens allowed. No spaces or special characters.">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">💾 Create Site</button>
@@ -3064,7 +3344,9 @@ INVENTORY_TEMPLATE = """
                     </div>
                     <div class="form-group">
                         <label for="new-floor-name">Floor Name</label>
-                        <input type="text" id="new-floor-name" name="name" required placeholder="e.g., Floor 1" maxlength="50">
+                        <input type="text" id="new-floor-name" name="name" required placeholder="e.g., Floor 1 or F1 or GF" maxlength="20" 
+                               pattern="^(F[0-9]{1,2}|GF|PH|B[0-9]|Floor [0-9]{1,2}|[0-9]{1,2}|Ground Floor|Penthouse|Basement)$" 
+                               title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">💾 Create Floor</button>
@@ -3082,11 +3364,15 @@ INVENTORY_TEMPLATE = """
                     <input type="hidden" id="edit-switch-id" value="${switchData.id}">
                     <div class="form-group">
                         <label for="edit-switch-name">Switch Name</label>
-                        <input type="text" id="edit-switch-name" value="${switchData.name}" required maxlength="50">
+                        <input type="text" id="edit-switch-name" value="${switchData.name}" required maxlength="50" 
+                               pattern="[A-Za-z0-9_-]+" 
+                               title="Only letters, numbers, underscores, and hyphens allowed. Format: SITE-FLOOR-RACK-TYPE-NUMBER">
                     </div>
                     <div class="form-group">
                         <label for="edit-switch-ip">IP Address</label>
-                        <input type="text" id="edit-switch-ip" value="${switchData.ip_address}" required pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                        <input type="text" id="edit-switch-ip" value="${switchData.ip_address}" required 
+                               pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" 
+                               title="Valid IPv4 address required (e.g., 192.168.1.100)">
                     </div>
                         <div class="form-group">
                             <label for="switch-model">Model</label>
@@ -3144,7 +3430,9 @@ INVENTORY_TEMPLATE = """
                         </div>
                     <div class="form-group">
                         <label for="edit-switch-description">Description</label>
-                        <input type="text" id="edit-switch-description" value="${switchData.description || ''}" maxlength="100">
+                        <input type="text" id="edit-switch-description" value="${switchData.description || ''}" maxlength="100" 
+                               pattern="[A-Za-z0-9 ._-]*" 
+                               title="Only letters, numbers, spaces, periods, underscores, and hyphens allowed. No special characters.">
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="edit-switch-enabled" ${switchData.enabled ? 'checked' : ''}>
@@ -3179,12 +3467,174 @@ INVENTORY_TEMPLATE = """
             return modal;
         }
         
+        // Make function globally available
+        window.createModal = createModal;
+        
         function closeModal() {
             const modal = document.querySelector('.modal-overlay');
             if (modal) {
                 modal.remove();
             }
         }
+        
+        // Make function globally available
+        window.closeModal = closeModal;
+        
+        // Generic add switch modal when no floor is pre-selected
+        function showGenericAddSwitchModal() {
+            showToast('Please select a floor first', 'error');
+        }
+        
+        // Helper function to open add switch modal with pre-selected floor
+        function openAddSwitchModalWithFloor(floorId, floorName, siteName) {
+            const modal = createModal('Add Switch to Floor', `
+                <form id="add-switch-to-floor-form">
+                    <input type="hidden" id="new-switch-floor-id" value="${floorId}">
+                    <div class="form-group">
+                        <label for="new-switch-site-name">Site</label>
+                        <input type="text" id="new-switch-site-name" value="${siteName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-floor-name">Floor</label>
+                        <input type="text" id="new-switch-floor-name" value="${floorName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-name">Switch Name</label>
+                        <input type="text" id="new-switch-name" required placeholder="e.g., SITE_NAME-F11-R1-VAS-01" maxlength="50" 
+                               pattern="[A-Z0-9_]+-F[0-9]{1,2}-[A-Z0-9]{1,3}-(VAS|AS)-[0-9]{1,2}$" 
+                               title="Format: SITE_NAME-FLOOR-RACK/CABINET-VAS/AS-NUMBER (e.g., SITE_NAME-F11-R1-VAS-01 or SITE_NAME-F33-C1-AS-01)">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-ip">IP Address</label>
+                        <input type="text" id="new-switch-ip" required placeholder="e.g., 10.50.0.10" 
+                               pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-model">Model</label>
+                        <select id="new-switch-model" required>
+                            <option value="">Select switch model...</option>
+                            <optgroup label="Dell N2000 Series">
+                                <option value="Dell N2024">Dell N2024</option>
+                                <option value="Dell N2048">Dell N2048</option>
+                                <option value="Dell N2048P">Dell N2048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3000 Series">
+                                <option value="Dell N3024">Dell N3024</option>
+                                <option value="Dell N3024P">Dell N3024P</option>
+                                <option value="Dell N3024F">Dell N3024F</option>
+                                <option value="Dell N3048">Dell N3048</option>
+                                <option value="Dell N3048P">Dell N3048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3200 Series">
+                                <option value="Dell N3248">Dell N3248</option>
+                                <option value="Dell N3224P">Dell N3224P</option>
+                                <option value="Dell N3224PXE">Dell N3224PXE</option>
+                                <option value="Dell N3248P">Dell N3248P</option>
+                                <option value="Dell N3248PXE">Dell N3248PXE</option>
+                            </optgroup>
+                            <optgroup label="Other Models">
+                                <option value="Custom Model">Custom Model (specify in description)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-description">Description</label>
+                        <input type="text" id="new-switch-description" placeholder="e.g., Floor 11 VAS Switch" maxlength="100" 
+                               pattern="[A-Za-z0-9 ._-]*" 
+                               title="Only letters, numbers, spaces, periods, underscores, and hyphens allowed. No special characters.">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="new-switch-enabled" checked>
+                        <label for="new-switch-enabled">Switch is enabled</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Add Switch</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('add-switch-to-floor-form').addEventListener('submit', handleAddSwitchToFloor);
+        }
+        
+        // Handle add switch to floor form submission
+        async function handleAddSwitchToFloor(e) {
+            e.preventDefault();
+            
+            // Get floor ID from hidden input
+            const floorId = document.getElementById('new-switch-floor-id').value;
+            
+            const data = {
+                name: document.getElementById('new-switch-name').value,
+                ip_address: document.getElementById('new-switch-ip').value,
+                model: document.getElementById('new-switch-model').value,
+                description: document.getElementById('new-switch-description').value,
+                enabled: document.getElementById('new-switch-enabled').checked,
+                floor_id: parseInt(floorId)
+            };
+            
+            try {
+                const response = await fetch('/api/switches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Switch added successfully', 'success');
+                    closeModal();
+                    
+                    // Refresh current floor switches if in detail view
+                    if (typeof currentFloorData !== 'undefined' && currentFloorData) {
+                        await loadFloorSwitches(currentFloorData.id);
+                    }
+                    
+                    // Refresh main switches data if available
+                    if (typeof loadSwitches === 'function') {
+                        loadSwitches();
+                    }
+                    
+                    // Refresh all switches data if available
+                    if (typeof loadAllSwitches === 'function') {
+                        await loadAllSwitches();
+                    }
+                    
+                    // Refresh sidebar counts
+                    if (typeof refreshSidebarCounts === 'function') {
+                        await refreshSidebarCounts();
+                    }
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding switch:', error);
+                showToast('Error adding switch', 'error');
+            }
+        }
+        
+        // Make functions globally available
+        window.showGenericAddSwitchModal = showGenericAddSwitchModal;
+        window.openAddSwitchModalWithFloor = openAddSwitchModalWithFloor;
+        window.handleAddSwitchToFloor = handleAddSwitchToFloor;
+        
+        // Function to refresh switch counts in sidebar
+        async function refreshSidebarCounts() {
+            try {
+                // Reload all switches data to get updated counts
+                await loadAllSwitches();
+                
+                // Reload sites data to refresh the sidebar
+                await loadSites();
+                
+                console.log('Sidebar counts refreshed successfully');
+            } catch (error) {
+                console.error('Error refreshing sidebar counts:', error);
+            }
+        }
+        
+        // Make function globally available
+        window.refreshSidebarCounts = refreshSidebarCounts;
         
         // Form handlers
         async function handleAddSite(e) {
@@ -3298,6 +3748,9 @@ INVENTORY_TEMPLATE = """
             }, 4000);
         }
         
+        // Make function globally available
+        window.showToast = showToast;
+        
         // Site and Floor edit/delete action functions
         function editSite(siteId, siteName) {
             // Open edit site modal or form
@@ -3310,7 +3763,7 @@ INVENTORY_TEMPLATE = """
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">💾 Update Site</button>
-                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')" style="background: #dc3545;">🗑️ Delete Site</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">🗑️ Delete Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -3328,24 +3781,6 @@ INVENTORY_TEMPLATE = """
             );
         }
         
-        function deleteSite(siteId, siteName) {
-            closeModal(); // Close the confirmation modal first
-            
-            fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.error) {
-                        showToast(result.error, 'error');
-                    } else {
-                        showToast(result.message, 'success');
-                        loadSites(); // Refresh the site list
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast('Error deleting site', 'error');
-                });
-        }
         
         function editFloor(floorId, floorName, siteId) {
             // Find the site name for the current site
@@ -3361,11 +3796,13 @@ INVENTORY_TEMPLATE = """
                     </div>
                     <div class="form-group">
                         <label for="edit-floor-name">Floor Name</label>
-                        <input type="text" id="edit-floor-name" name="name" value="${floorName}" required placeholder="e.g., Floor 1" maxlength="50">
+                        <input type="text" id="edit-floor-name" name="name" value="${floorName}" required placeholder="e.g., Floor 1" maxlength="20" 
+                               pattern="^(F[0-9]{1,2}|GF|PH|B[0-9]|Floor [0-9]{1,2}|[0-9]{1,2}|Ground Floor|Penthouse|Basement)$" 
+                               title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">💾 Update Floor</button>
-                        <button type="button" class="btn-danger" onclick="showDeleteFloorModal(${floorId}, '${floorName}')" style="background: #dc3545;">🗑️ Delete Floor</button>
+                        <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">🗑️ Delete Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -3374,19 +3811,19 @@ INVENTORY_TEMPLATE = """
             document.getElementById('edit-floor-form').addEventListener('submit', handleEditFloor);
         }
         
-        function deleteFloorFromModal(floorId, floorName) {
+        function showDeleteSiteModal(siteId, siteName) {
             const modal = createDeleteModal(
-                'Delete Floor',
-                `Are you sure you want to delete the floor <span class="delete-item-name">"${floorName}"</span>?`,
-                'This will also delete all switches on this floor. This action cannot be undone.',
-                () => deleteFloor(floorId, floorName)
+                'Delete Site',
+                `Are you sure you want to delete the site <span class="delete-item-name">"${siteName}"</span>?`,
+                'This will also delete all floors and switches in this site. This action cannot be undone.',
+                () => deleteSiteConfirmed(siteId, siteName)
             );
         }
         
-        function deleteFloor(floorId, floorName) {
+        function deleteSiteConfirmed(siteId, siteName) {
             closeModal(); // Close the confirmation modal first
             
-            fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+            fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
                 .then(response => response.json())
                 .then(result => {
                     if (result.error) {
@@ -3394,13 +3831,67 @@ INVENTORY_TEMPLATE = """
                     } else {
                         showToast(result.message, 'success');
                         loadSites(); // Refresh the site list
+                        // Clear results and reset UI
+                        document.getElementById('switches-content').innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">🔍</div>
+                                <div class="empty-title">No Floor Selected</div>
+                                <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
+                            </div>
+                        `;
+                        document.getElementById('switches-controls').style.display = 'none';
+                        document.getElementById('stats-grid').style.display = 'none';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showToast('Error deleting floor', 'error');
+                    showToast('Error deleting site', 'error');
                 });
         }
+        
+        function deleteFloorFromModal(floorId, floorName) {
+            // This function is called from within the edit floor modal
+            closeModal(); // Close the edit modal first
+            
+            // Show confirmation modal
+            const modal = createDeleteModal(
+                'Delete Floor',
+                `Are you sure you want to delete the floor <span class="delete-item-name">"${floorName}"</span>?`,
+                'This will also delete all switches on this floor. This action cannot be undone.',
+                () => {
+                    closeModal(); // Close the confirmation modal
+                    
+                    fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.error) {
+                                showToast(result.error, 'error');
+                            } else {
+                                showToast(result.message, 'success');
+                                loadSites(); // Refresh the site list
+                                // Clear current floor selection if it was the deleted floor
+                                if (currentFloorData && currentFloorData.id == floorId) {
+                                    currentFloorData = null;
+                                    document.getElementById('switches-content').innerHTML = `
+                                        <div class="empty-state">
+                                            <div class="empty-icon">🔍</div>
+                                            <div class="empty-title">No Floor Selected</div>
+                                            <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
+                                        </div>
+                                    `;
+                                    document.getElementById('switches-controls').style.display = 'none';
+                                    document.getElementById('stats-grid').style.display = 'none';
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Error deleting floor', 'error');
+                        });
+                }
+            );
+        }
+        
         
         function showDeleteSwitchModal(switchId, switchData) {
             const modal = createDeleteModal(
@@ -4360,12 +4851,23 @@ MANAGE_TEMPLATE = """
         }
         .form-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-top: 15px;
+            flex-wrap: nowrap;
+            align-items: center;
         }
         .btn-secondary {
             background: #6c757d;
             color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: inline-block;
         }
         .btn-secondary:hover {
             background: #5a6268;
@@ -4845,8 +5347,7 @@ MANAGE_TEMPLATE = """
                 <a href="/" class="nav-link">🔍 Port Tracer</a>
                 {% if user_role in ['netadmin', 'superadmin'] %}
                 <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-                <a href="/manage" class="nav-link active">⚙️ Manage Switches</a>
-                <a href="/inventory" class="nav-link">🏢 Switch Inventory</a>
+                <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
                 {% endif %}
             </div>
         </div>
@@ -4934,6 +5435,8 @@ MANAGE_TEMPLATE = """
                             <label for="switch-description">Description</label>
                             <input type="text" id="switch-description" name="description" 
                                    placeholder="e.g., Floor 11 VAS Switch" 
+                                   pattern="[A-Za-z0-9 ._-]*" 
+                                   title="Only letters, numbers, spaces, periods, underscores, and hyphens allowed. No special characters."
                                    maxlength="100">
                         </div>
                         
@@ -5006,7 +5509,9 @@ MANAGE_TEMPLATE = """
                         <input type="hidden" id="site-id" name="id">
                         <div class="form-group">
                             <label for="site-name">Site Name</label>
-                            <input type="text" id="site-name" name="name" placeholder="e.g., NYC_MAIN" required maxlength="50">
+                        <input type="text" id="site-name" name="name" placeholder="e.g., NYC_MAIN" required maxlength="50" 
+                               pattern="^[A-Za-z0-9_-]+$" 
+                               title="Only letters, numbers, underscores, and hyphens allowed. No spaces or special characters.">
                         </div>
                         <div class="form-actions">
                             <button type="submit" id="site-save-btn">💾 Save Site</button>
@@ -5027,7 +5532,10 @@ MANAGE_TEMPLATE = """
                         </div>
                         <div class="form-group">
                             <label for="floor-name">Floor Name</label>
-                            <input type="text" id="floor-name" name="name" placeholder="e.g., Floor 1" required maxlength="50">
+                        <input type="text" id="floor-name" name="name" placeholder="e.g., Floor 1 or F1 or GF" required maxlength="20" 
+                               pattern="^(F[0-9]{1,2}|GF|PH|B[0-9]|Floor [0-9]{1,2}|[0-9]{1,2}|Ground Floor|Penthouse|Basement)$" 
+                               title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
+-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                         </div>
                         <div class="form-actions">
                             <button type="submit" id="floor-save-btn">💾 Save Floor</button>
@@ -5925,15 +6433,73 @@ MANAGE_TEMPLATE = """
             if (inventorySearch) {
                 inventorySearch.addEventListener('input', function() {
                     const searchTerm = this.value.toLowerCase();
-                    filteredFloorSwitches = floorSwitches.filter(sw => 
-                        sw.name.toLowerCase().includes(searchTerm) ||
-                        sw.ip_address.toLowerCase().includes(searchTerm) ||
-                        sw.model.toLowerCase().includes(searchTerm)
-                    );
-                    renderFloorSwitchInventory(filteredFloorSwitches);
-                    updateSelectionCounter();
+                    if (typeof floorSwitches !== 'undefined' && floorSwitches.length > 0) {
+                        filteredFloorSwitches = floorSwitches.filter(sw => 
+                            sw.name.toLowerCase().includes(searchTerm) ||
+                            sw.ip_address.toLowerCase().includes(searchTerm) ||
+                            sw.model.toLowerCase().includes(searchTerm)
+                        );
+                        renderFloorSwitchInventory(filteredFloorSwitches);
+                        updateSelectionCounter();
+                    }
                 });
             }
+            
+        // Main switch search functionality
+        const switchSearch = document.getElementById('switch-search');
+        if (switchSearch) {
+            switchSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                if (typeof allSwitches !== 'undefined' && allSwitches.length > 0) {
+                    filteredSwitches = allSwitches.filter(sw => 
+                        sw.name.toLowerCase().includes(searchTerm) ||
+                        sw.ip_address.toLowerCase().includes(searchTerm) ||
+                        sw.model.toLowerCase().includes(searchTerm) ||
+                        (sw.site_name && sw.site_name.toLowerCase().includes(searchTerm)) ||
+                        (sw.floor_name && sw.floor_name.toLowerCase().includes(searchTerm)) ||
+                        (sw.description && sw.description.toLowerCase().includes(searchTerm))
+                    );
+                    renderSwitches(filteredSwitches);
+                }
+            });
+        }
+        
+        // Filter buttons functionality for switches
+        document.querySelectorAll('#switches-controls .filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Update active filter button
+                document.querySelectorAll('#switches-controls .filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filter = this.dataset.filter;
+                
+                // Apply filter
+                if (typeof allSwitches !== 'undefined' && allSwitches.length > 0) {
+                    if (filter === 'all') {
+                        filteredSwitches = [...allSwitches];
+                    } else if (filter === 'active') {
+                        filteredSwitches = allSwitches.filter(sw => sw.enabled);
+                    } else if (filter === 'inactive') {
+                        filteredSwitches = allSwitches.filter(sw => !sw.enabled);
+                    }
+                    
+                    // Apply current search if any
+                    const searchQuery = document.getElementById('switch-search').value.toLowerCase();
+                    if (searchQuery) {
+                        filteredSwitches = filteredSwitches.filter(sw => 
+                            sw.name.toLowerCase().includes(searchQuery) ||
+                            sw.ip_address.toLowerCase().includes(searchQuery) ||
+                            sw.model.toLowerCase().includes(searchQuery) ||
+                            (sw.site_name && sw.site_name.toLowerCase().includes(searchQuery)) ||
+                            (sw.floor_name && sw.floor_name.toLowerCase().includes(searchQuery)) ||
+                            (sw.description && sw.description.toLowerCase().includes(searchQuery))
+                        );
+                    }
+                    
+                    renderSwitches(filteredSwitches);
+                }
+            });
+        });
             
             // Filter buttons functionality
             document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -6046,6 +6612,382 @@ MANAGE_TEMPLATE = """
                 showToast('Please select a floor first', 'error');
             }
         }
+        
+        // Add switch to floor from main inventory view
+        function showAddSwitchToFloorModal() {
+            console.log('showAddSwitchToFloorModal called');
+            console.log('currentFloorData:', currentFloorData);
+            console.log('currentSiteData:', currentSiteData);
+            
+            // Check if we have current floor data from inventory view
+            if (typeof currentFloorData !== 'undefined' && currentFloorData && currentFloorData.id) {
+                console.log('Using currentFloorData for modal');
+                // Use current floor data from inventory
+                openAddSwitchModalWithFloor(
+                    currentFloorData.id, 
+                    currentFloorData.name, 
+                    currentSiteData ? currentSiteData.name : 'Unknown Site'
+                );
+            } else {
+                console.log('currentFloorData not available, showing generic modal');
+                // Show generic add switch modal that allows selection of site and floor
+                showGenericAddSwitchModal();
+            }
+        }
+        
+        // Make the function globally available
+        window.showAddSwitchToFloorModal = showAddSwitchToFloorModal;
+        
+        // Initialize showToast if it doesn't exist
+        function showToast(message, type = 'info') {
+            // Remove any existing toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // Show the toast
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            // Hide and remove the toast
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 4000);
+        }
+        
+        // Global function to be called by onclick handler
+        window.showAddSwitchToFloorModal = showAddSwitchToFloorModal;
+        
+        // Helper function to open add switch modal with pre-selected floor
+        function openAddSwitchModalWithFloor(floorId, floorName, siteName) {
+            const modal = createModal('Add Switch to Floor', `
+                <form id="add-switch-to-floor-form">
+                    <input type="hidden" id="new-switch-floor-id" value="${floorId}">
+                    <div class="form-group">
+                        <label for="new-switch-site-name">Site</label>
+                        <input type="text" id="new-switch-site-name" value="${siteName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-floor-name">Floor</label>
+                        <input type="text" id="new-switch-floor-name" value="${floorName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-name">Switch Name</label>
+                        <input type="text" id="new-switch-name" required placeholder="e.g., SITE_NAME-F11-R1-VAS-01" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-ip">IP Address</label>
+                        <input type="text" id="new-switch-ip" required placeholder="e.g., 10.50.0.10" 
+                               pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-model">Model</label>
+                        <select id="new-switch-model" required>
+                            <option value="">Select switch model...</option>
+                            <optgroup label="Dell N2000 Series">
+                                <option value="Dell N2024">Dell N2024</option>
+                                <option value="Dell N2048">Dell N2048</option>
+                                <option value="Dell N2048P">Dell N2048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3000 Series">
+                                <option value="Dell N3024">Dell N3024</option>
+                                <option value="Dell N3024P">Dell N3024P</option>
+                                <option value="Dell N3024F">Dell N3024F</option>
+                                <option value="Dell N3048">Dell N3048</option>
+                                <option value="Dell N3048P">Dell N3048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3200 Series">
+                                <option value="Dell N3248">Dell N3248</option>
+                                <option value="Dell N3224P">Dell N3224P</option>
+                                <option value="Dell N3224PXE">Dell N3224PXE</option>
+                                <option value="Dell N3248P">Dell N3248P</option>
+                                <option value="Dell N3248PXE">Dell N3248PXE</option>
+                            </optgroup>
+                            <optgroup label="Other Models">
+                                <option value="Custom Model">Custom Model (specify in description)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-switch-description">Description</label>
+                        <input type="text" id="new-switch-description" placeholder="e.g., Floor 11 VAS Switch" maxlength="100">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="new-switch-enabled" checked>
+                        <label for="new-switch-enabled">Switch is enabled</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Add Switch</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('add-switch-to-floor-form').addEventListener('submit', handleAddSwitchToFloor);
+        }
+        
+        // Make function globally available
+        window.openAddSwitchModalWithFloor = openAddSwitchModalWithFloor;
+        
+        // Generic add switch modal when no floor is pre-selected
+        async function showGenericAddSwitchModal() {
+            const modal = createModal('Add Switch', `
+                <form id="generic-add-switch-form">
+                    <div class="form-group">
+                        <label for="generic-switch-site">Site</label>
+                        <select id="generic-switch-site" required onchange="loadFloorsForSwitchModal()">
+                            <option value="">Select site...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="generic-switch-floor">Floor</label>
+                        <select id="generic-switch-floor" required disabled>
+                            <option value="">Select floor...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="generic-switch-name">Switch Name</label>
+                        <input type="text" id="generic-switch-name" required placeholder="e.g., SITE_NAME-F11-R1-VAS-01" maxlength="50" 
+                               pattern="[A-Z0-9_]+-F[0-9]{1,2}-[A-Z0-9]{1,3}-(VAS|AS)-[0-9]{1,2}$" 
+                               title="Format: SITE_NAME-FLOOR-RACK/CABINET-VAS/AS-NUMBER (e.g., SITE_NAME-F11-R1-VAS-01 or SITE_NAME-F33-C1-AS-01)">
+                    </div>
+                    <div class="form-group">
+                        <label for="generic-switch-ip">IP Address</label>
+                        <input type="text" id="generic-switch-ip" required placeholder="e.g., 10.50.0.10" 
+                               pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                    </div>
+                    <div class="form-group">
+                        <label for="generic-switch-model">Model</label>
+                        <select id="generic-switch-model" required>
+                            <option value="">Select switch model...</option>
+                            <optgroup label="Dell N2000 Series">
+                                <option value="Dell N2024">Dell N2024</option>
+                                <option value="Dell N2048">Dell N2048</option>
+                                <option value="Dell N2048P">Dell N2048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3000 Series">
+                                <option value="Dell N3024">Dell N3024</option>
+                                <option value="Dell N3024P">Dell N3024P</option>
+                                <option value="Dell N3024F">Dell N3024F</option>
+                                <option value="Dell N3048">Dell N3048</option>
+                                <option value="Dell N3048P">Dell N3048P</option>
+                            </optgroup>
+                            <optgroup label="Dell N3200 Series">
+                                <option value="Dell N3248">Dell N3248</option>
+                                <option value="Dell N3224P">Dell N3224P</option>
+                                <option value="Dell N3224PXE">Dell N3224PXE</option>
+                                <option value="Dell N3248P">Dell N3248P</option>
+                                <option value="Dell N3248PXE">Dell N3248PXE</option>
+                            </optgroup>
+                            <optgroup label="Other Models">
+                                <option value="Custom Model">Custom Model (specify in description)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="generic-switch-description">Description</label>
+                        <input type="text" id="generic-switch-description" placeholder="e.g., Floor 11 VAS Switch" maxlength="100" 
+                               pattern="[A-Za-z0-9 ._-]*" 
+                               title="Only letters, numbers, spaces, periods, underscores, and hyphens allowed. No special characters.">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="generic-switch-enabled" checked>
+                        <label for="generic-switch-enabled">Switch is enabled</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Add Switch</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            // Load sites data first if not available
+            let currentSitesData = sitesData;
+            if (!currentSitesData || currentSitesData.length === 0) {
+                try {
+                    const response = await fetch('/api/sites');
+                    if (response.ok) {
+                        currentSitesData = await response.json();
+                    } else {
+                        showToast('Failed to load sites data', 'error');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error loading sites:', error);
+                    showToast('Error loading sites', 'error');
+                    return;
+                }
+            }
+            
+            // Populate sites dropdown
+            const siteSelect = document.getElementById('generic-switch-site');
+            if (currentSitesData && currentSitesData.length > 0) {
+                currentSitesData.forEach(site => {
+                    const option = document.createElement('option');
+                    option.value = site.id;
+                    option.textContent = site.name;
+                    siteSelect.appendChild(option);
+                });
+                
+                // Store the sites data for the floor loading function
+                window.modalSitesData = currentSitesData;
+            } else {
+                showToast('No sites available. Please create a site first.', 'error');
+                closeModal();
+                return;
+            }
+            
+            document.getElementById('generic-add-switch-form').addEventListener('submit', handleGenericAddSwitch);
+        }
+        
+        // Load floors for the generic switch modal
+        function loadFloorsForSwitchModal() {
+            const siteSelect = document.getElementById('generic-switch-site');
+            const floorSelect = document.getElementById('generic-switch-floor');
+            const selectedSiteId = siteSelect.value;
+            
+            // Clear and disable floor dropdown
+            floorSelect.innerHTML = '<option value="">Select floor...</option>';
+            floorSelect.disabled = true;
+            
+            // Use either sitesData or modalSitesData
+            const availableSitesData = window.modalSitesData || sitesData;
+            
+            if (selectedSiteId && availableSitesData) {
+                const selectedSite = availableSitesData.find(site => site.id == selectedSiteId);
+                if (selectedSite && selectedSite.floors) {
+                    selectedSite.floors.forEach(floor => {
+                        const option = document.createElement('option');
+                        option.value = floor.id;
+                        option.textContent = floor.name;
+                        floorSelect.appendChild(option);
+                    });
+                    floorSelect.disabled = false;
+                } else {
+                    // If no floors found, show a helpful message
+                    const noFloorsOption = document.createElement('option');
+                    noFloorsOption.value = '';
+                    noFloorsOption.textContent = 'No floors available for this site';
+                    floorSelect.appendChild(noFloorsOption);
+                }
+            }
+        }
+        
+        // Handle generic add switch form submission
+        async function handleGenericAddSwitch(e) {
+            e.preventDefault();
+            
+            const data = {
+                name: document.getElementById('generic-switch-name').value,
+                ip_address: document.getElementById('generic-switch-ip').value,
+                model: document.getElementById('generic-switch-model').value,
+                description: document.getElementById('generic-switch-description').value,
+                enabled: document.getElementById('generic-switch-enabled').checked,
+                floor_id: parseInt(document.getElementById('generic-switch-floor').value)
+            };
+            
+            try {
+                const response = await fetch('/api/switches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Switch added successfully', 'success');
+                    closeModal();
+                    
+                    // Refresh switches data
+                    await loadAllSwitches();
+                    
+                    // Refresh sidebar counts
+                    await refreshSidebarCounts();
+                    
+                    // If we're viewing a specific floor, refresh it
+                    if (currentFloorData && currentFloorData.id == data.floor_id) {
+                        await loadFloorSwitches(currentFloorData.id);
+                    }
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding switch:', error);
+                showToast('Error adding switch', 'error');
+            }
+        }
+        
+        // Make functions globally available
+        window.showGenericAddSwitchModal = showGenericAddSwitchModal;
+        window.loadFloorsForSwitchModal = loadFloorsForSwitchModal;
+        window.handleGenericAddSwitch = handleGenericAddSwitch;
+        
+        // Handle add switch to floor form submission
+        async function handleAddSwitchToFloor(e) {
+            e.preventDefault();
+            
+            // Get floor ID from hidden input
+            const floorId = document.getElementById('new-switch-floor-id').value;
+            
+            const data = {
+                name: document.getElementById('new-switch-name').value,
+                ip_address: document.getElementById('new-switch-ip').value,
+                model: document.getElementById('new-switch-model').value,
+                description: document.getElementById('new-switch-description').value,
+                enabled: document.getElementById('new-switch-enabled').checked,
+                floor_id: parseInt(floorId)
+            };
+            
+            try {
+                const response = await fetch('/api/switches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Switch added successfully', 'success');
+                    closeModal();
+                    
+                    // Refresh current floor switches if in detail view
+                    if (typeof currentFloorData !== 'undefined' && currentFloorData) {
+                        await loadFloorSwitches(currentFloorData.id);
+                    }
+                    
+                    // Refresh main switches data if available
+                    if (typeof loadSwitches === 'function') {
+                        loadSwitches();
+                    }
+                    
+                    // Refresh all switches data if available
+                    if (typeof loadAllSwitches === 'function') {
+                        await loadAllSwitches();
+                    }
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding switch:', error);
+                showToast('Error adding switch', 'error');
+            }
+        }
+        
+        // Make function globally available
+        window.handleAddSwitchToFloor = handleAddSwitchToFloor;
         
         // Switch action functions for floor inventory
         function editFloorSwitch(switchId) {
@@ -6692,8 +7634,7 @@ MAIN_TEMPLATE = """
                 <a href="/" class="nav-link active">🔍 Port Tracer</a>
                 {% if user_role in ['netadmin', 'superadmin'] %}
                 <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-                <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
-                <a href="/inventory" class="nav-link">🏢 Switch Inventory</a>
+                <a href="/inventory" class="nav-link">🏢 Switch Management</a>
                 {% endif %}
             </div>
         </div>
@@ -7485,17 +8426,6 @@ def trace():
     return jsonify(sorted_results)
 
 # CRUD Routes for Switch Management (NetAdmin/SuperAdmin only)
-@app.route('/manage')
-def manage_switches():
-    """Switch management interface for network administrators."""
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    return render_template_string(MANAGE_TEMPLATE, username=session['username'], user_role=user_role)
 
 @app.route('/inventory')
 def switch_inventory():
