@@ -1166,37 +1166,3027 @@ def trace_mac_on_switches(switches, mac_address, username):
 
 
 # Web Interface HTML Templates
-MANAGE_TEMPLATE = """
+INVENTORY_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Manage Switches</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=4.0">
+    <title>Switch Inventory - Dell Port Tracer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        .inventory-page {
+            background: var(--deep-navy);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(103, 126, 234, 0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(103, 126, 234, 0.3);
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .username {
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        
+        .user-role {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .logout-btn {
+            color: #dc2626;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-section img {
+            height: 40px;
+        }
+        
+        .app-title {
+            color: var(--deep-navy);
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        /* Navigation Bar Styles */
+        .navigation-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin: 30px auto;
+            border: 1px solid #e5e7eb;
+            max-width: 1200px;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .nav-link {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: white !important;
+            text-decoration: none;
+            padding: 16px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #475569;
+            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.5), 
+                transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .nav-link:hover::before {
+            left: 100%;
+        }
+        
+        .nav-link:hover {
+            background: linear-gradient(135deg, #1976d2, #1565c0);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(25, 118, 210, 0.35),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border-color: #1976d2;
+        }
+        
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--orange), #ea580c);
+            color: white;
+            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            border-color: #ea580c;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        .nav-link.active::before {
+            display: none;
+        }
+        
+        .nav-link.active:hover {
+            background: linear-gradient(135deg, #ea580c, #dc2626);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        
+        .main-content {
+            margin: 0 auto;
+            padding: 0 20px 20px 20px;
+            display: flex;
+            height: calc(100vh - 140px);
+            overflow: hidden;
+            max-width: none;
+            width: calc(100vw - 40px);
+        }
+        
+        .sidebar {
+            width: 450px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            flex-shrink: 0;
+            border-radius: 12px 0 0 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .content-area {
+            flex: 1;
+            background: white;
+            overflow-y: auto;
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navigation-card {
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 24px;
+            margin-bottom: 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0;
+        }
+        
+        .nav-link {
+            color: var(--light-blue);
+            text-decoration: none;
+            padding: 15px 20px;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: inline-block;
+            position: relative;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--white);
+            transform: translateY(-2px);
+        }
+        
+        .nav-link.active {
+            background: var(--orange);
+            color: var(--white);
+            box-shadow: 0 2px 8px rgba(255, 114, 0, 0.3);
+        }
+        
+        .nav-link.active:hover {
+            background: #e06600;
+            transform: none;
+        }
+        
+        /* Sidebar Structure Styles */
+        .sidebar-header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            flex-shrink: 0;
+        }
+        
+        .site-tree-scrollable {
+            flex: 1;
+            overflow-y: auto;
+            background: white;
+        }
+        
+        /* Site Tree Styles */
+        .site-tree {
+            padding: 20px;
+        }
+        
+        .tree-header .search-box {
+            margin-top: 12px;
+        }
+        
+        .tree-header .search-input {
+            width: 100%;
+            max-width: 280px;
+            font-size: 13px;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .tree-header {
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--orange);
+        }
+        
+        .tree-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tree-item {
+            margin-bottom: 8px;
+        }
+        
+        .tree-site {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .site-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--deep-navy), #1e3a8a);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .site-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        
+        .site-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .site-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+        
+        .site-stats {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-right: 6px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .site-header:hover {
+            background: linear-gradient(135deg, #1e3a8a, var(--orange));
+        }
+        
+        .site-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+        
+        /* Contextual Floor Actions */
+        .floor-actions {
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            display: none;
+        }
+        
+        .floor-actions.show {
+            display: block;
+        }
+        
+        .floor-actions-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .floor-action-btn {
+            padding: 4px 8px;
+            border: 1px solid #64748b;
+            background: white;
+            color: #64748b;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .floor-action-btn:hover {
+            background: var(--orange);
+            color: white;
+            border-color: var(--orange);
+            transform: translateY(-1px);
+        }
+        
+        .floor-actions-label {
+            font-size: 10px;
+            color: #64748b;
+            margin-right: 8px;
+            font-weight: 600;
+        }
+        
+        .site-stats {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .expand-icon {
+            font-size: 14px;
+            transition: transform 0.2s ease;
+        }
+        
+        .site-header.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+        
+        .floors-container {
+            display: none;
+            background: white;
+        }
+        
+        .floors-container.expanded {
+            display: block;
+        }
+        
+        .floor-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .floor-item:last-child {
+            border-bottom: none;
+        }
+        
+        .floor-item:hover {
+            background: #f8fafc;
+        }
+        
+        .floor-item.selected {
+            background: rgba(255, 114, 0, 0.1);
+            border-left: 4px solid var(--orange);
+            font-weight: 600;
+            color: var(--deep-navy);
+        }
+        
+        .floor-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .floor-switch-count {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .floor-item.selected .floor-switch-count {
+            background: var(--orange);
+            color: white;
+        }
+        
+        /* Content Area Styles */
+        .content-header {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .breadcrumb-separator {
+            color: #d1d5db;
+        }
+        
+        .breadcrumb .current {
+            color: var(--orange);
+            font-weight: 600;
+        }
+        
+        .floor-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--deep-navy);
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .floor-description {
+            color: #6b7280;
+            margin: 0;
+        }
+        
+        /* Statistics Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .stat-number.total {
+            color: var(--orange);
+        }
+        
+        .stat-number.active {
+            color: #10b981;
+        }
+        
+        .stat-number.inactive {
+            color: #ef4444;
+        }
+        
+        .stat-number.models {
+            color: #6366f1;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        /* Switch Table */
+        .switches-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+        
+        .switches-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .switches-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .switches-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-input {
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 200px;
+            box-sizing: border-box;
+            background-color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        
+        .tree-header .search-box {
+            margin-top: 12px;
+        }
+        
+        .tree-header .search-input {
+            width: 100%;
+            max-width: 280px;
+            font-size: 13px;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .management-buttons {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+        
+        .management-buttons .action-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--orange);
+            background: var(--orange);
+            color: white;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .management-buttons .action-btn:hover {
+            background: #e68900;
+            border-color: #e68900;
+            transform: translateY(-1px);
+        }
+        
+        .tree-header .search-input::placeholder {
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        
+        .filter-btn {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #374151;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+        
+        .filter-btn.active {
+            background: var(--orange);
+            color: white;
+            border-color: var(--orange);
+        }
+        
+        .switches-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .switches-table th {
+            background: #f8fafc;
+            color: #374151;
+            font-weight: 600;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .switches-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        
+        .switches-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .switches-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .switch-name {
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin-bottom: 4px;
+        }
+        
+        .switch-model {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .switch-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #374151;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-inactive {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        
+        .switch-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .action-btn {
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: white;
+            color: #374151;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .empty-description {
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid var(--orange);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            color: var(--deep-navy);
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .modal-body .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .modal-body .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        
+        .modal-body .form-group input,
+        .modal-body .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+            box-sizing: border-box;
+        }
+        
+        .modal-body .form-group input:focus,
+        .modal-body .form-group select:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        
+        .modal-body .form-group input[readonly] {
+            background: #f9fafb;
+            color: #6c757d;
+        }
+        
+        .modal-body .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+        
+        .modal-body .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--orange);
+        }
+        
+        .modal-body .checkbox-group label {
+            margin: 0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .modal-body .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        /* Delete Confirmation Modal */
+        .delete-modal .modal-content {
+            max-width: 450px;
+        }
+        
+        .delete-modal .modal-header {
+            background: linear-gradient(135deg, #fee2e2, #fca5a5);
+            border-bottom: 1px solid #f87171;
+        }
+        
+        .delete-modal .modal-header h3 {
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .delete-warning {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        
+        .delete-warning-title {
+            font-weight: 600;
+            color: #dc2626;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .delete-warning-text {
+            color: #7f1d1d;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        
+        .delete-item-name {
+            font-weight: 600;
+            color: #991b1b;
+        }
+        
+        .delete-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn-cancel {
+            padding: 10px 20px;
+            background: #f9fafb;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+        
+        .btn-delete {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+        }
+        
+        .btn-delete:hover {
+            background: linear-gradient(135deg, #b91c1c, #991b1b);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+            transform: translateY(-1px);
+        }
+            padding-top: 16px;
+            border-top: 1px solid #e1e8ed;
+        }
+        
+        .modal-body .btn-primary {
+            background: var(--orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-body .btn-primary:hover {
+            background: #e68900;
+        }
+        
+        .modal-body .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-body .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        /* Toast Styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1100;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            font-size: 14px;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+                height: auto;
+                width: calc(100vw - 20px);
+                padding: 0 10px 20px 10px;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 300px;
+            }
+            
+            .content-area {
+                height: auto;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .switches-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            
+            .search-input {
+                width: 100%;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body class="inventory-page">
+    <div class="header-card">
+        <div class="logo-section">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+            <h1 class="app-title">Switch Port Tracer</h1>
+        </div>
+        <div class="user-profile">
+            <div class="user-avatar">{{ username[0].upper() }}</div>
+            <div class="user-details">
+                <div class="username">{{ username }}</div>
+                <div class="user-role">{{ user_role }}</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+    
+    <div class="navigation-card">
+        <div class="nav-links">
+            <a href="/" class="nav-link">🔍 Port Tracer</a>
+            {% if user_role in ['netadmin', 'superadmin'] %}
+            <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
+            <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
+            <a href="/inventory" class="nav-link active">🏢 Switch Inventory</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <!-- Sidebar with Site Tree -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="site-tree">
+                    <div class="tree-header">
+                        <h2 class="tree-title">
+                            <span>🏢</span>
+                            KMC Sites
+                        </h2>
+                        
+                        <div class="management-buttons">
+                            <button class="action-btn" onclick="showAddSiteModal()" title="Add new site">
+                                + Add Site
+                            </button>
+                            <button class="action-btn" id="add-floor-btn" onclick="showAddFloorModal()" title="Add floor to selected site" style="display: none;">
+                                + Add Floor
+                            </button>
+                        </div>
+                        
+                        <div class="search-box">
+                            <input type="text" class="search-input" id="site-search" placeholder="Search sites and floors...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="site-tree-scrollable">
+                <div class="site-tree">
+                    <div id="site-tree-container">
+                        <div class="loading-state">
+                            <div class="loading-spinner"></div>
+                            Loading sites...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="content-area">
+            <div class="content-header">
+                <div class="breadcrumb">
+                    <span>🏢 Sites</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span id="current-site">Select a site</span>
+                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">›</span>
+                    <span class="current" id="current-floor" style="display: none;">Select a floor</span>
+                </div>
+                
+                <h1 class="floor-title" id="content-title">
+                    <span>📋</span>
+                    Switch Inventory
+                </h1>
+                
+                <p class="floor-description" id="content-description">
+                    Select a site and floor from the left sidebar to view switch inventory
+                </p>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="stats-grid" id="stats-grid" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-number total" id="total-switches">0</div>
+                    <div class="stat-label">Total Switches</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number active" id="active-switches">0</div>
+                    <div class="stat-label">Active Switches</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number inactive" id="inactive-switches">0</div>
+                    <div class="stat-label">Inactive Switches</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number models" id="unique-models">0</div>
+                    <div class="stat-label">Switch Models</div>
+                </div>
+            </div>
+            
+            <!-- Switches Section -->
+            <div class="switches-section" id="switches-section">
+                <div class="switches-header">
+                    <h3 class="switches-title">
+                        <span>🔌</span>
+                        Switch Details
+                    </h3>
+                    
+                    <div class="switches-controls" id="switches-controls" style="display: none;">
+                        <div class="search-box">
+                            <input type="text" class="search-input" id="switch-search" placeholder="Search switches...">
+                        </div>
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="inactive">Inactive</button>
+                    </div>
+                </div>
+                
+                <div id="switches-content">
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title">No Floor Selected</div>
+                        <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let sitesData = [];
+        let currentSiteData = null;
+        let currentFloorData = null;
+        let allSwitches = [];
+        let filteredSwitches = [];
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSites();
+            setupEventListeners();
+        });
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('switch-search').addEventListener('input', handleSearchInput);
+            
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', handleFilterClick);
+            });
+        }
+        
+        // Load sites from API
+        async function loadSites() {
+            try {
+                const response = await fetch('/api/sites');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    sitesData = data;
+                    // Load all switches data first for counting
+                    await loadAllSwitches();
+                    renderSiteTree(data);
+                } else {
+                    showError('Failed to load sites: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading sites: ' + error.message);
+            }
+        }
+        
+        // Load all switches for site counting
+        async function loadAllSwitches() {
+            try {
+                const response = await fetch('/api/switches');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    allSwitches = data; // Store all switches globally
+                } else {
+                    console.error('Failed to load all switches:', data.error);
+                    allSwitches = [];
+                }
+            } catch (error) {
+                console.error('Error loading all switches:', error.message);
+                allSwitches = [];
+            }
+        }
+        
+        // Render the site tree
+        function renderSiteTree(sites) {
+            const container = document.getElementById('site-tree-container');
+            
+            if (sites.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🏢</div>
+                        <div class="empty-title">No Sites Found</div>
+                        <div class="empty-description">No sites are configured in the system</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            sites.forEach(site => {
+                // Calculate total switches properly from database structure
+                let totalSwitches = 0;
+                if (site.floors && Array.isArray(site.floors)) {
+                    // Count switches across all floors for this site
+                    site.floors.forEach(floor => {
+                        // Count switches from the global allSwitches array for this floor
+                        if (typeof allSwitches !== 'undefined' && allSwitches.length > 0) {
+                            const floorSwitches = allSwitches.filter(sw => sw.floor_id == floor.id);
+                            totalSwitches += floorSwitches.length;
+                        }
+                    });
+                }
+                const floorCount = site.floors ? site.floors.length : 0;
+                
+                // Escape single quotes in site name for onclick handlers
+                const escapedName = site.name.replace(/'/g, "\\'");
+                html += `
+                    <div class="tree-item">
+                        <div class="tree-site">
+                            <div class="site-header" onclick="toggleSite('${site.id}')" id="site-header-${site.id}">
+                                <div class="site-header-content">
+                                    <div class="site-left">
+                                        <span>🏢</span>
+                                        <span>${site.name}</span>
+                                    </div>
+                                    <div class="site-right">
+                                        <div class="site-stats">
+                                            <span>${floorCount} floors • ${totalSwitches} switches</span>
+                                        </div>
+                                        <div class="site-actions">
+                                            <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
+                                                title="Edit site" style="padding: 2px 6px; font-size: 10px; margin-right: 8px;">
+                                                ✏️ Edit
+                                            </button>
+                                            <div class="expand-icon">▶</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="floors-container" id="floors-${site.id}">
+                                ${renderFloors(site.floors, site.id, site.name)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Render floors for a site
+        function renderFloors(floors, siteId, siteName) {
+            if (floors.length === 0) {
+                return '<div class="floor-item"><div class="floor-name">No floors configured</div></div>';
+            }
+            
+            return floors.map(floor => {
+                // Escape single quotes in floor name for onclick handlers
+                const escapedName = floor.name.replace(/'/g, "\\'");
+                return `
+                    <div class="floor-item" onclick="selectFloor('${siteId}', '${siteName}', '${floor.id}', '${floor.name}')" id="floor-${floor.id}">
+                        <div class="floor-name">
+                            <span>🏢</span>
+                            <span>${floor.name}</span>
+                        </div>
+                        <div class="floor-switch-count">
+                            <button class="action-btn" onclick="event.stopPropagation(); editFloor(${floor.id}, '${escapedName}', ${siteId})" 
+                                title="Edit floor" style="margin-left: 8px; padding: 1px 4px; font-size: 9px;">
+                                ✏️ Edit
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Toggle site expansion and select site
+        function toggleSite(siteId) {
+            const header = document.getElementById(`site-header-${siteId}`);
+            const floors = document.getElementById(`floors-${siteId}`);
+            const expandIcon = header.querySelector('.expand-icon');
+            
+            // First, select this site (remove selection from other sites)
+            document.querySelectorAll('.site-header').forEach(el => {
+                el.classList.remove('selected');
+            });
+            header.classList.add('selected');
+            
+            // Store the selected site globally - get site name from sitesData array
+            const siteData = sitesData.find(site => site.id == siteId);
+            const siteName = siteData ? siteData.name : 'Unknown Site';
+            window.selectedSiteId = siteId;
+            window.selectedSiteName = siteName;
+            
+            // Clear any floor selection
+            document.querySelectorAll('.floor-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            currentFloorData = null;
+            
+            // Load all switches for this site
+            loadSiteSwitches(siteId, siteName);
+            
+            // Show Add Floor button since site is selected
+            showAddFloorButton(siteId);
+            
+            const isExpanded = floors.classList.contains('expanded');
+            
+            if (isExpanded) {
+                floors.classList.remove('expanded');
+                header.classList.remove('expanded');
+            } else {
+                // Close other expanded sites first
+                document.querySelectorAll('.floors-container').forEach(el => {
+                    el.classList.remove('expanded');
+                });
+                document.querySelectorAll('.site-header').forEach(el => {
+                    if (el !== header) {
+                        el.classList.remove('expanded');
+                    }
+                });
+                
+                floors.classList.add('expanded');
+                header.classList.add('expanded');
+            }
+        }
+        
+        // Show Add Floor button for a specific site
+        function showAddFloorButton(siteId) {
+            const addFloorBtn = document.getElementById('add-floor-btn');
+            if (addFloorBtn) {
+                addFloorBtn.style.display = 'inline-block';
+                // Store the currently selected site ID for the Add Floor functionality
+                addFloorBtn.setAttribute('data-site-id', siteId);
+            }
+        }
+        
+        // Hide Add Floor button
+        function hideAddFloorButton() {
+            const addFloorBtn = document.getElementById('add-floor-btn');
+            if (addFloorBtn) {
+                addFloorBtn.style.display = 'none';
+                addFloorBtn.removeAttribute('data-site-id');
+            }
+        }
+        
+        // Select a floor and load its switches
+        async function selectFloor(siteId, siteName, floorId, floorName) {
+            // Update selection state
+            document.querySelectorAll('.floor-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.getElementById(`floor-${floorId}`).classList.add('selected');
+            
+            // Update breadcrumb and title
+            updateContentHeader(siteName, floorName);
+            
+            // Store current selection
+            currentSiteData = { id: siteId, name: siteName };
+            currentFloorData = { id: floorId, name: floorName };
+            
+            // Load switches for this floor
+            await loadFloorSwitches(floorId);
+        }
+        
+        // Update content header for floor view
+        function updateContentHeader(siteName, floorName) {
+            document.getElementById('current-site').textContent = siteName;
+            document.getElementById('current-floor').textContent = floorName;
+            document.getElementById('current-floor').style.display = 'inline';
+            document.getElementById('floor-separator').style.display = 'inline';
+            
+            document.getElementById('content-title').innerHTML = `
+                <span>🏢</span>
+                ${floorName} - Switch Inventory
+            `;
+            
+            document.getElementById('content-description').textContent = 
+                `Viewing switches for ${floorName} in ${siteName}`;
+        }
+        
+        // Update content header for site view (all floors)
+        function updateSiteContentHeader(siteName) {
+            document.getElementById('current-site').textContent = siteName;
+            document.getElementById('current-floor').style.display = 'none';
+            document.getElementById('floor-separator').style.display = 'none';
+            
+            document.getElementById('content-title').innerHTML = `
+                <span>🏢</span>
+                ${siteName} - Switch Inventory
+            `;
+            
+            document.getElementById('content-description').textContent = 
+                `Viewing all switches for ${siteName} (aggregated across all floors)`;
+        }
+        
+        // Load all switches for a specific site
+        async function loadSiteSwitches(siteId, siteName) {
+            try {
+                // Show loading state
+                document.getElementById('switches-content').innerHTML = `
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        Loading switches for ${siteName}...
+                    </div>
+                `;
+                
+                const response = await fetch('/api/switches');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Filter switches for all floors in this site
+                    allSwitches = data.filter(sw => sw.site_id == siteId);
+                    filteredSwitches = [...allSwitches];
+                    
+                    // Update breadcrumb and header for site view
+                    updateSiteContentHeader(siteName);
+                    
+                    renderSwitches();
+                    updateStats();
+                    
+                    // Show controls
+                    document.getElementById('switches-controls').style.display = 'flex';
+                    document.getElementById('stats-grid').style.display = 'grid';
+                } else {
+                    showError('Failed to load switches: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading switches: ' + error.message);
+            }
+        }
+        
+        // Load switches for a specific floor
+        async function loadFloorSwitches(floorId) {
+            try {
+                // Show loading state
+                document.getElementById('switches-content').innerHTML = `
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        Loading switches...
+                    </div>
+                `;
+                
+                const response = await fetch('/api/switches');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Filter switches for this floor
+                    allSwitches = data.filter(sw => sw.floor_id == floorId);
+                    filteredSwitches = [...allSwitches];
+                    
+                    renderSwitches();
+                    updateStats();
+                    
+                    // Show controls
+                    document.getElementById('switches-controls').style.display = 'flex';
+                    document.getElementById('stats-grid').style.display = 'grid';
+                } else {
+                    showError('Failed to load switches: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading switches: ' + error.message);
+            }
+        }
+        
+        // Render switches table
+        function renderSwitches() {
+            const content = document.getElementById('switches-content');
+            
+            if (filteredSwitches.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔌</div>
+                        <div class="empty-title">No Switches Found</div>
+                        <div class="empty-description">No switches match the current filter criteria</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <table class="switches-table">
+                    <thead>
+                        <tr>
+                            <th>Switch Name</th>
+                            <th>Model</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            filteredSwitches.forEach(sw => {
+                const statusClass = sw.enabled ? 'active' : 'inactive';
+                const statusIcon = sw.enabled ? '✅' : '❌';
+                const statusText = sw.enabled ? 'Active' : 'Inactive';
+                
+                html += `
+                    <tr>
+                        <td>
+                            <div class="switch-name">${sw.name}</div>
+                        </td>
+                        <td>${sw.model}</td>
+                        <td><code class="switch-ip">${sw.ip_address}</code></td>
+                        <td>
+                            <span class="status-badge status-${statusClass}">
+                                <span>${statusIcon}</span>
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td>${sw.description || '-'}</td>
+                        <td>
+                            <div class="switch-actions">
+                                <button class="action-btn" onclick="editSwitch(${sw.id})" title="Edit switch">
+                                    ✏️ Edit
+                                </button>
+                                <button class="action-btn" onclick="deleteSwitch(${sw.id}, '${sw.name.replace(/'/g, "\\'")}')"
+                                    title="Delete switch" style="color: #dc3545; border-color: #dc3545;">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            content.innerHTML = html;
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const total = allSwitches.length;
+            const active = allSwitches.filter(sw => sw.enabled).length;
+            const inactive = total - active;
+            const models = new Set(allSwitches.map(sw => sw.model)).size;
+            
+            document.getElementById('total-switches').textContent = total;
+            document.getElementById('active-switches').textContent = active;
+            document.getElementById('inactive-switches').textContent = inactive;
+            document.getElementById('unique-models').textContent = models;
+        }
+        
+        // Handle search input
+        function handleSearchInput(event) {
+            const query = event.target.value.toLowerCase();
+            
+            filteredSwitches = allSwitches.filter(sw => 
+                sw.name.toLowerCase().includes(query) ||
+                sw.model.toLowerCase().includes(query) ||
+                sw.ip_address.toLowerCase().includes(query) ||
+                (sw.description && sw.description.toLowerCase().includes(query))
+            );
+            
+            renderSwitches();
+        }
+        
+        // Handle filter button clicks
+        function handleFilterClick(event) {
+            const filter = event.target.dataset.filter;
+            
+            // Update active filter button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Apply filter
+            switch (filter) {
+                case 'all':
+                    filteredSwitches = [...allSwitches];
+                    break;
+                case 'active':
+                    filteredSwitches = allSwitches.filter(sw => sw.enabled);
+                    break;
+                case 'inactive':
+                    filteredSwitches = allSwitches.filter(sw => !sw.enabled);
+                    break;
+            }
+            
+            // Apply current search if any
+            const searchQuery = document.getElementById('switch-search').value.toLowerCase();
+            if (searchQuery) {
+                filteredSwitches = filteredSwitches.filter(sw => 
+                    sw.name.toLowerCase().includes(searchQuery) ||
+                    sw.model.toLowerCase().includes(searchQuery) ||
+                    sw.ip_address.toLowerCase().includes(searchQuery) ||
+                    (sw.description && sw.description.toLowerCase().includes(searchQuery))
+                );
+            }
+            
+            renderSwitches();
+        }
+        
+        // Switch action functions
+        function viewSwitchDetails(switchId) {
+            const sw = allSwitches.find(s => s.id === switchId);
+            if (sw) {
+                alert(`Switch Details:\n\nName: ${sw.name}\nModel: ${sw.model}\nIP: ${sw.ip_address}\nStatus: ${sw.enabled ? 'Active' : 'Inactive'}\nDescription: ${sw.description || 'None'}`);
+            }
+        }
+        
+        function editSwitch(switchId) {
+            // Find the switch data
+            const switchData = allSwitches.find(sw => sw.id == switchId);
+            if (!switchData) {
+                showError('Switch not found');
+                return;
+            }
+            
+            // Open edit modal instead of redirecting
+            showEditSwitchModal(switchData);
+        }
+        
+        // Site search functionality
+        document.getElementById('site-search').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const siteItems = document.querySelectorAll('.tree-site');
+            
+            // If clearing search (empty term), collapse all sites (default behavior)
+            if (!searchTerm) {
+                siteItems.forEach(siteItem => {
+                    const floorsContainer = siteItem.querySelector('.floors-container');
+                    const siteHeader = siteItem.querySelector('.site-header');
+                    
+                    // Show all sites and floors
+                    siteItem.parentElement.style.display = 'block';
+                    siteItem.querySelectorAll('.floor-item').forEach(floor => {
+                        floor.style.display = 'flex';
+                    });
+                    
+                    // Default behavior: collapse all sites when clearing search
+                    floorsContainer.classList.remove('expanded');
+                    siteHeader.classList.remove('expanded');
+                });
+                return;
+            }
+            
+            siteItems.forEach(siteItem => {
+                const siteName = siteItem.querySelector('.site-name span:last-child').textContent.toLowerCase();
+                const floorItems = siteItem.querySelectorAll('.floor-item');
+                let hasVisibleFloors = false;
+                
+                // Filter floors within each site
+                floorItems.forEach(floorItem => {
+                    const floorName = floorItem.querySelector('.floor-name span:last-child').textContent.toLowerCase();
+                    const shouldShow = siteName.includes(searchTerm) || floorName.includes(searchTerm);
+                    floorItem.style.display = shouldShow ? 'flex' : 'none';
+                    if (shouldShow) hasVisibleFloors = true;
+                });
+                
+                // Show/hide entire site based on search
+                const shouldShowSite = siteName.includes(searchTerm) || hasVisibleFloors;
+                siteItem.parentElement.style.display = shouldShowSite ? 'block' : 'none';
+                
+                // Auto-expand sites that match search
+                if (searchTerm && shouldShowSite) {
+                    const floorsContainer = siteItem.querySelector('.floors-container');
+                    const siteHeader = siteItem.querySelector('.site-header');
+                    floorsContainer.classList.add('expanded');
+                    siteHeader.classList.add('expanded');
+                }
+            });
+        });
+        
+        // Modal functions
+        function showAddSiteModal() {
+            const modal = createModal('Add Site', `
+                <form id="add-site-form">
+                    <div class="form-group">
+                        <label for="new-site-name">Site Name</label>
+                        <input type="text" id="new-site-name" name="name" required placeholder="e.g., NYC_MAIN" maxlength="50">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Create Site</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('add-site-form').addEventListener('submit', handleAddSite);
+        }
+        
+        function showAddFloorModal() {
+            // Check if a site is selected either through site selection or floor selection
+            let selectedSiteId = null;
+            let selectedSiteName = null;
+            
+            if (currentSiteData) {
+                // Floor was selected, use currentSiteData
+                selectedSiteId = currentSiteData.id;
+                selectedSiteName = currentSiteData.name;
+            } else if (window.selectedSiteId && window.selectedSiteName) {
+                // Only site was selected, use global selection
+                selectedSiteId = window.selectedSiteId;
+                selectedSiteName = window.selectedSiteName;
+            }
+            
+            if (!selectedSiteId) {
+                showToast('Please select a site first', 'error');
+                return;
+            }
+            
+            const modal = createModal('Add Floor', `
+                <form id="add-floor-form">
+                    <input type="hidden" id="floor-site-id" value="${selectedSiteId}">
+                    <div class="form-group">
+                        <label for="floor-site-name">Site</label>
+                        <input type="text" id="floor-site-name" value="${selectedSiteName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-floor-name">Floor Name</label>
+                        <input type="text" id="new-floor-name" name="name" required placeholder="e.g., Floor 1" maxlength="50">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Create Floor</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('add-floor-form').addEventListener('submit', handleAddFloor);
+        }
+        
+        function showEditSwitchModal(switchData) {
+            const modal = createModal('Edit Switch', `
+                <form id="edit-switch-form">
+                    <input type="hidden" id="edit-switch-id" value="${switchData.id}">
+                    <div class="form-group">
+                        <label for="edit-switch-name">Switch Name</label>
+                        <input type="text" id="edit-switch-name" value="${switchData.name}" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-switch-ip">IP Address</label>
+                        <input type="text" id="edit-switch-ip" value="${switchData.ip_address}" required pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+                    </div>
+                        <div class="form-group">
+                            <label for="switch-model">Model</label>
+                            <select id="switch-model" required>
+                                <option value="">Select switch model...</option>
+                                <optgroup label="Dell N2000 Series">
+                                    <option value="Dell N2024" ${switchData.model === 'Dell N2024' ? 'selected' : ''}>Dell N2024</option>
+                                    <option value="Dell N2048" ${switchData.model === 'Dell N2048' ? 'selected' : ''}>Dell N2048</option>
+                                    <option value="Dell N2048P" ${switchData.model === 'Dell N2048P' ? 'selected' : ''}>Dell N2048P</option>
+                                </optgroup>
+                                <optgroup label="Dell N3000 Series">
+                                    <option value="Dell N3024" ${switchData.model === 'Dell N3024' ? 'selected' : ''}>Dell N3024</option>
+                                    <option value="Dell N3024P" ${switchData.model === 'Dell N3024P' ? 'selected' : ''}>Dell N3024P</option>
+                                    <option value="Dell N3024F" ${switchData.model === 'Dell N3024F' ? 'selected' : ''}>Dell N3024F</option>
+                                    <option value="Dell N3048" ${switchData.model === 'Dell N3048' ? 'selected' : ''}>Dell N3048</option>
+                                    <option value="Dell N3048P" ${switchData.model === 'Dell N3048P' ? 'selected' : ''}>Dell N3048P</option>
+                                </optgroup>
+                                <optgroup label="Dell N3200 Series">
+                                    <option value="Dell N3248" ${switchData.model === 'Dell N3248' ? 'selected' : ''}>Dell N3248</option>
+                                    <option value="Dell N3224P" ${switchData.model === 'Dell N3224P' ? 'selected' : ''}>Dell N3224P</option>
+                                    <option value="Dell N3224PXE" ${switchData.model === 'Dell N3224PXE' ? 'selected' : ''}>Dell N3224PXE</option>
+                                    <option value="Dell N3248P" ${switchData.model === 'Dell N3248P' ? 'selected' : ''}>Dell N3248P</option>
+                                    <option value="Dell N3248PXE" ${switchData.model === 'Dell N3248PXE' ? 'selected' : ''}>Dell N3248PXE</option>
+                                </optgroup>
+                                <optgroup label="Dell N4000 Series">
+                                    <option value="Dell N4032" ${switchData.model === 'Dell N4032' ? 'selected' : ''}>Dell N4032</option>
+                                    <option value="Dell N4032F" ${switchData.model === 'Dell N4032F' ? 'selected' : ''}>Dell N4032F</option>
+                                    <option value="Dell N4064" ${switchData.model === 'Dell N4064' ? 'selected' : ''}>Dell N4064</option>
+                                    <option value="Dell N4064F" ${switchData.model === 'Dell N4064F' ? 'selected' : ''}>Dell N4064F</option>
+                                </optgroup>
+                                <optgroup label="Dell S3000 Series">
+                                    <option value="Dell S3048-ON" ${switchData.model === 'Dell S3048-ON' ? 'selected' : ''}>Dell S3048-ON</option>
+                                    <option value="Dell S3124P" ${switchData.model === 'Dell S3124P' ? 'selected' : ''}>Dell S3124P</option>
+                                    <option value="Dell S3124F" ${switchData.model === 'Dell S3124F' ? 'selected' : ''}>Dell S3124F</option>
+                                </optgroup>
+                                <optgroup label="Dell S4000 Series">
+                                    <option value="Dell S4048-ON" ${switchData.model === 'Dell S4048-ON' ? 'selected' : ''}>Dell S4048-ON</option>
+                                    <option value="Dell S4048T-ON" ${switchData.model === 'Dell S4048T-ON' ? 'selected' : ''}>Dell S4048T-ON</option>
+                                    <option value="Dell S4112F-ON" ${switchData.model === 'Dell S4112F-ON' ? 'selected' : ''}>Dell S4112F-ON</option>
+                                    <option value="Dell S4112T-ON" ${switchData.model === 'Dell S4112T-ON' ? 'selected' : ''}>Dell S4112T-ON</option>
+                                    <option value="Dell S4128F-ON" ${switchData.model === 'Dell S4128F-ON' ? 'selected' : ''}>Dell S4128F-ON</option>
+                                    <option value="Dell S4128T-ON" ${switchData.model === 'Dell S4128T-ON' ? 'selected' : ''}>Dell S4128T-ON</option>
+                                </optgroup>
+                                <optgroup label="Dell S5000 Series">
+                                    <option value="Dell S5212F-ON" ${switchData.model === 'Dell S5212F-ON' ? 'selected' : ''}>Dell S5212F-ON</option>
+                                    <option value="Dell S5224F-ON" ${switchData.model === 'Dell S5224F-ON' ? 'selected' : ''}>Dell S5224F-ON</option>
+                                    <option value="Dell S5232F-ON" ${switchData.model === 'Dell S5232F-ON' ? 'selected' : ''}>Dell S5232F-ON</option>
+                                    <option value="Dell S5248F-ON" ${switchData.model === 'Dell S5248F-ON' ? 'selected' : ''}>Dell S5248F-ON</option>
+                                    <option value="Dell S5296F-ON" ${switchData.model === 'Dell S5296F-ON' ? 'selected' : ''}>Dell S5296F-ON</option>
+                                </optgroup>
+                                <optgroup label="Other Models">
+                                    <option value="Custom Model" ${switchData.model === 'Custom Model' ? 'selected' : ''}>Custom Model (specify in description)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    <div class="form-group">
+                        <label for="edit-switch-description">Description</label>
+                        <input type="text" id="edit-switch-description" value="${switchData.description || ''}" maxlength="100">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="edit-switch-enabled" ${switchData.enabled ? 'checked' : ''}>
+                        <label for="edit-switch-enabled">Switch is enabled</label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Update Switch</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('edit-switch-form').addEventListener('submit', handleEditSwitch);
+        }
+        
+        function createModal(title, content) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>${title}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        ${content}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        function closeModal() {
+            const modal = document.querySelector('.modal-overlay');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Form handlers
+        async function handleAddSite(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/sites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Site created successfully', 'success');
+                    closeModal();
+                    loadSites(); // Refresh the site list
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error creating site', 'error');
+            }
+        }
+        
+        async function handleAddFloor(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Use the site ID from the hidden field in the form
+            const siteId = document.getElementById('floor-site-id').value;
+            if (!siteId) {
+                showToast('Site ID is missing. Please select a site again.', 'error');
+                return;
+            }
+            data.site_id = siteId;
+            
+            try {
+                const response = await fetch('/api/floors', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Floor created successfully', 'success');
+                    closeModal();
+                    loadSites(); // Refresh the site list
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error creating floor', 'error');
+            }
+        }
+        
+        async function handleEditSwitch(e) {
+            e.preventDefault();
+            const switchId = document.getElementById('edit-switch-id').value;
+            const data = {
+                name: document.getElementById('edit-switch-name').value,
+                ip_address: document.getElementById('edit-switch-ip').value,
+                model: document.getElementById('edit-switch-model').value,
+                description: document.getElementById('edit-switch-description').value,
+                enabled: document.getElementById('edit-switch-enabled').checked
+            };
+            
+            try {
+                const response = await fetch(`/api/switches/${switchId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Switch updated successfully', 'success');
+                    closeModal();
+                    // Refresh current floor if viewing
+                    if (currentFloorData) {
+                        await loadFloorSwitches(currentFloorData.id);
+                    }
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating switch', 'error');
+            }
+        }
+        
+        // Toast notification system
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 4000);
+        }
+        
+        // Site and Floor edit/delete action functions
+        function editSite(siteId, siteName) {
+            // Open edit site modal or form
+            const modal = createModal('Edit Site', `
+                <form id="edit-site-form">
+                    <input type="hidden" id="edit-site-id" value="${siteId}">
+                    <div class="form-group">
+                        <label for="edit-site-name">Site Name</label>
+                        <input type="text" id="edit-site-name" name="name" value="${siteName}" required placeholder="e.g., NYC_MAIN" maxlength="50">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Update Site</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')" style="background: #dc3545;">🗑️ Delete Site</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('edit-site-form').addEventListener('submit', handleEditSite);
+        }
+        
+        function showDeleteSiteModal(siteId, siteName) {
+            const modal = createDeleteModal(
+                'Delete Site',
+                `Are you sure you want to delete the site <span class="delete-item-name">"${siteName}"</span>?`,
+                'This will also delete all floors and switches in this site. This action cannot be undone.',
+                () => deleteSite(siteId, siteName)
+            );
+        }
+        
+        function deleteSite(siteId, siteName) {
+            closeModal(); // Close the confirmation modal first
+            
+            fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        showToast(result.error, 'error');
+                    } else {
+                        showToast(result.message, 'success');
+                        loadSites(); // Refresh the site list
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error deleting site', 'error');
+                });
+        }
+        
+        function editFloor(floorId, floorName, siteId) {
+            // Find the site name for the current site
+            const site = sitesData.find(s => s.id == siteId);
+            const siteName = site ? site.name : 'Unknown Site';
+            
+            const modal = createModal('Edit Floor', `
+                <form id="edit-floor-form">
+                    <input type="hidden" id="edit-floor-id" value="${floorId}">
+                    <div class="form-group">
+                        <label for="edit-floor-site-name">Site</label>
+                        <input type="text" id="edit-floor-site-name" value="${siteName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-floor-name">Floor Name</label>
+                        <input type="text" id="edit-floor-name" name="name" value="${floorName}" required placeholder="e.g., Floor 1" maxlength="50">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Update Floor</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteFloorModal(${floorId}, '${floorName}')" style="background: #dc3545;">🗑️ Delete Floor</button>
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('edit-floor-form').addEventListener('submit', handleEditFloor);
+        }
+        
+        function deleteFloorFromModal(floorId, floorName) {
+            const modal = createDeleteModal(
+                'Delete Floor',
+                `Are you sure you want to delete the floor <span class="delete-item-name">"${floorName}"</span>?`,
+                'This will also delete all switches on this floor. This action cannot be undone.',
+                () => deleteFloor(floorId, floorName)
+            );
+        }
+        
+        function deleteFloor(floorId, floorName) {
+            closeModal(); // Close the confirmation modal first
+            
+            fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        showToast(result.error, 'error');
+                    } else {
+                        showToast(result.message, 'success');
+                        loadSites(); // Refresh the site list
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error deleting floor', 'error');
+                });
+        }
+        
+        function showDeleteSwitchModal(switchId, switchData) {
+            const modal = createDeleteModal(
+                'Delete Switch',
+                `Are you sure you want to delete the switch <span class="delete-item-name">"${switchData.name}"</span>?`,
+                'This action cannot be undone. The switch will be removed from the inventory.',
+                () => {
+                    closeModal();
+                    fetch(`/api/switches/${switchId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.error) {
+                                showToast(result.error, 'error');
+                            } else {
+                                showToast(result.message, 'success');
+                                loadSwitches();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Error deleting switch', 'error');
+                        });
+                }
+            );
+        }
+        
+        // Form submission handlers for edit modals
+        async function handleEditSite(e) {
+            e.preventDefault();
+            const siteId = document.getElementById('edit-site-id').value;
+            const data = {
+                name: document.getElementById('edit-site-name').value
+            };
+            
+            try {
+                const response = await fetch(`/api/sites/${siteId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Site updated successfully', 'success');
+                    closeModal();
+                    loadSites(); // Refresh the site list
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating site', 'error');
+            }
+        }
+        
+        async function handleEditFloor(e) {
+            e.preventDefault();
+            const floorId = document.getElementById('edit-floor-id').value;
+            const data = {
+                name: document.getElementById('edit-floor-name').value
+            };
+            
+            try {
+                const response = await fetch(`/api/floors/${floorId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Floor updated successfully', 'success');
+                    closeModal();
+                    loadSites(); // Refresh the site list
+                } else {
+                    showToast(result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Error updating floor', 'error');
+            }
+        }
+        
+        // Create delete confirmation modal
+        function createDeleteModal(title, message, warning, onConfirm) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay delete-modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><span>⚠️</span> ${title}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="delete-warning">
+                            <div class="delete-warning-title">
+                                <span>🚨</span> Warning
+                            </div>
+                            <div class="delete-warning-text">
+                                ${message}
+                            </div>
+                            <div class="delete-warning-text">
+                                ${warning}
+                            </div>
+                        </div>
+                        <div class="delete-actions">
+                            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                            <button class="btn-delete" id="confirm-delete-btn">🗑️ Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event listener to delete button
+            document.getElementById('confirm-delete-btn').addEventListener('click', onConfirm);
+            
+            return modal;
+        }
+        
+        // Utility functions
+        function showError(message) {
+            document.getElementById('site-tree-container').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <div class="empty-title">Error</div>
+                    <div class="empty-description">${message}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+"""
+
+MANAGE_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Switch Management - Dell Port Tracer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .manage-page {
+            background: var(--deep-navy);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(103, 126, 234, 0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(103, 126, 234, 0.3);
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--orange), #e68900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .username {
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        .user-role {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .logout-btn {
+            color: #dc2626;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .logout-btn:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-section img {
+            height: 40px;
+        }
+        .app-title {
+            color: var(--deep-navy);
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .main-content {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .navigation-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid #e5e7eb;
+        }
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .nav-link {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: white !important;
+            text-decoration: none;
+            padding: 16px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #475569;
+            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.5), 
+                transparent);
+            transition: left 0.5s ease;
+        }
+        .nav-link:hover::before {
+            left: 100%;
+        }
+        .nav-link:hover {
+            background: linear-gradient(135deg, #1976d2, #1565c0);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(25, 118, 210, 0.35),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border-color: #1976d2;
+        }
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--orange), #ea580c);
+            color: white;
+            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            border-color: #ea580c;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        .nav-link.active::before {
+            display: none;
+        }
+        .nav-link.active:hover {
+            background: linear-gradient(135deg, #ea580c, #dc2626);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        }
+        
+        /* Action Bar */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-primary {
+            background: var(--orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background: #e68900;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 114, 0, 0.3);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #e1e8ed;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #f8f9fa;
+            border-color: #ccc;
+        }
+        
+        /* Filter Controls */
+        .filter-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            min-width: 140px;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        
+        /* Modern Table */
+        .modern-table-container {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            overflow: hidden;
+        }
+        
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .modern-table th {
+            background: #f8f9fa;
+            color: #333;
+            font-weight: 600;
+            padding: 16px 20px;
+            text-align: left;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        
+        .modern-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        
+        .modern-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .modern-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .modern-table .checkbox-cell {
+            width: 40px;
+        }
+        
+        .modern-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--orange);
+        }
+        
+        .switch-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .switch-model {
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-spare {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-faulty {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .ip-address {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .last-modified {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        /* Bottom Action Bar */
+        .bottom-actions {
+            padding: 16px 24px;
+            background: white;
+            border-top: 1px solid #e1e8ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .selection-info {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .bulk-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-outline {
+            background: white;
+            color: #666;
+            border: 1px solid #e1e8ed;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-outline:hover {
+            background: #f8f9fa;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .sidebar {
+                width: 240px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .modern-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 200px;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+            
+            .action-bar {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+            
+            .filter-controls {
+                flex-wrap: wrap;
+            }
+        }
+        
+        /* Loading and Empty States */
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* Form Styling */
+        .modern-form {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            padding: 20px;
+        }
+        
+        .form-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin: 0 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            font-size: 14px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: white;
+            box-sizing: border-box;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        
+        .form-input:disabled {
+            background: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--orange);
+        }
+        
+        .checkbox-group label {
+            margin: 0;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e1e8ed;
+        }
+        
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            font-size: 14px;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+        }
+        
+        /* Search and Stats */
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--orange);
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        .search-section {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 40px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>') no-repeat 12px center;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        /* Manage Container Layout */
         .manage-container {
             display: flex;
-            gap: 15px;
-            margin-top: 0px;
+            gap: 20px;
             align-items: flex-start;
-            max-width: 100%;
-            overflow-x: auto;
-            min-height: 280px;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        .form-container, .table-container {
-            flex: 1;
-        }
+        
         .form-container {
-            max-width: 280px;
+            width: 300px;
             flex-shrink: 0;
-            min-height: 300px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+            padding: 20px;
         }
+        
         .table-container {
-            min-width: 1000px;
-            max-width: calc(100% - 304px);
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+            padding: 20px;
+            min-width: 0;
+        }
+        
+        .step {
+            margin: 0;
+        }
+        
+        .step h3 {
+            margin: 0 0 15px 0;
+            color: var(--deep-navy);
+            font-size: 16px;
+            font-weight: 600;
+            border-bottom: 2px solid var(--orange);
+            padding-bottom: 8px;
+        }
             flex: 1;
             overflow-x: auto;
         }
@@ -1453,6 +4443,307 @@ MANAGE_TEMPLATE = """
             margin-bottom: 15px;
             border-bottom: 1px solid var(--light-blue);
         }
+        
+        /* Enhanced Floor View with Tabs */
+        .floor-detail-view {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            border: 1px solid var(--light-blue);
+        }
+        .floor-detail-view.active {
+            display: block;
+        }
+        .floor-tabs {
+            display: flex;
+            border-bottom: 1px solid #e1e8ed;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+        .floor-tab {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .floor-tab.active {
+            background: white;
+            color: var(--orange);
+            border-bottom-color: var(--orange);
+        }
+        .floor-tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+        .floor-tab-content {
+            display: none;
+            padding: 20px;
+        }
+        .floor-tab-content.active {
+            display: block;
+        }
+        
+        /* Switch Inventory Styles */
+        .switch-inventory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        .switch-inventory-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin: 0;
+        }
+        .add-switch-btn {
+            background: var(--orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .add-switch-btn:hover {
+            background: #e68900;
+            transform: translateY(-1px);
+        }
+        .inventory-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .inventory-search {
+            flex: 1;
+            max-width: 300px;
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>') no-repeat right 12px center;
+        }
+        .inventory-search:focus {
+            outline: none;
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 114, 0, 0.1);
+        }
+        .inventory-filters {
+            display: flex;
+            gap: 8px;
+        }
+        .filter-btn {
+            padding: 8px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            background: white;
+            color: #666;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .filter-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+        .filter-btn.active {
+            background: var(--orange);
+            color: white;
+            border-color: var(--orange);
+        }
+        
+        /* Enhanced Switch Table */
+        .switch-inventory-table {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e8ed;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .switch-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .switch-table th {
+            background: #f8f9fa;
+            color: #374151;
+            font-weight: 600;
+            padding: 16px 12px;
+            text-align: left;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        .switch-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+        .switch-table tr:last-child td {
+            border-bottom: none;
+        }
+        .switch-table tr:hover {
+            background: #f8fafc;
+        }
+        .switch-table .checkbox-col {
+            width: 40px;
+            text-align: center;
+        }
+        .switch-table .actions-col {
+            width: 140px;
+        }
+        .switch-table .status-col {
+            width: 90px;
+            text-align: center;
+        }
+        
+        /* Switch Table Components */
+        .switch-name {
+            font-weight: 600;
+            color: var(--deep-navy);
+            margin-bottom: 4px;
+        }
+        .switch-asset-tag {
+            font-size: 12px;
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+        }
+        .switch-model {
+            color: #374151;
+            font-weight: 500;
+        }
+        .switch-serial {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .switch-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #374151;
+        }
+        .maintenance-date {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        /* Status Badges with Icons */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-spare {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-faulty {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        .status-icon {
+            font-size: 10px;
+        }
+        
+        /* Action Buttons */
+        .switch-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .action-btn {
+            padding: 6px 10px;
+            border: 1px solid #e1e8ed;
+            border-radius: 4px;
+            background: white;
+            color: #374151;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .action-btn:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+        .action-btn.edit-btn:hover {
+            background: #f0f9ff;
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .action-btn.delete-btn:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        .action-btn.drill-btn:hover {
+            background: #fef7ed;
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+        
+        /* Bulk Actions */
+        .bulk-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e8ed;
+        }
+        .selection-info {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .bulk-action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .bulk-btn {
+            padding: 6px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 4px;
+            background: white;
+            color: #374151;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .bulk-btn:hover {
+            border-color: #d1d5db;
+            background: #f3f4f6;
+        }
+        .bulk-btn.danger:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
         .tab-button {
             padding: 10px 20px;
             border: none;
@@ -1532,23 +4823,31 @@ MANAGE_TEMPLATE = """
 
     </style>
 </head>
-<body class="main-page manage-page">
-    <div class="container">
-        <div class="user-info">Logged in as: {{ username }} | <a href="/logout">Logout</a></div>
-        <div style="text-align:center; margin-bottom: 10px;">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
+<body class="manage-page">
+    <div class="header-card">
+        <div class="logo-section">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+            <h1 class="app-title">Switch Port Tracer</h1>
         </div>
-        <div style="text-align:center; margin-bottom: 18px;">
-            <h1 style="margin:0;">Switch Management</h1>
+        <div class="user-profile">
+            <div class="user-avatar">{{ username[0].upper() }}</div>
+            <div class="user-details">
+                <div class="username">{{ username }}</div>
+                <div class="user-role">{{ user_role }}</div>
+            </div>
+            <a href="/logout" class="logout-btn">Logout</a>
         </div>
-        
-        <div class="navigation-bar">
+    </div>
+    
+    <div class="main-content">
+        <div class="navigation-card">
             <div class="nav-links">
                 <a href="/" class="nav-link">🔍 Port Tracer</a>
+                {% if user_role in ['netadmin', 'superadmin'] %}
                 <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
                 <a href="/manage" class="nav-link active">⚙️ Manage Switches</a>
-                <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
-                <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+                <a href="/inventory" class="nav-link">🏢 Switch Inventory</a>
+                {% endif %}
             </div>
         </div>
 
@@ -1583,7 +4882,7 @@ MANAGE_TEMPLATE = """
                 <div class="form-container">
                     <div class="step">
                         <h3>📝 Add/Edit Switch</h3>
-                    <form id="switch-form">
+                        <form id="switch-form">
                         <input type="hidden" id="switch-id" name="id">
                         
                         <div class="form-group">
@@ -1758,6 +5057,89 @@ MANAGE_TEMPLATE = """
                         <div class="site-floor-item">
                             <div class="loading">Select a site to view floors...</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Floor Detail View with Enhanced Switch Inventory -->
+            <div id="floor-detail-view" class="floor-detail-view">
+                <div class="floor-tabs">
+                    <button class="floor-tab active" onclick="showFloorTab('overview')">📊 Overview</button>
+                    <button class="floor-tab" onclick="showFloorTab('inventory')">📋 Switch Inventory</button>
+                    <button class="floor-tab" onclick="showFloorTab('logs')">📝 Logs & Notes</button>
+                </div>
+                
+                <div id="overview-tab" class="floor-tab-content active">
+                    <div class="switch-inventory-header">
+                        <h3 class="switch-inventory-title">Floor Overview</h3>
+                    </div>
+                    <div id="floor-overview-content">
+                        <p>Select a floor to view its details</p>
+                    </div>
+                </div>
+                
+                <div id="inventory-tab" class="floor-tab-content">
+                    <div class="switch-inventory-header">
+                        <h3 class="switch-inventory-title">Switch Inventory</h3>
+                        <button class="add-switch-btn" onclick="openAddSwitchModal()">
+                            <span>➕</span> Add Switch
+                        </button>
+                    </div>
+                    
+                    <div class="inventory-controls">
+                        <input type="text" class="inventory-search" id="inventory-search" placeholder="Search switches..." />
+                        <div class="inventory-filters">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="active">Active</button>
+                            <button class="filter-btn" data-filter="spare">Spare</button>
+                            <button class="filter-btn" data-filter="faulty">Faulty</button>
+                        </div>
+                    </div>
+                    
+                    <div class="switch-inventory-table">
+                        <table class="switch-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-col">
+                                        <input type="checkbox" id="select-all" class="modern-checkbox" />
+                                    </th>
+                                    <th>Switch Name / Asset Tag</th>
+                                    <th>Model</th>
+                                    <th>Serial Number</th>
+                                    <th>IP Address</th>
+                                    <th class="status-col">Status</th>
+                                    <th>Last Maintenance</th>
+                                    <th class="actions-col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
+                                        Select a floor to view its switch inventory
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="bulk-actions">
+                        <div class="selection-info">
+                            <span id="selection-count">0 switches selected</span>
+                        </div>
+                        <div class="bulk-action-buttons">
+                            <button class="bulk-btn">Move to Floor</button>
+                            <button class="bulk-btn">Change Status</button>
+                            <button class="bulk-btn danger">Delete Selected</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="logs-tab" class="floor-tab-content">
+                    <div class="switch-inventory-header">
+                        <h3 class="switch-inventory-title">Logs & Notes</h3>
+                    </div>
+                    <div id="floor-logs-content">
+                        <p>Floor logs and maintenance notes will appear here</p>
                     </div>
                 </div>
             </div>
@@ -2031,22 +5413,7 @@ MANAGE_TEMPLATE = """
                     const switchId = event.target.dataset.id;
                     const switchData = allSwitches.find(s => s.id == switchId);
                     
-                    if (confirm(`Are you sure you want to delete switch "${switchData.name}" (${switchData.ip_address})?\\\\n\\\\nThis action cannot be undone.`)) {
-                        fetch(`/api/switches/${switchId}`, { method: 'DELETE' })
-                            .then(response => response.json())
-                            .then(result => {
-                                if (result.error) {
-                                    showToast(result.error, 'error');
-                                } else {
-                                    showToast(result.message, 'success');
-                                    loadSwitches();
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                showToast('Error deleting switch', 'error');
-                            });
-                    }
+                    showDeleteSwitchModal(switchId, switchData);
                 }
             });
 
@@ -2129,6 +5496,8 @@ MANAGE_TEMPLATE = """
             let html = '';
             sites.forEach(site => {
                 const floorCount = site.floors ? site.floors.length : 0;
+                // Escape single quotes in site name for onclick handlers
+                const escapedName = site.name.replace(/'/g, "\\'")
                 html += `
                     <div class="site-floor-item" data-site-id="${site.id}">
                         <div>
@@ -2136,13 +5505,13 @@ MANAGE_TEMPLATE = """
                             <div class="site-floor-count">${floorCount} floor(s)</div>
                         </div>
                         <div class="site-floor-actions">
-                            <button class="btn-small btn-edit" onclick="editSite(${site.id}, '${site.name}')" title="Edit site">
+                            <button class="btn-small btn-edit" onclick="editSite(${site.id}, '${escapedName}')" title="Edit site">
                                 ✏️
                             </button>
-                            <button class="btn-small btn-delete" onclick="deleteSite(${site.id}, '${site.name}')" title="Delete site">
+                            <button class="btn-small btn-delete" onclick="deleteSite(${site.id}, '${escapedName}')" title="Delete site">
                                 🗑️
                             </button>
-                            <button class="btn-small" onclick="selectSiteForFloors(${site.id}, '${site.name}')" title="View floors" style="background: var(--orange); color: white;">
+                            <button class="btn-small" onclick="selectSiteForFloors(${site.id}, '${escapedName}')" title="View floors" style="background: var(--orange); color: white;">
                                 👁️
                             </button>
                         </div>
@@ -2158,10 +5527,16 @@ MANAGE_TEMPLATE = """
             const site = allSitesAndFloors.find(s => s.id == siteId);
             
             // Highlight selected site
-            document.querySelectorAll('.site-floor-item').forEach(item => {
+            document.querySelectorAll('#sites-list .site-floor-item').forEach(item => {
                 item.classList.remove('selected');
             });
-            document.querySelector(`[data-site-id="${siteId}"]`).classList.add('selected');
+            const siteElement = document.querySelector(`[data-site-id="${siteId}"]`);
+            if (siteElement) {
+                siteElement.classList.add('selected');
+            }
+            
+            // Auto-populate the floor form with the selected site
+            document.getElementById('floor-site-select').value = siteId;
             
             if (site) {
                 renderFloorsList(site.floors || []);
@@ -2178,17 +5553,22 @@ MANAGE_TEMPLATE = """
             
             let html = '';
             floors.forEach(floor => {
+                // Escape single quotes in floor name for onclick handlers
+                const escapedName = floor.name.replace(/'/g, "\\'")
                 html += `
                     <div class="site-floor-item">
                         <div>
                             <div class="site-floor-name">${floor.name}</div>
                         </div>
                         <div class="site-floor-actions">
-                            <button class="btn-small btn-edit" onclick="editFloor(${floor.id}, '${floor.name}', ${selectedSiteId})" title="Edit floor">
+                            <button class="btn-small btn-edit" onclick="editFloor(${floor.id}, '${escapedName}', ${selectedSiteId})" title="Edit floor">
                                 ✏️
                             </button>
-                            <button class="btn-small btn-delete" onclick="deleteFloor(${floor.id}, '${floor.name}')" title="Delete floor">
+                            <button class="btn-small btn-delete" onclick="deleteFloor(${floor.id}, '${escapedName}')" title="Delete floor">
                                 🗑️
+                            </button>
+                            <button class="btn-small" onclick="selectFloorForDetail(${floor.id}, '${escapedName}', ${selectedSiteId}, '${allSitesAndFloors.find(s => s.id == selectedSiteId).name}')" title="View details" style="background: #28a745; color: white;">
+                                📋
                             </button>
                         </div>
                     </div>
@@ -2220,23 +5600,29 @@ MANAGE_TEMPLATE = """
         }
         
         function deleteSite(siteId, siteName) {
-            if (confirm(`Are you sure you want to delete site "${siteName}"?\n\nThis will also delete all floors and switches in this site.\n\nThis action cannot be undone.`)) {
-                fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.error) {
-                            showToast(result.error, 'error');
-                        } else {
-                            showToast(result.message, 'success');
-                            loadSitesAndFloors();
-                            selectedSiteId = null;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Error deleting site', 'error');
-                    });
-            }
+            const modal = createDeleteModal(
+                'Delete Site',
+                `Are you sure you want to delete the site <span class="delete-item-name">"${siteName}"</span>?`,
+                'This will also delete all floors and switches in this site. This action cannot be undone.',
+                () => {
+                    closeModal();
+                    fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.error) {
+                                showToast(result.error, 'error');
+                            } else {
+                                showToast(result.message, 'success');
+                                loadSitesAndFloors();
+                                selectedSiteId = null;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Error deleting site', 'error');
+                        });
+                }
+            );
         }
         
         // Floor management functions
@@ -2248,29 +5634,35 @@ MANAGE_TEMPLATE = """
         }
         
         function deleteFloor(floorId, floorName) {
-            if (confirm(`Are you sure you want to delete floor "${floorName}"?\n\nThis will also delete all switches on this floor.\n\nThis action cannot be undone.`)) {
-                fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.error) {
-                            showToast(result.error, 'error');
-                        } else {
-                            showToast(result.message, 'success');
-                            loadSitesAndFloors();
-                            // Refresh the floors list for the selected site
-                            if (selectedSiteId) {
-                                const site = allSitesAndFloors.find(s => s.id == selectedSiteId);
-                                if (site) {
-                                    selectSiteForFloors(selectedSiteId, site.name);
+            const modal = createDeleteModal(
+                'Delete Floor',
+                `Are you sure you want to delete the floor <span class="delete-item-name">"${floorName}"</span>?`,
+                'This will also delete all switches on this floor. This action cannot be undone.',
+                () => {
+                    closeModal();
+                    fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.error) {
+                                showToast(result.error, 'error');
+                            } else {
+                                showToast(result.message, 'success');
+                                loadSitesAndFloors();
+                                // Refresh the floors list for the selected site
+                                if (selectedSiteId) {
+                                    const site = allSitesAndFloors.find(s => s.id == selectedSiteId);
+                                    if (site) {
+                                        selectSiteForFloors(selectedSiteId, site.name);
+                                    }
                                 }
                             }
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Error deleting floor', 'error');
-                    });
-            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Error deleting floor', 'error');
+                        });
+                }
+            );
         }
         
         // Site form submission
@@ -2365,6 +5757,341 @@ MANAGE_TEMPLATE = """
             document.getElementById('floor-id').value = '';
             document.getElementById('floor-save-btn').textContent = '💾 Save Floor';
         });
+        
+        // Floor Detail View JavaScript
+        let selectedFloorForDetail = null;
+        let floorSwitches = [];
+        let filteredFloorSwitches = [];
+        
+        // Enhanced floor selection to show detail view
+        function selectFloorForDetail(floorId, floorName, siteId, siteName) {
+            selectedFloorForDetail = { id: floorId, name: floorName, siteId: siteId, siteName: siteName };
+            
+            // Show floor detail view
+            const detailView = document.getElementById('floor-detail-view');
+            detailView.classList.add('active');
+            
+            // Update overview tab with floor information
+            updateFloorOverview();
+            
+            // Load switches for this floor
+            loadFloorSwitches(floorId);
+        }
+        
+        // Floor tab switching functionality
+        function showFloorTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.floor-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.floor-tab[onclick="showFloorTab('${tabName}')"]`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.floor-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Load tab-specific data
+            if (tabName === 'inventory' && selectedFloorForDetail) {
+                loadFloorSwitches(selectedFloorForDetail.id);
+            }
+        }
+        
+        // Update floor overview content
+        function updateFloorOverview() {
+            if (!selectedFloorForDetail) return;
+            
+            const overviewContent = document.getElementById('floor-overview-content');
+            overviewContent.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; border: 1px solid #bae6fd;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--deep-navy);">📍 Floor Information</h4>
+                        <p style="margin: 0; color: #0369a1;"><strong>Site:</strong> ${selectedFloorForDetail.siteName}</p>
+                        <p style="margin: 0; color: #0369a1;"><strong>Floor:</strong> ${selectedFloorForDetail.name}</p>
+                    </div>
+                    <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; border: 1px solid #bbf7d0;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--deep-navy);">📊 Switch Stats</h4>
+                        <p style="margin: 0; color: #166534;" id="floor-switch-count">Loading...</p>
+                        <p style="margin: 0; color: #166534;" id="floor-switch-status">-</p>
+                    </div>
+                    <div style="background: #fefce8; padding: 16px; border-radius: 8px; border: 1px solid #fef08a;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--deep-navy);">⚡ Quick Actions</h4>
+                        <button onclick="showFloorTab('inventory')" style="background: var(--orange); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">Manage Switches</button>
+                    </div>
+                </div>
+                <div style="background: white; padding: 16px; border-radius: 8px; border: 1px solid #e1e8ed;">
+                    <h4 style="margin: 0 0 12px 0; color: var(--deep-navy);">📋 Recent Activity</h4>
+                    <p style="margin: 0; color: #6b7280; font-style: italic;">Activity logs will appear here when implemented</p>
+                </div>
+            `;
+        }
+        
+        // Load switches for specific floor
+        function loadFloorSwitches(floorId) {
+            // Find switches for this floor from the all switches data
+            const floorSwitchesData = allSwitches.filter(sw => sw.floor_id == floorId);
+            floorSwitches = floorSwitchesData;
+            filteredFloorSwitches = [...floorSwitches];
+            
+            // Update floor overview stats
+            if (selectedFloorForDetail) {
+                const totalSwitches = floorSwitches.length;
+                const enabledSwitches = floorSwitches.filter(sw => sw.enabled).length;
+                document.getElementById('floor-switch-count').textContent = `${totalSwitches} total switches`;
+                document.getElementById('floor-switch-status').textContent = `${enabledSwitches} active, ${totalSwitches - enabledSwitches} disabled`;
+            }
+            
+            // Render switch inventory table
+            renderFloorSwitchInventory(filteredFloorSwitches);
+            
+            // Update selection counter
+            updateSelectionCounter();
+        }
+        
+        // Render floor switch inventory table
+        function renderFloorSwitchInventory(switches) {
+            const tableBody = document.getElementById('inventory-table-body');
+            
+            if (switches.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📭</div>
+                            <div>No switches found for this floor</div>
+                            <div style="font-size: 12px; margin-top: 4px; opacity: 0.7;">Add switches using the "+ Add Switch" button</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            switches.forEach(switchData => {
+                const statusClass = switchData.enabled ? 'active' : 'faulty';
+                const statusIcon = switchData.enabled ? '✅' : '❌';
+                const statusText = switchData.enabled ? 'Active' : 'Disabled';
+                
+                html += `
+                    <tr data-switch-id="${switchData.id}">
+                        <td class="checkbox-col">
+                            <input type="checkbox" class="modern-checkbox switch-checkbox" data-switch-id="${switchData.id}" />
+                        </td>
+                        <td>
+                            <div class="switch-name">${switchData.name}</div>
+                            <div class="switch-asset-tag">${switchData.name.replace(/^.*-/, 'AST-')}</div>
+                        </td>
+                        <td>
+                            <div class="switch-model">${switchData.model}</div>
+                        </td>
+                        <td>
+                            <div class="switch-serial">SN${Math.random().toString().substr(2, 8)}</div>
+                        </td>
+                        <td>
+                            <div class="switch-ip">${switchData.ip_address}</div>
+                        </td>
+                        <td class="status-col">
+                            <span class="status-badge status-${statusClass}">
+                                <span class="status-icon">${statusIcon}</span>
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="maintenance-date">2024-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}</div>
+                        </td>
+                        <td class="actions-col">
+                            <div class="switch-actions">
+                                <button class="action-btn edit-btn" onclick="editFloorSwitch(${switchData.id})" title="Edit switch">
+                                    <span>✏️</span>
+                                </button>
+                                <button class="action-btn delete-btn" onclick="deleteFloorSwitch(${switchData.id}, '${switchData.name}')" title="Delete switch">
+                                    <span>🗑️</span>
+                                </button>
+                                <button class="action-btn drill-btn" onclick="openSwitchDrillDown(${switchData.id})" title="View details">
+                                    <span>📋</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+        }
+        
+        // Switch inventory search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const inventorySearch = document.getElementById('inventory-search');
+            if (inventorySearch) {
+                inventorySearch.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    filteredFloorSwitches = floorSwitches.filter(sw => 
+                        sw.name.toLowerCase().includes(searchTerm) ||
+                        sw.ip_address.toLowerCase().includes(searchTerm) ||
+                        sw.model.toLowerCase().includes(searchTerm)
+                    );
+                    renderFloorSwitchInventory(filteredFloorSwitches);
+                    updateSelectionCounter();
+                });
+            }
+            
+            // Filter buttons functionality
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Update active filter button
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const filter = this.dataset.filter;
+                    
+                    // Apply filter
+                    if (filter === 'all') {
+                        filteredFloorSwitches = [...floorSwitches];
+                    } else if (filter === 'active') {
+                        filteredFloorSwitches = floorSwitches.filter(sw => sw.enabled);
+                    } else if (filter === 'spare' || filter === 'faulty') {
+                        filteredFloorSwitches = floorSwitches.filter(sw => !sw.enabled);
+                    }
+                    
+                    renderFloorSwitchInventory(filteredFloorSwitches);
+                    updateSelectionCounter();
+                });
+            });
+            
+            // Select all checkbox functionality
+            const selectAllCheckbox = document.getElementById('select-all');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    document.querySelectorAll('.switch-checkbox').forEach(checkbox => {
+                        checkbox.checked = isChecked;
+                    });
+                    updateSelectionCounter();
+                });
+            }
+        });
+        
+        // Update selection counter
+        function updateSelectionCounter() {
+            setTimeout(() => {
+                const selectedCount = document.querySelectorAll('.switch-checkbox:checked').length;
+                const counterElement = document.getElementById('selection-count');
+                if (counterElement) {
+                    counterElement.textContent = `${selectedCount} switches selected`;
+                }
+            }, 100);
+        }
+        
+        // Update selection counter when checkboxes change
+        document.addEventListener('change', function(event) {
+            if (event.target.classList.contains('switch-checkbox')) {
+                updateSelectionCounter();
+            }
+        });
+        
+        // Enhanced floor item click to show detail view
+        function enhanceFloorItems() {
+            // Add click handlers to floor items for detail view
+            setTimeout(() => {
+                document.querySelectorAll('#floors-list .site-floor-item').forEach(item => {
+                    const actionsDiv = item.querySelector('.site-floor-actions');
+                    if (actionsDiv && !actionsDiv.querySelector('.view-details-btn')) {
+                        const viewDetailsBtn = document.createElement('button');
+                        viewDetailsBtn.className = 'btn-small view-details-btn';
+                        viewDetailsBtn.innerHTML = '👁️';
+                        viewDetailsBtn.title = 'View floor details';
+                        viewDetailsBtn.style.background = '#28a745';
+                        viewDetailsBtn.style.color = 'white';
+                        viewDetailsBtn.onclick = function() {
+                            // Extract floor info from the rendered data
+                            const floorName = item.querySelector('.site-floor-name').textContent;
+                            const floor = allSitesAndFloors.find(s => s.id == selectedSiteId).floors.find(f => f.name === floorName);
+                            const site = allSitesAndFloors.find(s => s.id == selectedSiteId);
+                            if (floor && site) {
+                                selectFloorForDetail(floor.id, floor.name, site.id, site.name);
+                            }
+                        };
+                        actionsDiv.appendChild(viewDetailsBtn);
+                    }
+                });
+            }, 500);
+        }
+        
+        // Enhance the existing renderFloorsList function
+        const originalRenderFloorsList = renderFloorsList;
+        renderFloorsList = function(floors) {
+            originalRenderFloorsList(floors);
+            enhanceFloorItems();
+        };
+        
+        // Add switch modal functionality (placeholder)
+        function openAddSwitchModal() {
+            if (selectedFloorForDetail) {
+                // Switch to switches tab and pre-select the floor
+                switchTab('switches');
+                
+                // Pre-populate site and floor
+                setTimeout(() => {
+                    $('#site-select').val(selectedFloorForDetail.siteId).trigger('change');
+                    setTimeout(() => {
+                        $('#floor-select').val(selectedFloorForDetail.id).trigger('change');
+                    }, 200);
+                    
+                    // Scroll to form
+                    document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+                    
+                    showToast('Pre-selected floor for new switch', 'success');
+                }, 100);
+            } else {
+                showToast('Please select a floor first', 'error');
+            }
+        }
+        
+        // Switch action functions for floor inventory
+        function editFloorSwitch(switchId) {
+            // Switch to switches tab and edit the switch
+            switchTab('switches');
+            
+            setTimeout(() => {
+                // Trigger the existing edit functionality
+                const editBtn = document.querySelector(`[data-id="${switchId}"].edit-btn`);
+                if (editBtn) {
+                    editBtn.click();
+                }
+            }, 200);
+        }
+        
+        function deleteFloorSwitch(switchId, switchName) {
+            if (confirm(`Are you sure you want to delete switch "${switchName}"?\n\nThis action cannot be undone.`)) {
+                fetch(`/api/switches/${switchId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.error) {
+                            showToast(result.error, 'error');
+                        } else {
+                            showToast(result.message, 'success');
+                            // Reload switches data
+                            loadSwitches();
+                            // Reload floor switches if in detail view
+                            if (selectedFloorForDetail) {
+                                loadFloorSwitches(selectedFloorForDetail.id);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error deleting switch', 'error');
+                    });
+            }
+        }
+        
+        function openSwitchDrillDown(switchId) {
+            const switchData = allSwitches.find(sw => sw.id == switchId);
+            if (switchData) {
+                // Create a modal-like drill down panel (placeholder)
+                showToast(`Drill-down for ${switchData.name} - Feature coming soon!`, 'success');
+            }
+        }
     </script>
 </body>
 </html>
@@ -2601,11 +6328,22 @@ MAIN_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         .main-page {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--deep-navy);
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
+        }
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px 30px;
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         .header-card {
             background: rgba(255, 255, 255, 0.95);
@@ -2955,8 +6693,7 @@ MAIN_TEMPLATE = """
                 {% if user_role in ['netadmin', 'superadmin'] %}
                 <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
                 <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
-                <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
-                <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+                <a href="/inventory" class="nav-link">🏢 Switch Inventory</a>
                 {% endif %}
             </div>
         </div>
@@ -3759,6 +7496,18 @@ def manage_switches():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     return render_template_string(MANAGE_TEMPLATE, username=session['username'], user_role=user_role)
+
+@app.route('/inventory')
+def switch_inventory():
+    """Hierarchical switch inventory interface for network administrators."""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    return render_template_string(INVENTORY_TEMPLATE, username=session['username'], user_role=user_role)
 
 @app.route('/api/switches')
 def api_get_switches():
