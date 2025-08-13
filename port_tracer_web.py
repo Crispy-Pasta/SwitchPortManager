@@ -15,6 +15,7 @@ MAC address tracing and advanced VLAN management capabilities.
 - Comprehensive audit logging and monitoring
 - Modern, responsive web interface with KMC branding
 - Consistent UI/UX design with standardized modal dialogs and button sizing
+- Enhanced inventory layout: 1800px main content with 500px sidebar for optimal screen utilization
 
 🔧 VLAN MANAGEMENT CAPABILITIES:
 - Port VLAN assignment with safety validation
@@ -1173,6 +1174,7 @@ INVENTORY_TEMPLATE = """
 <head>
     <title>Switch Inventory - Dell Port Tracer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.0">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -1186,194 +1188,32 @@ INVENTORY_TEMPLATE = """
             padding: 0;
         }
         
-        .header-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 20px 30px;
-            margin-bottom: 30px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
+        /* Header and navigation styles moved to global navigation.css file */
         
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(103, 126, 234, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(103, 126, 234, 0.3);
-        }
-        
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--orange), #e68900);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .user-details {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        
-        .username {
-            font-weight: 600;
-            color: var(--deep-navy);
-            font-size: 14px;
-        }
-        
-        .user-role {
-            font-size: 11px;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .logout-btn {
-            color: #dc2626;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-        }
-        
-        .logout-btn:hover {
-            background: rgba(220, 38, 38, 0.1);
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .logo-section img {
-            height: 40px;
-        }
-        
-        .app-title {
-            color: var(--deep-navy);
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        /* Navigation Bar Styles */
-        .navigation-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 24px;
-            margin: 30px auto;
-            border: 1px solid #e5e7eb;
-            max-width: 1200px;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        
-        .nav-link {
-            background: linear-gradient(135deg, #1e293b, #334155);
-            color: white !important;
-            text-decoration: none;
-            padding: 16px 28px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid #475569;
-            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.5), 
-                transparent);
-            transition: left 0.5s ease;
-        }
-        
-        .nav-link:hover::before {
-            left: 100%;
-        }
-        
-        .nav-link:hover {
-            background: linear-gradient(135deg, #1976d2, #1565c0);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(25, 118, 210, 0.35),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border-color: #1976d2;
-        }
-        
-        .nav-link.active {
-            background: linear-gradient(135deg, var(--orange), #ea580c);
-            color: white;
-            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-            border-color: #ea580c;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
-        .nav-link.active::before {
-            display: none;
-        }
-        
-        .nav-link.active:hover {
-            background: linear-gradient(135deg, #ea580c, #dc2626);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        }
-        
-        .main-content {
+.main-content {
+            padding: 30px;
+            max-width: 1800px;
             margin: 0 auto;
-            padding: 0 20px 20px 20px;
+        }
+        
+        .inventory-layout {
             display: flex;
-            height: calc(100vh - 140px);
+            height: calc(100vh - 280px);
             overflow: hidden;
-            max-width: none;
-            width: calc(100vw - 40px);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 1750px;
+            margin: 0 auto;
         }
         
         .sidebar {
-            width: 450px;
+            width: 500px;
             background: white;
             border-right: 1px solid #e5e7eb;
             flex-shrink: 0;
-            border-radius: 12px 0 0 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 0;
+            box-shadow: none;
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -1384,53 +1224,11 @@ INVENTORY_TEMPLATE = """
             background: white;
             overflow-y: auto;
             padding: 20px;
-            border-radius: 0 12px 12px 0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .navigation-card {
-            background: white;
             border-radius: 0;
             box-shadow: none;
-            padding: 24px;
-            margin-bottom: 0;
-            border-bottom: 1px solid #e5e7eb;
         }
         
-        .nav-links {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 0;
-        }
-        
-        .nav-link {
-            color: var(--light-blue);
-            text-decoration: none;
-            padding: 15px 20px;
-            font-weight: 600;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            display: inline-block;
-            position: relative;
-        }
-        
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--white);
-            transform: translateY(-2px);
-        }
-        
-        .nav-link.active {
-            background: var(--orange);
-            color: var(--white);
-            box-shadow: 0 2px 8px rgba(255, 114, 0, 0.3);
-        }
-        
-        .nav-link.active:hover {
-            background: #e06600;
-            transform: none;
-        }
+        /* Duplicate navigation styles removed - using global navigation.css */
         
         /* Sidebar Structure Styles */
         .sidebar-header {
@@ -2495,7 +2293,7 @@ INVENTORY_TEMPLATE = """
                 flex-direction: column;
                 height: auto;
                 width: calc(100vw - 20px);
-                padding: 0 10px 20px 10px;
+                padding: 30px 10px 20px 10px;
             }
             
             .sidebar {
@@ -2526,72 +2324,73 @@ INVENTORY_TEMPLATE = """
     </style>
 </head>
 <body class="inventory-page">
-    <div class="header-card">
-        <div class="logo-section">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
-            <h1 class="app-title">Switch Port Tracer</h1>
-        </div>
-        <div class="user-profile">
-            <div class="user-avatar">{{ username[0].upper() }}</div>
-            <div class="user-details">
-                <div class="username">{{ username }}</div>
-                <div class="user-role">{{ user_role }}</div>
-            </div>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
-    </div>
-    
-    <div class="navigation-card">
-        <div class="nav-links">
-            <a href="/" class="nav-link">🔍 Port Tracer</a>
-            {% if user_role in ['netadmin', 'superadmin'] %}
-            <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-            <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
-            {% endif %}
-        </div>
-    </div>
-    
-    <div class="main-content">
-        <!-- Sidebar with Site Tree -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="site-tree">
-                    <div class="tree-header">
-                        <h2 class="tree-title">
-                            <span>🏢</span>
-                            KMC Sites
-                        </h2>
-                        
-                        <div class="management-buttons">
-                            <button class="action-btn" onclick="showAddSiteModal()" title="Add new site">
-                                + Add Site
-                            </button>
-                            <button class="action-btn" id="add-floor-btn" onclick="showAddFloorModal()" title="Add floor to selected site" style="display: none;">
-                                + Add Floor
-                            </button>
-                        </div>
-                        
-                        <div class="search-box">
-                            <input type="text" class="search-input" id="site-search" placeholder="Search sites and floors...">
-                        </div>
+        <div class="main-content">
+            <div class="header-card">
+                <div class="logo-section">
+                    <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+                    <h1 class="app-title">Switch Port Tracer</h1>
+                </div>
+                <div class="user-profile">
+                    <div class="user-avatar">{{ username[0].upper() }}</div>
+                    <div class="user-details">
+                        <div class="username">{{ username }}</div>
+                        <div class="user-role">{{ user_role }}</div>
                     </div>
+                    <a href="/logout" class="logout-btn">Logout</a>
                 </div>
             </div>
             
-            <div class="site-tree-scrollable">
-                <div class="site-tree">
-                    <div id="site-tree-container">
-                        <div class="loading-state">
-                            <div class="loading-spinner"></div>
-                            Loading sites...
+            <div class="navigation-card">
+                <div class="nav-links">
+                    <a href="/" class="nav-link">🔍 Port Tracer</a>
+                    {% if user_role in ['netadmin', 'superadmin'] %}
+                    <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
+                    <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="inventory-layout">
+                <!-- Sidebar with Site Tree -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <div class="site-tree">
+                            <div class="tree-header">
+                                <h2 class="tree-title">
+                                    <span>🏢</span>
+                                    KMC Sites
+                                </h2>
+                                
+                                <div class="management-buttons">
+                                    <button class="action-btn" onclick="showAddSiteModal()" title="Add new site">
+                                        + Add Site
+                                    </button>
+                                    <button class="action-btn" id="add-floor-btn" onclick="showAddFloorModal()" title="Add floor to selected site" style="display: none;">
+                                        + Add Floor
+                                    </button>
+                                </div>
+                                
+                                <div class="search-box">
+                                    <input type="text" class="search-input" id="site-search" placeholder="Search sites and floors...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="site-tree-scrollable">
+                        <div class="site-tree">
+                            <div id="site-tree-container">
+                                <div class="loading-state">
+                                    <div class="loading-spinner"></div>
+                                    Loading sites...
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Main Content Area -->
-        <div class="content-area">
+                
+                <!-- Main Content Area -->
+                <div class="content-area">
             <div class="content-header">
                 <div class="breadcrumb">
                     <span>🏢 Sites</span>
@@ -4032,6 +3831,7 @@ MANAGE_TEMPLATE = """
 <head>
     <title>Switch Management - Dell Port Tracer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.0">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -4045,161 +3845,13 @@ MANAGE_TEMPLATE = """
             padding: 0;
         }
         
-        .header-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 20px 30px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(103, 126, 234, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(103, 126, 234, 0.3);
-        }
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--orange), #e68900);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .user-details {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .username {
-            font-weight: 600;
-            color: var(--deep-navy);
-            font-size: 14px;
-        }
-        .user-role {
-            font-size: 11px;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .logout-btn {
-            color: #dc2626;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-        }
-        .logout-btn:hover {
-            background: rgba(220, 38, 38, 0.1);
-        }
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .logo-section img {
-            height: 40px;
-        }
-        .app-title {
-            color: var(--deep-navy);
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-        }
+        /* Header and navigation styles moved to global navigation.css file */
         .main-content {
             padding: 30px;
-            max-width: 1200px;
+            max-width: 1800px;
             margin: 0 auto;
         }
-        .navigation-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 24px;
-            margin-bottom: 30px;
-            border: 1px solid #e5e7eb;
-        }
-        .nav-links {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .nav-link {
-            background: linear-gradient(135deg, #1e293b, #334155);
-            color: white !important;
-            text-decoration: none;
-            padding: 16px 28px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid #475569;
-            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent, 
-                rgba(255, 255, 255, 0.5), 
-                transparent);
-            transition: left 0.5s ease;
-        }
-        .nav-link:hover::before {
-            left: 100%;
-        }
-        .nav-link:hover {
-            background: linear-gradient(135deg, #1976d2, #1565c0);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(25, 118, 210, 0.35),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            border-color: #1976d2;
-        }
-        .nav-link.active {
-            background: linear-gradient(135deg, var(--orange), #ea580c);
-            color: white;
-            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-            border-color: #ea580c;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        .nav-link.active::before {
-            display: none;
-        }
-        .nav-link.active:hover {
-            background: linear-gradient(135deg, #ea580c, #dc2626);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        }
+        /* Navigation styles moved to global navigation.css file */
         
         /* Action Bar */
         .action-bar {
@@ -7046,15 +6698,29 @@ LOGIN_TEMPLATE = """
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        /* CSS Reset to prevent unwanted scrolling */
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        
         .login-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            height: 100vh; /* Ensure exact viewport height */
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 20px;
+            position: relative; /* For absolute positioned elements */
         }
         .login-container {
             background: rgba(255, 255, 255, 0.95);
@@ -7264,6 +6930,7 @@ MAIN_TEMPLATE = """
 <head>
     <title>Dell Switch Port Tracer - Main</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.0">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -7281,22 +6948,12 @@ MAIN_TEMPLATE = """
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             padding: 20px 30px;
-            margin: 0;
+            margin-bottom: 30px;
+            border-radius: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .header-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            padding: 20px 30px;
-            margin: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         .user-profile {
             display: flex;
@@ -7381,17 +7038,17 @@ MAIN_TEMPLATE = """
             justify-content: center;
         }
         .nav-link {
-            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-            color: #1e293b !important;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: white !important;
             text-decoration: none;
             padding: 16px 28px;
             border-radius: 12px;
             font-weight: 600;
             font-size: 14px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid #cbd5e1;
-            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.15),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            border: 1px solid #475569;
+            box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -7573,6 +7230,7 @@ MAIN_TEMPLATE = """
                 flex-direction: column;
                 gap: 16px;
                 padding: 20px;
+                border-radius: 12px;
             }
             .main-content {
                 padding: 20px;
@@ -7613,22 +7271,22 @@ MAIN_TEMPLATE = """
     </style>
 </head>
 <body class="main-page">
-    <div class="header-card">
-        <div class="logo-section">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
-            <h1 class="app-title">Switch Port Tracer</h1>
-        </div>
-        <div class="user-profile">
-            <div class="user-avatar">{{ username[0].upper() }}</div>
-            <div class="user-details">
-                <div class="username">{{ username }}</div>
-                <div class="user-role">{{ user_role }}</div>
-            </div>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
-    </div>
-    
     <div class="main-content">
+        <div class="header-card">
+            <div class="logo-section">
+                <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
+                <h1 class="app-title">Switch Port Tracer</h1>
+            </div>
+            <div class="user-profile">
+                <div class="user-avatar">{{ username[0].upper() }}</div>
+                <div class="user-details">
+                    <div class="username">{{ username }}</div>
+                    <div class="user-role">{{ user_role }}</div>
+                </div>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
+        </div>
+        
         <div class="navigation-card">
             <div class="nav-links">
                 <a href="/" class="nav-link active">🔍 Port Tracer</a>
