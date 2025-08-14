@@ -1449,9 +1449,9 @@
                                         <div class="site-actions">
                                             <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
                                                 title="Edit site">
-                                                âœï¸
+                                                &#9999;&#65039;
                                             </button>
-                                            <div class="expand-icon">â–¶</div>
+                                            <div class="expand-icon">&#9654;</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1496,7 +1496,7 @@
                         <div class="floor-switch-count">
                             <button class="action-btn" onclick="event.stopPropagation(); editFloor(${floor.id}, '${escapedName}', ${siteId})" 
                                 title="Edit floor">
-                                âœï¸
+                                &#9999;&#65039;
                             </button>
                         </div>
                     </div>
@@ -1739,7 +1739,7 @@
             
             switches.forEach(sw => {
                 const statusClass = sw.enabled ? 'active' : 'inactive';
-                const statusIcon = sw.enabled ? 'âœ…' : 'âŒ';
+                const statusIcon = sw.enabled ? '&#9989;' : '&#10060;';
                 const statusText = sw.enabled ? 'Active' : 'Inactive';
                 
                 html += `
@@ -1759,11 +1759,11 @@
                         <td>
                             <div class="switch-actions">
                                 <button class="action-btn" onclick="editSwitch(${sw.id})" title="Edit switch">
-                                    âœï¸ Edit
+                                    &#9999;&#65039; Edit
                                 </button>
                                 <button class="action-btn" onclick="deleteSwitch(${sw.id}, '${sw.name.replace(/'/g, "\\'")}')"
                                     title="Delete switch" style="color: #dc3545; border-color: #dc3545;">
-                                    ðŸ—‘ï¸ Delete
+                                    &#128465;&#65039; Delete
                                 </button>
                             </div>
                         </td>
@@ -2464,7 +2464,7 @@
                         // Clear results and reset UI
                         document.getElementById('switches-content').innerHTML = `
                             <div class="empty-state">
-                                <div class="empty-icon">ðŸ”</div>
+                                <div class="empty-icon">&#128203;</div>
                                 <div class="empty-title">No Floor Selected</div>
                                 <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                             </div>
@@ -2504,7 +2504,7 @@
                                     currentFloorData = null;
                                     document.getElementById('switches-content').innerHTML = `
                                         <div class="empty-state">
-                                            <div class="empty-icon">ðŸ”</div>
+                                            <div class="empty-icon">&#128203;</div>
                                             <div class="empty-title">No Floor Selected</div>
                                             <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                                         </div>
