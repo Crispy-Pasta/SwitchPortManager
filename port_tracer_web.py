@@ -63,25 +63,22 @@ import threading
 import concurrent.futures
 from collections import defaultdict
 
-# Import Windows Authentication
-try:
-    import ldap3
-    from nt_auth_integration import WindowsAuthenticator, AD_CONFIG
-    WINDOWS_AUTH_AVAILABLE = True
-except ImportError:
-    WINDOWS_AUTH_AVAILABLE = False
-    print("Warning: ldap3 not installed. Windows authentication disabled.")
+# Import modular components (v2.2.0 refactoring)
+from auth import verify_user, get_user_permissions, USERS, ROLE_PERMISSIONS
+from switch_manager import (
+    initialize_cpu_monitor, get_cpu_monitor,
+    initialize_switch_protection_monitor, get_switch_protection_monitor,
+    concurrent_switch_trace, CONCURRENT_USERS_PER_SITE
+)
+from utils import (
+    format_mac_address, clean_mac_for_search, validate_mac_format,
+    get_switches_config, load_switches_config, calculate_batch_metrics
+)
+from api_routes import register_api_routes
 
-# Load CPU Safety Monitor
-from cpu_safety_monitor import initialize_cpu_monitor, get_cpu_monitor
-
-# Load Switch Protection Monitor
-try:
-    from switch_protection_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
-    SWITCH_PROTECTION_AVAILABLE = True
-except ImportError:
-    SWITCH_PROTECTION_AVAILABLE = False
-    logger.warning("Switch protection monitor not available")
+# Windows Authentication availability flag
+WINDOWS_AUTH_AVAILABLE = True  # Set by auth module
+SWITCH_PROTECTION_AVAILABLE = True  # Set by switch_manager module
 
 # Load environment variables first
 load_dotenv()
@@ -117,36 +114,7 @@ db.init_app(app)
 SWITCH_USERNAME = os.getenv('SWITCH_USERNAME')
 SWITCH_PASSWORD = os.getenv('SWITCH_PASSWORD')
 
-# User roles and credentials
-USERS = {
-    'oss': {'password': os.getenv('OSS_PASSWORD', 'oss123'), 'role': 'oss'},
-    'netadmin': {'password': os.getenv('NETADMIN_PASSWORD', 'netadmin123'), 'role': 'netadmin'},
-    'superadmin': {'password': os.getenv('SUPERADMIN_PASSWORD', 'superadmin123'), 'role': 'superadmin'},
-    # Legacy admin user (maps to superadmin)
-    'admin': {'password': os.getenv('WEB_PASSWORD', 'password'), 'role': 'superadmin'}
-}
-
-# Role permissions
-ROLE_PERMISSIONS = {
-    'oss': {
-        'show_vlan_details': False,  # Only for access ports
-        'show_uplink_ports': False,  # Hide uplink ports
-        'show_trunk_general_vlans': False,  # Hide VLAN details for trunk/general
-        'show_switch_names': False  # Hide switch names for security
-    },
-    'netadmin': {
-        'show_vlan_details': True,
-        'show_uplink_ports': True,
-        'show_trunk_general_vlans': True,
-        'show_switch_names': True  # Show actual switch names
-    },
-    'superadmin': {
-        'show_vlan_details': True,
-        'show_uplink_ports': True,
-        'show_trunk_general_vlans': True,
-        'show_switch_names': True  # Show actual switch names
-    }
-}
+# User roles and credentials are now loaded from auth module
 
 # Configure logging with optional syslog support
 handlers = [
@@ -263,89 +231,7 @@ def load_switches():
         logger.error(f"Failed to load switches from the database: {str(e)}")
         return {"sites": []}
 
-# Authentication functions
-def verify_user(username, password):
-    """Verify user credentials against Windows AD or local accounts.
-    
-    Args:
-        username (str): Username to authenticate
-        password (str): Password for authentication
-        
-    Returns:
-        dict: User information if authentication successful, None otherwise
-              Contains: username, display_name, role, auth_method
-    """
-    # Try Windows Authentication first if enabled
-    use_windows_auth = os.getenv('USE_WINDOWS_AUTH', 'false').lower() == 'true'
-    
-    if use_windows_auth and WINDOWS_AUTH_AVAILABLE:
-        try:
-            # Configure Active Directory settings from environment variables
-            ad_config = {
-                'server': os.getenv('AD_SERVER', 'ldap://kmc.int'),
-                'domain': os.getenv('AD_DOMAIN', 'kmc.int'),
-                'base_dn': os.getenv('AD_BASE_DN', 'DC=kmc,DC=int'),
-                'user_search_base': os.getenv('AD_USER_SEARCH_BASE', 'DC=kmc,DC=int'),
-                'group_search_base': os.getenv('AD_GROUP_SEARCH_BASE', 'DC=kmc,DC=int'),
-                'required_group': os.getenv('AD_REQUIRED_GROUP')
-            }
-            
-            authenticator = WindowsAuthenticator(ad_config)
-            user_info = authenticator.authenticate_user(username, password)
-            
-            if user_info:
-                # Map AD security groups to application roles (least privilege default)
-                role = 'oss'  # Default role for all Windows users
-                
-                if user_info.get('groups'):
-                    groups = [str(group).upper() for group in user_info['groups']]
-                    
-                    # Debug logging for group membership
-                    logger.info(f"User {username} AD groups: {groups}")
-                    
-                    # Role assignment based on specific AD security groups
-                    # Check for exact group CN (Common Name) matches, not just substring matches
-                    oss_group_found = any('CN=SOLARWINDS_OSS/SD_ACCESS' in group or 'CN=SOLARWINDS_OSS_SD_ACCESS' in group for group in groups)
-                    noc_team_group_found = any('CN=NOC TEAM' in group for group in groups)
-                    admin_group_found = any('CN=ADMIN' in group or 'CN=SUPERADMIN' in group for group in groups)
-                    
-                    if oss_group_found:
-                        role = 'oss'
-                        logger.info(f"User {username} assigned role 'oss' due to SOLARWINDS_OSS/SD_ACCESS group")
-                    elif noc_team_group_found:
-                        role = 'netadmin'
-                        logger.info(f"User {username} assigned role 'netadmin' due to NOC TEAM group")
-                    elif admin_group_found:
-                        role = 'superadmin'
-                        logger.info(f"User {username} assigned role 'superadmin' due to admin group")
-                    else:
-                        logger.info(f"User {username} assigned default role 'oss' - no matching groups found")
-                
-                return {
-                    'username': user_info['username'],
-                    'display_name': user_info.get('display_name', username),
-                    'role': role,
-                    'auth_method': 'windows_ad'
-                }
-        except Exception as e:
-            logger.warning(f"Windows authentication failed for {username}: {str(e)}")
-            # Fall through to local authentication
-    
-    # Fall back to local user authentication
-    if username in USERS:
-        user_info = USERS[username]
-        if user_info['password'] == password:
-            return {
-                'username': username, 
-                'role': user_info['role'],
-                'auth_method': 'local'
-            }
-    
-    return None
-
-def get_user_permissions(role):
-    """Get permissions for a user role."""
-    return ROLE_PERMISSIONS.get(role, ROLE_PERMISSIONS['oss'])
+# Authentication functions are now imported from auth module
 
 def detect_switch_model_from_config(switch_name, switch_config):
     """Detect switch model from configuration or name patterns."""
