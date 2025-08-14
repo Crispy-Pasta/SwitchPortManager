@@ -54,7 +54,7 @@ import psutil
 import json
 import os
 from datetime import datetime
-from flask import Flask, render_template_string, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, render_template_string, request, jsonify, session, redirect, url_for
 from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -1796,9 +1796,9 @@ def login():
             return redirect(url_for('index'))
         else:
             audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
+            return render_template('auth/login.html', error="Invalid credentials")
     
-    return render_template_string(LOGIN_TEMPLATE)
+    return render_template('auth/login.html')
 
 @app.route('/logout')
 def logout():
@@ -1815,7 +1815,7 @@ def index():
     # Get switches data (role-based filtering handled in frontend)
     user_role = session.get('role', 'oss')
     formatted_data = format_switches_for_frontend()
-    return render_template_string(MAIN_TEMPLATE, 
+    return render_template('main.html', 
                                 username=session['username'],
                                 user_role=user_role,
                                 sites=formatted_data.get('sites', []),
