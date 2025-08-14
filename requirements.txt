@@ -1,7 +1,9 @@
 # Dell Switch Port Tracer Web Service - Python Dependencies
 # Supports Dell N2000/N3000/N3200 series switches (N2048, N3024P, N3248 models)
-# Version: 1.0.0
-# Last Updated: July 2025
+# Version: 2.2.0 (Enhanced VLAN Management with Interface Range Optimization)
+# Last Updated: August 7, 2025
+# Features: Enhanced UI/UX, VLAN Management v2.2.0, Interface Range Optimization,
+#           Intelligent Fallback System, Enhanced Success Response, Advanced Debugging
 
 # Core Web Framework
 Flask>=2.3.0

@@ -1,0 +1,369 @@
+---
+# Dell Switch Port Tracer - Kubernetes Deployment
+# ==============================================
+# 
+# Production-ready Kubernetes configuration with:
+# - PostgreSQL database with persistent storage
+# - Dell Port Tracer application with auto-scaling
+# - ConfigMaps and Secrets for configuration
+# - Ingress for external access
+# - Resource limits and monitoring
+#
+# Version: 2.1.3
+# Updated: August 2025
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dell-port-tracer
+  labels:
+    app: dell-port-tracer
+    version: "2.1.3"
+
+---
+# PostgreSQL Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: dell-port-tracer
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "your-secure-postgres-password"
+  POSTGRES_USER: "dell_tracer_user"
+  POSTGRES_DB: "dell_port_tracer"
+
+---
+# Switch Credentials Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: switch-credentials
+  namespace: dell-port-tracer
+type: Opaque
+stringData:
+  SWITCH_USERNAME: "your-switch-username"
+  SWITCH_PASSWORD: "your-switch-password"
+
+---
+# Application Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dell-tracer-config
+  namespace: dell-port-tracer
+data:
+  # Database Configuration
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  
+  # User Credentials (consider moving to Secret in production)
+  OSS_PASSWORD: "oss123"
+  NETADMIN_PASSWORD: "netadmin123"
+  SUPERADMIN_PASSWORD: "superadmin123"
+  WEB_PASSWORD: "password"
+  
+  # CPU Safety Configuration
+  CPU_GREEN_THRESHOLD: "40"
+  CPU_YELLOW_THRESHOLD: "60"
+  CPU_RED_THRESHOLD: "80"
+  
+  # Concurrency Configuration
+  MAX_CONCURRENT_USERS_PER_SITE: "10"
+  MAX_WORKERS_PER_SITE: "8"
+  MAX_CONNECTIONS_PER_SWITCH: "8"
+  MAX_TOTAL_CONNECTIONS: "64"
+  COMMANDS_PER_SECOND_LIMIT: "10"
+  
+  # Flask Configuration
+  FLASK_ENV: "production"
+  PYTHONUNBUFFERED: "1"
+
+---
+# PostgreSQL Persistent Volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: dell-port-tracer
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: dell-port-tracer
+  labels:
+    app: postgres
+    component: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: database
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: POSTGRES_INITDB_ARGS
+          value: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+        - name: PGDATA
+          value: "/var/lib/postgresql/data/pgdata"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 250m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - dell_tracer_user
+            - -d
+            - dell_port_tracer
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - dell_tracer_user
+            - -d
+            - dell_port_tracer
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: dell-port-tracer
+  labels:
+    app: postgres
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres
+
+---
+# Dell Port Tracer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dell-tracer-app
+  namespace: dell-port-tracer
+  labels:
+    app: dell-tracer
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dell-tracer
+  template:
+    metadata:
+      labels:
+        app: dell-tracer
+        component: web
+    spec:
+      containers:
+      - name: dell-tracer
+        image: dell-port-tracer:2.1.3
+        ports:
+        - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: dell-tracer-config
+        - secretRef:
+            name: postgres-secret
+        - secretRef:
+            name: switch-credentials
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: app-logs
+          mountPath: /app/logs
+      volumes:
+      - name: app-logs
+        emptyDir: {}
+
+---
+# Dell Port Tracer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: dell-tracer-service
+  namespace: dell-port-tracer
+  labels:
+    app: dell-tracer
+    component: web
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+  selector:
+    app: dell-tracer
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dell-tracer-hpa
+  namespace: dell-port-tracer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dell-tracer-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Ingress (NGINX)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dell-tracer-ingress
+  namespace: dell-port-tracer
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Optional: for automatic SSL certificates
+spec:
+  tls:
+  - hosts:
+    - dell-tracer.yourdomain.com
+    secretName: dell-tracer-tls
+  rules:
+  - host: dell-tracer.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dell-tracer-service
+            port:
+              number: 80
+
+---
+# Network Policy (Optional - for network security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dell-tracer-network-policy
+  namespace: dell-port-tracer
+spec:
+  podSelector:
+    matchLabels:
+      app: dell-tracer
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 5000
+  - from:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to: []  # Allow all outbound traffic (for switch SSH connections)
+    ports:
+    - protocol: TCP
+      port: 22

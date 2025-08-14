@@ -1,0 +1,245 @@
+/* 
+ * Global Navigation Card Component
+ * ================================
+ * Single, consistent navigation styling for all pages
+ * January 2025 - UI Consistency Fix
+ */
+
+/* Base Navigation Card Styling */
+.navigation-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+    margin: 0 auto 30px auto;
+    border: 1px solid #e5e7eb;
+    max-width: 1200px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Navigation Links Container */
+.nav-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Individual Navigation Link Styling */
+.nav-link {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: white !important;
+    text-decoration: none;
+    padding: 16px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #475569;
+    box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Shimmer Effect on Hover */
+.nav-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.5), 
+        transparent);
+    transition: left 0.5s ease;
+}
+
+.nav-link:hover::before {
+    left: 100%;
+}
+
+/* Hover State */
+.nav-link:hover {
+    background: linear-gradient(135deg, #475569, #64748b);
+    color: white !important;
+    text-decoration: none !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(71, 85, 105, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border-color: #64748b;
+}
+
+/* Active State */
+.nav-link.active {
+    background: linear-gradient(135deg, var(--orange), #ea580c);
+    color: white !important;
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    border-color: #ea580c;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Disable shimmer effect on active links */
+.nav-link.active::before {
+    display: none;
+}
+
+/* Active hover state */
+.nav-link.active:hover {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    color: white !important;
+    text-decoration: none !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navigation-card {
+        padding: 20px;
+        margin: 0 auto 20px auto;
+        border-radius: 12px;
+    }
+    
+    .nav-links {
+        gap: 8px;
+    }
+    
+    .nav-link {
+        padding: 12px 20px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .navigation-card {
+        padding: 16px;
+        margin: 0 auto 16px auto;
+    }
+    
+    .nav-links {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .nav-link {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 16px;
+    }
+}
+
+/* Global Header Component Styles */
+.header-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 20px 30px;
+    margin-bottom: 30px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(103, 126, 234, 0.1);
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(103, 126, 234, 0.3);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--orange), #e68900);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.username {
+    font-weight: 600;
+    color: var(--deep-navy);
+    font-size: 14px;
+}
+
+.user-role {
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.logout-btn {
+    color: #dc2626;
+    text-decoration: none !important;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.logout-btn:hover {
+    background: rgba(220, 38, 38, 0.1);
+    text-decoration: none !important;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-section img {
+    height: 40px;
+}
+
+.app-title {
+    color: var(--deep-navy);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Dark theme compatibility */
+@media (prefers-color-scheme: dark) {
+    .navigation-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .header-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+}

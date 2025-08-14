@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Dell Switch Port Tracer - Deployment Script
+# Dell Switch Port Tracer v2.1.1 - Deployment Script
 # This script builds the Docker image and deploys to Kubernetes
+# Features: Enhanced UI/UX, VLAN Management v2, Database-driven architecture
+# UI Improvements: Dropdown width optimization, VLAN naming conventions
 
 set -e
 
@@ -65,10 +67,10 @@ check_kubectl() {
 build_image() {
     log_info "Building Docker image..."
     
-    # Check if switches.json exists
-    if [[ ! -f "switches.json" ]]; then
-        log_error "switches.json not found. Please ensure the switches configuration file exists."
-        exit 1
+    # Check if database configuration exists
+    if [[ ! -f ".env" ]]; then
+        log_warning ".env file not found. Using default database configuration."
+        log_info "Make sure PostgreSQL database is configured properly."
     fi
     
     # Build the image
