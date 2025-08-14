@@ -1761,7 +1761,7 @@
                                 <button class="action-btn" onclick="editSwitch(${sw.id})" title="Edit switch">
                                     &#9999;&#65039; Edit
                                 </button>
-                                <button class="action-btn" onclick="deleteSwitch(${sw.id}, '${sw.name.replace(/'/g, "\\'")}')"
+                                <button class="action-btn" onclick="showDeleteSwitchModal(${sw.id}, {name: '${sw.name.replace(/'/g, "\\'")}'})" 
                                     title="Delete switch" style="color: #dc3545; border-color: #dc3545;">
                                     &#128465;&#65039; Delete
                                 </button>
@@ -2085,7 +2085,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">Ã—</button>
+                        <button class="modal-close" onclick="closeModal()">&#215;</button>
                     </div>
                     <div class="modal-body">
                         ${content}
@@ -2611,7 +2611,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3><span>&#9888;&#65039;</span> ${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">Ã—</button>
+                        <button class="modal-close" onclick="closeModal()">&#215;</button>
                     </div>
                     <div class="modal-body">
                         <div class="delete-warning">
