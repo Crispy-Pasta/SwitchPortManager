@@ -1172,10 +1172,10 @@
             
             <div class="navigation-card">
                 <div class="nav-links">
-                    <a href="/" class="nav-link">📋 Port Tracer</a>
+                    <a href="/" class="nav-link">&#128203; Port Tracer</a>
                     {% if user_role in ['netadmin', 'superadmin'] %}
-                    <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-                    <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
+                    <a href="/vlan" class="nav-link">&#128295; VLAN Manager</a>
+                    <a href="/inventory" class="nav-link active">&#127970; Switch Management</a>
                     {% endif %}
                 </div>
             </div>
@@ -1187,7 +1187,7 @@
                         <div class="site-tree">
                             <div class="tree-header">
                                 <h2 class="tree-title">
-                                    <span>🏢</span>
+                                    <span>&#127970;</span>
                                     KMC Sites
                                 </h2>
                                 
@@ -1223,15 +1223,15 @@
                 <div class="content-area">
             <div class="content-header">
                 <div class="breadcrumb">
-                    <span>🏢 Sites</span>
-                    <span class="breadcrumb-separator">›</span>
+                    <span>&#127970; Sites</span>
+                    <span class="breadcrumb-separator">&#8250;</span>
                     <span id="current-site">Select a site</span>
-                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">â€º</span>
+                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">›</span>
                     <span class="current" id="current-floor" style="display: none;">Select a floor</span>
                 </div>
                 
                 <h1 class="floor-title" id="content-title">
-                    <span>ðŸ“‹</span>
+                    <span>&#128203;</span>
                     Switch Inventory
                 </h1>
                 
@@ -1264,7 +1264,7 @@
             <div class="switches-section" id="switches-section">
                 <div class="switches-header">
                     <h3 class="switches-title">
-                        <span>ðŸ”Œ</span>
+                        <span>&#128268;</span>
                         Switch Details
                     </h3>
                     
@@ -1285,7 +1285,7 @@
                 
                 <div id="switches-content">
                     <div class="empty-state">
-                        <div class="empty-icon">ðŸ”</div>
+                        <div class="empty-icon">&#127970;</div>
                         <div class="empty-title">No Floor Selected</div>
                         <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                     </div>
@@ -1402,7 +1402,8 @@
             if (sites.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">ðŸ¢</div>
+                                            <div class="empty-icon">&#127970;</div>
+&#127970;</div>
                         <div class="empty-title">No Sites Found</div>
                         <div class="empty-description">No sites are configured in the system</div>
                     </div>
@@ -1438,12 +1439,12 @@
                             <div class="site-header" onclick="toggleSite('${site.id}')" id="site-header-${site.id}">
                                 <div class="site-header-content">
                                     <div class="site-left">
-                                        <span>ðŸ¢</span>
+                                        <span>🏢</span>
                                         <span>${site.name}</span>
                                     </div>
                                     <div class="site-right">
                                         <div class="site-stats">
-                                            <span>${floorCount} floors â€¢ ${totalSwitches} switches</span>
+                            <span>${floorCount} floors &#8226; ${totalSwitches} switches</span>
                                         </div>
                                         <div class="site-actions">
                                             <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
@@ -1489,7 +1490,7 @@
                 return `
                     <div class="floor-item" onclick="selectFloor('${siteId}', '${siteName}', '${floor.id}', '${floor.name}')" id="floor-${floor.id}">
                         <div class="floor-name">
-                            <span>ðŸ¢</span>
+                            <span>&#127970;</span>
                             <span>${displayName}</span>
                         </div>
                         <div class="floor-switch-count">
@@ -1613,7 +1614,7 @@
             document.getElementById('floor-separator').style.display = 'inline';
             
             document.getElementById('content-title').innerHTML = `
-                <span>ðŸ¢</span>
+                <span>&#127970;</span>
                 ${displayFloorName} - Switch Inventory
             `;
             
@@ -1628,7 +1629,7 @@
             document.getElementById('floor-separator').style.display = 'none';
             
             document.getElementById('content-title').innerHTML = `
-                <span>ðŸ¢</span>
+                <span>&#127970;</span>
                 ${siteName} - Switch Inventory
             `;
             
@@ -1713,7 +1714,7 @@
             if (switches.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">ðŸ”Œ</div>
+                        <div class="empty-icon">&#128268;</div>
                         <div class="empty-title">No Switches Found</div>
                         <div class="empty-description">No switches match the current filter criteria</div>
                     </div>
@@ -1935,7 +1936,7 @@
                                title="Only letters, numbers, underscores, and hyphens allowed. No spaces or special characters.">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Create Site</button>
+                        <button type="submit" class="btn-primary">&#128190; Create Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -1978,7 +1979,7 @@
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Create Floor</button>
+                        <button type="submit" class="btn-primary">&#128190; Create Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2068,7 +2069,7 @@
                         <label for="edit-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Update Switch</button>
+                        <button type="submit" class="btn-primary">&#128190; Update Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2177,7 +2178,7 @@
                         <label for="new-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Add Switch</button>
+                        <button type="submit" class="btn-primary">&#128190; Add Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2391,8 +2392,8 @@
                         <input type="text" id="edit-site-name" name="name" value="${siteName}" required placeholder="e.g., NYC_MAIN" maxlength="50">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Update Site</button>
-                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">ðŸ—‘ï¸ Delete Site</button>
+                        <button type="submit" class="btn-primary">&#128190; Update Site</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">&#128465;&#65039; Delete Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2430,8 +2431,8 @@
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">ðŸ’¾ Update Floor</button>
-                        <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">ðŸ—‘ï¸ Delete Floor</button>
+                        <button type="submit" class="btn-primary">&#128190; Update Floor</button>
+                        <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">&#128465;&#65039; Delete Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2609,13 +2610,13 @@
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3><span>âš ï¸</span> ${title}</h3>
+                        <h3><span>&#9888;&#65039;</span> ${title}</h3>
                         <button class="modal-close" onclick="closeModal()">Ã—</button>
                     </div>
                     <div class="modal-body">
                         <div class="delete-warning">
                             <div class="delete-warning-title">
-                                <span>ðŸš¨</span> Warning
+                                <span>&#128680;</span> Warning
                             </div>
                             <div class="delete-warning-text">
                                 ${message}
@@ -2626,7 +2627,7 @@
                         </div>
                         <div class="delete-actions">
                             <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-                            <button class="btn-delete" id="confirm-delete-btn">ðŸ—‘ï¸ Delete</button>
+                            <button class="btn-delete" id="confirm-delete-btn">&#128465;&#65039; Delete</button>
                         </div>
                     </div>
                 </div>
@@ -2644,7 +2645,7 @@
         function showError(message) {
             document.getElementById('site-tree-container').innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">âŒ</div>
+                    <div class="empty-icon">&#10060;</div>
                     <div class="empty-title">Error</div>
                     <div class="empty-description">${message}</div>
                 </div>
