@@ -276,6 +276,11 @@
             border: 2px solid #e74c3c;
             color: #721c24;
         }
+        .result-info {
+            background: #e8f4fd;
+            border: 2px solid #3498db;
+            color: #1c4e6b;
+        }
         .confirmation-dialog {
             position: fixed;
             top: 0;
@@ -351,6 +356,8 @@
             display: none;
             text-align: center;
             padding: 20px;
+            color: white;
+            font-weight: 600;
         }
         .loading .spinner {
             border: 4px solid #f3f3f3;
@@ -759,7 +766,7 @@
             if (!validateForm()) return;
             
             const formData = getFormData();
-            showLoading(true);
+            showLoading(true, 'Processing VLAN changes, please wait...');
             
             $.ajax({
                 url: '/api/vlan/change',
@@ -784,7 +791,7 @@
             const formData = getFormData();
             formData.preview_only = true; // This will be a dry run
             
-            showLoading(true);
+            showLoading(true, 'Previewing changes, please wait...');
             
             // Use the full VLAN change workflow in preview mode
             $.ajax({
@@ -813,7 +820,7 @@
                 return;
             }
             
-            showLoading(true);
+            showLoading(true, 'Checking port status, please wait...');
             
             $.ajax({
                 url: '/api/port/status',
@@ -961,7 +968,7 @@
                     formData.force_change = true;
                 }
                 
-                showLoading(true);
+                showLoading(true, 'Processing VLAN changes, please wait...');
                 
                 $.ajax({
                     url: '/api/vlan/change',
@@ -1244,13 +1251,19 @@
             hideResults();
         }
         
-        function showLoading(show) {
+        function showLoading(show, message) {
             if (show) {
+                // Update loading message if provided
+                if (message) {
+                    $('#loadingIndicator p').text(message);
+                }
                 $('#loadingIndicator').show();
                 $('#executeBtn, #previewBtn').prop('disabled', true);
             } else {
                 $('#loadingIndicator').hide();
                 $('#executeBtn, #previewBtn').prop('disabled', false);
+                // Reset to default message
+                $('#loadingIndicator p').text('Processing VLAN changes, please wait...');
             }
         }
         

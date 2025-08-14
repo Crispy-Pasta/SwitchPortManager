@@ -30,16 +30,12 @@ RUN mkdir -p /app/logs /app/static/img /app/instance \
     && chown -R app:app /app/logs /app/static /app/instance
 
 # Copy application files
-COPY port_tracer_web.py .
-COPY database.py .
-COPY init_database.py .
-COPY migrate_data.py .
-COPY cpu_safety_monitor.py .
-COPY switch_protection_monitor.py .
-COPY nt_auth_integration.py .
-COPY vlan_management_v2.py .
-COPY vlan_template_v2.html .
-COPY static/ ./static/
+COPY --chown=app:app *.py .
+COPY --chown=app:app *.html .
+COPY --chown=app:app static/ ./static/
+COPY --chown=app:app templates/ ./templates/
+COPY --chown=app:app tools/ ./tools/
+COPY --chown=app:app docs/ ./docs/
 
 # Set ownership of all files to app user
 RUN chown -R app:app /app

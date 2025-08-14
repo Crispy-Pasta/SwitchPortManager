@@ -1,404 +1,13 @@
-#!/usr/bin/env python3
-"""
-Dell Switch Port Tracer & VLAN Manager - Enterprise Edition
-===========================================================
-
-A comprehensive network management solution for Dell switches featuring
-MAC address tracing and advanced VLAN management capabilities.
-
-🏢 ENTERPRISE FEATURES:
-- Multi-site, multi-floor switch management (27+ sites, 155+ switches)
-- Advanced VLAN Manager with port assignment and safety checks
-- Windows AD integration with role-based permissions (OSS/NetAdmin/SuperAdmin)
-- Dell N2000/N3000/N3200 series switch support (N2048, N3024P, N3248 models)
-- Real-time MAC address tracing with port configuration details
-- Comprehensive audit logging and monitoring
-- Modern, responsive web interface with KMC branding
-- Consistent UI/UX design with standardized modal dialogs and button sizing
-- Enhanced inventory layout: 1800px main content with 500px sidebar for optimal screen utilization
-
-🔧 VLAN MANAGEMENT CAPABILITIES:
-- Port VLAN assignment with safety validation
-- Uplink port protection and detection
-- VLAN creation and naming standardization
-- Port description management
-- Preview and confirmation workflows
-- Switch model-aware interface naming
-
-⚡ PERFORMANCE & SCALABILITY:
-- Concurrent switch processing (8 workers max per site)
-- Per-site user limits (10 concurrent users max)
-- 6x faster MAC tracing (30s → 5s for 10 switches)
-- Thread-safe operations with proper locking
-- 60-second timeout protection
-
-🐳 DEPLOYMENT READY:
-- Docker and Kubernetes deployment ready
-- Production-grade security and health checks
-- Auto-deployment with 1-minute intervals
-- Environment-based configuration
-
-📊 MONITORING & TROUBLESHOOTING:
-- Real-time performance metrics
-- CPU safety monitoring
-- Switch protection status monitoring
-- Detailed audit trails with timing
-- Enhanced error handling and logging
-- Progress tracking for large batches
-
-Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 2.1.3
-Author: Network Operations Team
-Last Updated: August 2025 - Login Page Scrolling Fix & UI Improvements
-License: MIT
-
-🔧 TROUBLESHOOTING:
-- Check logs: port_tracer.log (system) | audit.log (user actions)
-- Monitor concurrent users per site in CONCURRENT_USERS_PER_SITE
-- Verify Dell switch SSH limits (max 10 concurrent sessions)
-- Review environment variables for performance tuning
-- VLAN operations require NetAdmin or SuperAdmin privileges
-"""
-
-import paramiko
-import logging
-import logging.handlers
-import time
-import psutil
-import json
-import os
-from datetime import datetime
-from flask import Flask, render_template, render_template_string, request, jsonify, session, redirect, url_for
-from flask_httpauth import HTTPBasicAuth
-from flask_sqlalchemy import SQLAlchemy
-from dotenv import load_dotenv
-import secrets
-import threading
-import concurrent.futures
-from collections import defaultdict
-import re
-
-# Import refactored modules
-from auth import verify_user, get_user_permissions, WINDOWS_AUTH_AVAILABLE
-from switch_manager import (
-    DellSwitchSSH, detect_switch_model_from_config, is_uplink_port, 
-    get_port_caution_info, parse_mac_table_output, trace_single_switch
-)
-from utils import (
-    is_valid_mac, get_mac_format_error_message, format_switches_for_frontend,
-    get_site_floor_switches, apply_role_based_filtering, load_switches_from_database
-)
-from api_routes import api_bp
-
-# Load CPU Safety Monitor
-from cpu_safety_monitor import initialize_cpu_monitor, get_cpu_monitor
-
-# Load Switch Protection Monitor
-try:
-    from switch_protection_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
-    SWITCH_PROTECTION_AVAILABLE = True
-except ImportError:
-    SWITCH_PROTECTION_AVAILABLE = False
-
-# Load environment variables first
-load_dotenv()
-
-# Flask app
-app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)
-auth = HTTPBasicAuth()
-
-# Database configuration - PostgreSQL by default
-postgres_host = os.getenv('POSTGRES_HOST', 'localhost')
-postgres_port = os.getenv('POSTGRES_PORT', '5432')
-postgres_db = os.getenv('POSTGRES_DB', 'dell_port_tracer')
-postgres_user = os.getenv('POSTGRES_USER', 'dell_tracer_user')
-postgres_password = os.getenv('POSTGRES_PASSWORD', 'dell_tracer_pass')
-
-# Construct PostgreSQL connection URL
-default_db_url = f'postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}'
-
-# Allow override via DATABASE_URL environment variable
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', default_db_url)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_recycle': 300,  # Recycle connections every 5 minutes
-    'pool_pre_ping': True  # Verify connections before use
-}
-
-# Initialize database
-from database import db, Site, Floor, Switch
-db.init_app(app)
-
-# Configuration
-SWITCH_USERNAME = os.getenv('SWITCH_USERNAME')
-SWITCH_PASSWORD = os.getenv('SWITCH_PASSWORD')
-
-# User roles and credentials
-USERS = {
-    'oss': {'password': os.getenv('OSS_PASSWORD', 'oss123'), 'role': 'oss'},
-    'netadmin': {'password': os.getenv('NETADMIN_PASSWORD', 'netadmin123'), 'role': 'netadmin'},
-    'superadmin': {'password': os.getenv('SUPERADMIN_PASSWORD', 'superadmin123'), 'role': 'superadmin'},
-    # Legacy admin user (maps to superadmin)
-    'admin': {'password': os.getenv('WEB_PASSWORD', 'password'), 'role': 'superadmin'}
-}
-
-# Role permissions
-ROLE_PERMISSIONS = {
-    'oss': {
-        'show_vlan_details': False,  # Only for access ports
-        'show_uplink_ports': False,  # Hide uplink ports
-        'show_trunk_general_vlans': False,  # Hide VLAN details for trunk/general
-        'show_switch_names': False  # Hide switch names for security
-    },
-    'netadmin': {
-        'show_vlan_details': True,
-        'show_uplink_ports': True,
-        'show_trunk_general_vlans': True,
-        'show_switch_names': True  # Show actual switch names
-    },
-    'superadmin': {
-        'show_vlan_details': True,
-        'show_uplink_ports': True,
-        'show_trunk_general_vlans': True,
-        'show_switch_names': True  # Show actual switch names
-    }
-}
-
-# Configure logging with optional syslog support
-handlers = [
-    logging.FileHandler('port_tracer.log'),
-    logging.StreamHandler()
-]
-
-# Add syslog handler if configured and available (SolarWinds SEM compatible)
-syslog_server = os.getenv('SYSLOG_SERVER')
-syslog_enabled = os.getenv('SYSLOG_ENABLED', 'false').lower() == 'true'
-if syslog_enabled and syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
-    try:
-        syslog_port = int(os.getenv('SYSLOG_PORT', 514))
-        # Use facility LOCAL0 (16) for custom applications - SolarWinds SEM friendly
-        syslog_handler = logging.handlers.SysLogHandler(
-            address=(syslog_server, syslog_port),
-            facility=logging.handlers.SysLogHandler.LOG_LOCAL0
-        )
-        # RFC3164 compliant format for better SolarWinds SEM parsing
-        syslog_formatter = logging.Formatter(
-            'Dell-Port-Tracer[%(process)d]: %(levelname)s - %(funcName)s - %(message)s'
-        )
-        syslog_handler.setFormatter(syslog_formatter)
-        handlers.append(syslog_handler)
-        print(f"✅ Syslog logging enabled for SolarWinds SEM: {syslog_server}:{syslog_port} (LOCAL0 facility)")
-        
-        # Send initial test message to confirm syslog connectivity
-        test_logger = logging.getLogger('syslog_test')
-        test_logger.addHandler(syslog_handler)
-        test_logger.setLevel(logging.INFO)
-        test_logger.info("Dell Port Tracer application started - Syslog connectivity test")
-        
-    except Exception as e:
-        print(f"⚠️  Warning: Could not connect to syslog server {syslog_server}: {str(e)}")
-        print("   Continuing without syslog logging...")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=handlers
-)
-logger = logging.getLogger(__name__)
-
-# Log credential loading status for monitoring (after logger is initialized)
-logger.info(f"Switch credentials loaded - Username: {'SET' if SWITCH_USERNAME else 'NOT_SET'}, Password: {'SET' if SWITCH_PASSWORD else 'NOT_SET'}")
-
-# CPU Safety configuration (override concurrent limits based on CPU protection zones)
-cpu_monitor = initialize_cpu_monitor(
-    green_threshold=float(os.getenv('CPU_GREEN_THRESHOLD', '40')),
-    yellow_threshold=float(os.getenv('CPU_YELLOW_THRESHOLD', '60')),
-    red_threshold=float(os.getenv('CPU_RED_THRESHOLD', '80'))
-)
-
-# Switch Protection Monitor initialization
-switch_monitor = None
-if SWITCH_PROTECTION_AVAILABLE:
-    switch_monitor = initialize_switch_protection_monitor(
-        max_connections_per_switch=int(os.getenv('MAX_CONNECTIONS_PER_SWITCH', '8')),
-        max_total_connections=int(os.getenv('MAX_TOTAL_CONNECTIONS', '64')),
-        commands_per_second_limit=int(os.getenv('COMMANDS_PER_SECOND_LIMIT', '10'))
-    )
-    logger.info("Switch protection monitor initialized")
-else:
-    logger.warning("Switch protection monitor not available - switches may be vulnerable to overload")
-
-# Concurrent user tracking per site (Dell switch limit: 10 concurrent SSH sessions)
-CONCURRENT_USERS_PER_SITE = defaultdict(lambda: {'count': 0, 'lock': threading.Lock()})
-MAX_CONCURRENT_USERS_PER_SITE = int(os.getenv('MAX_CONCURRENT_USERS_PER_SITE', '10'))
-MAX_WORKERS_PER_SITE = int(os.getenv('MAX_WORKERS_PER_SITE', '8'))  # Parallel switch connections
-
-# Audit logging for user actions (with optional syslog support)
-audit_logger = logging.getLogger('audit')
-audit_handler = logging.FileHandler('audit.log')
-audit_formatter = logging.Formatter('%(asctime)s - AUDIT - %(message)s')
-audit_handler.setFormatter(audit_formatter)
-audit_logger.addHandler(audit_handler)
-
-# Add syslog handler for audit logs if syslog is enabled
-if syslog_enabled and syslog_server and syslog_server.lower() not in ['', 'none', 'disabled']:
-    try:
-        audit_syslog_handler = logging.handlers.SysLogHandler(
-            address=(syslog_server, syslog_port),
-            facility=logging.handlers.SysLogHandler.LOG_LOCAL1  # Use LOCAL1 for audit logs
-        )
-        audit_syslog_formatter = logging.Formatter(
-            'Dell-Port-Tracer-AUDIT[%(process)d]: %(levelname)s - %(message)s'
-        )
-        audit_syslog_handler.setFormatter(audit_syslog_formatter)
-        audit_logger.addHandler(audit_syslog_handler)
-        print(f"✅ Audit syslog logging enabled: {syslog_server}:{syslog_port} (LOCAL1 facility)")
-    except Exception as e:
-        print(f"⚠️  Warning: Could not configure audit syslog: {str(e)}")
-
-audit_logger.setLevel(logging.INFO)
-
-# Load switches configuration
-def load_switches():
-    """Load switches from PostgreSQL."""
-    try:
-        sites_with_switches = {}
-        sites = Site.query.all()
-        for site in sites:
-            floors = Floor.query.filter_by(site_id=site.id).all()
-            floors_with_switches = {}
-            for floor in floors:
-                switches = Switch.query.filter_by(floor_id=floor.id, enabled=True).all()
-                switch_data = [{'name': sw.name, 'ip': sw.ip_address} for sw in switches]
-                if switch_data:
-                    floors_with_switches[floor.name] = switch_data
-            if floors_with_switches:
-                sites_with_switches[site.name] = floors_with_switches
-        if not sites_with_switches:
-            return {"sites": []}
-        else:
-            return {"sites": sites_with_switches}
-    except Exception as e:
-        logger.error(f"Failed to load switches from the database: {str(e)}")
-        return {"sites": []}
-
-# Authentication functions moved to auth.py module
-
-# Switch management functions moved to switch_manager.py module
-# DellSwitchSSH class moved to switch_manager.py module
-
-# parse_mac_table_output function moved to switch_manager.py module
-
-# Utility functions moved to utils.py module
-
-# trace_single_switch function moved to switch_manager.py module
-
-def check_concurrent_user_limit(site):
-    """Check if the concurrent user limit for a site has been reached."""
-    site_tracker = CONCURRENT_USERS_PER_SITE[site]
-    
-    with site_tracker['lock']:
-        if site_tracker['count'] >= MAX_CONCURRENT_USERS_PER_SITE:
-            return False
-        site_tracker['count'] += 1
-        return True
-
-def release_concurrent_user_slot(site):
-    """Release a concurrent user slot for a site."""
-    site_tracker = CONCURRENT_USERS_PER_SITE[site]
-    
-    with site_tracker['lock']:
-        if site_tracker['count'] > 0:
-            site_tracker['count'] -= 1
-
-def trace_mac_on_switches(switches, mac_address, username):
-    """Trace MAC address across specified switches using concurrent processing."""
-    start_time = time.time()
-    site = switches[0]['site'] if switches else 'unknown'
-    
-    # Check concurrent user limit per site (Dell switch SSH session limit)
-    if not check_concurrent_user_limit(site):
-        audit_logger.warning(f"User: {username} - TRACE REJECTED - Site: {site} - Concurrent user limit ({MAX_CONCURRENT_USERS_PER_SITE}) reached")
-        return [{
-            'switch_name': 'System',
-            'switch_ip': 'N/A',
-            'status': 'error',
-            'message': f'Too many concurrent users for site {site}. Maximum {MAX_CONCURRENT_USERS_PER_SITE} users allowed. Please try again in a moment.'
-        }]
-    
-    try:
-        audit_logger.info(f"User: {username} - MAC Trace Started - MAC: {mac_address} - Switches: {len(switches)} - Site: {site}")
-        
-        # Use ThreadPoolExecutor for concurrent switch processing
-        max_workers = min(MAX_WORKERS_PER_SITE, len(switches))  # Don't exceed switch count
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all switch trace tasks
-            future_to_switch = {
-                executor.submit(trace_single_switch, switch_info, mac_address, username): switch_info
-                for switch_info in switches
-            }
-            
-            results = []
-            completed_count = 0
-            
-            # Collect results as they complete
-            for future in concurrent.futures.as_completed(future_to_switch, timeout=60):
-                completed_count += 1
-                try:
-                    result = future.result()
-                    results.append(result)
-                    
-                    # Log progress for large batches
-                    if len(switches) > 5:
-                        logger.info(f"MAC trace progress: {completed_count}/{len(switches)} switches completed")
-                        
-                except Exception as e:
-                    switch_info = future_to_switch[future]
-                    logger.error(f"Error in concurrent trace for {switch_info['name']}: {str(e)}")
-                    results.append({
-                        'switch_name': switch_info['name'],
-                        'switch_ip': switch_info['ip'],
-                        'status': 'error',
-                        'message': f'Concurrent execution error: {str(e)}'
-                    })
-        
-        elapsed_time = time.time() - start_time
-        found_count = len([r for r in results if r['status'] == 'found'])
-        
-        audit_logger.info(f"User: {username} - MAC Trace Completed - MAC: {mac_address} - Results: {found_count} found - Time: {elapsed_time:.2f}s - Concurrent workers: {max_workers}")
-        return results
-        
-    except concurrent.futures.TimeoutError:
-        audit_logger.error(f"User: {username} - MAC Trace TIMEOUT - MAC: {mac_address} - Site: {site}")
-        return [{
-            'switch_name': 'System',
-            'switch_ip': 'N/A',
-            'status': 'error',
-            'message': 'Trace operation timed out after 60 seconds. Some switches may be unreachable.'
-        }]
-    except Exception as e:
-        audit_logger.error(f"User: {username} - MAC Trace ERROR - MAC: {mac_address} - Site: {site} - Error: {str(e)}")
-        return [{
-            'switch_name': 'System',
-            'switch_ip': 'N/A',
-            'status': 'error',
-            'message': f'System error during trace: {str(e)}'
-        }]
-    finally:
-        # Always release the concurrent user slot
-        release_concurrent_user_slot(site)
-
-
-# Web Interface HTML Templates
-INVENTORY_TEMPLATE = """
+﻿
 <!DOCTYPE html>
 <html>
 <head>
     <title>Switch Inventory - Dell Port Tracer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         .inventory-page {
@@ -409,7 +18,9 @@ INVENTORY_TEMPLATE = """
             padding: 0;
         }
         
-        .main-content {
+        /* Header and navigation styles moved to global navigation.css file */
+        
+.main-content {
             padding: 30px;
             max-width: 1800px;
             margin: 0 auto;
@@ -1561,10 +1172,10 @@ INVENTORY_TEMPLATE = """
             
             <div class="navigation-card">
                 <div class="nav-links">
-                    <a href="/" class="nav-link">🔍 Port Tracer</a>
+                    <a href="/" class="nav-link">ðŸ” Port Tracer</a>
                     {% if user_role in ['netadmin', 'superadmin'] %}
-                    <a href="/vlan" class="nav-link">🔧 VLAN Manager</a>
-                    <a href="/inventory" class="nav-link active">🏢 Switch Management</a>
+                    <a href="/vlan" class="nav-link">ðŸ”§ VLAN Manager</a>
+                    <a href="/inventory" class="nav-link active">ðŸ¢ Switch Management</a>
                     {% endif %}
                 </div>
             </div>
@@ -1576,7 +1187,7 @@ INVENTORY_TEMPLATE = """
                         <div class="site-tree">
                             <div class="tree-header">
                                 <h2 class="tree-title">
-                                    <span>🏢</span>
+                                    <span>ðŸ¢</span>
                                     KMC Sites
                                 </h2>
                                 
@@ -1612,15 +1223,15 @@ INVENTORY_TEMPLATE = """
                 <div class="content-area">
             <div class="content-header">
                 <div class="breadcrumb">
-                    <span>🏢 Sites</span>
-                    <span class="breadcrumb-separator">›</span>
+                    <span>ðŸ¢ Sites</span>
+                    <span class="breadcrumb-separator">â€º</span>
                     <span id="current-site">Select a site</span>
-                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">›</span>
+                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">â€º</span>
                     <span class="current" id="current-floor" style="display: none;">Select a floor</span>
                 </div>
                 
                 <h1 class="floor-title" id="content-title">
-                    <span>📋</span>
+                    <span>ðŸ“‹</span>
                     Switch Inventory
                 </h1>
                 
@@ -1653,7 +1264,7 @@ INVENTORY_TEMPLATE = """
             <div class="switches-section" id="switches-section">
                 <div class="switches-header">
                     <h3 class="switches-title">
-                        <span>🔌</span>
+                        <span>ðŸ”Œ</span>
                         Switch Details
                     </h3>
                     
@@ -1674,7 +1285,7 @@ INVENTORY_TEMPLATE = """
                 
                 <div id="switches-content">
                     <div class="empty-state">
-                        <div class="empty-icon">🔍</div>
+                        <div class="empty-icon">ðŸ”</div>
                         <div class="empty-title">No Floor Selected</div>
                         <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                     </div>
@@ -1791,7 +1402,7 @@ INVENTORY_TEMPLATE = """
             if (sites.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">🏢</div>
+                        <div class="empty-icon">ðŸ¢</div>
                         <div class="empty-title">No Sites Found</div>
                         <div class="empty-description">No sites are configured in the system</div>
                     </div>
@@ -1827,19 +1438,19 @@ INVENTORY_TEMPLATE = """
                             <div class="site-header" onclick="toggleSite('${site.id}')" id="site-header-${site.id}">
                                 <div class="site-header-content">
                                     <div class="site-left">
-                                        <span>🏢</span>
+                                        <span>ðŸ¢</span>
                                         <span>${site.name}</span>
                                     </div>
                                     <div class="site-right">
                                         <div class="site-stats">
-                                            <span>${floorCount} floors • ${totalSwitches} switches</span>
+                                            <span>${floorCount} floors â€¢ ${totalSwitches} switches</span>
                                         </div>
                                         <div class="site-actions">
                                             <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
                                                 title="Edit site">
-                                                ✏️
+                                                âœï¸
                                             </button>
-                                            <div class="expand-icon">▶</div>
+                                            <div class="expand-icon">â–¶</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1858,7 +1469,7 @@ INVENTORY_TEMPLATE = """
         // Helper function to format floor names with 'F' prefix for numeric floors
         function formatFloorName(floorName) {
             // Check if floor name is just a number (like "1", "2", "11", etc.)
-            if (/^\\d+$/.test(floorName)) {
+            if (/^\d+$/.test(floorName)) {
                 return `F${floorName}`;
             }
             // For non-numeric floors like "GF", "PH", "B1", etc., return as-is
@@ -1878,13 +1489,13 @@ INVENTORY_TEMPLATE = """
                 return `
                     <div class="floor-item" onclick="selectFloor('${siteId}', '${siteName}', '${floor.id}', '${floor.name}')" id="floor-${floor.id}">
                         <div class="floor-name">
-                            <span>🏢</span>
+                            <span>ðŸ¢</span>
                             <span>${displayName}</span>
                         </div>
                         <div class="floor-switch-count">
                             <button class="action-btn" onclick="event.stopPropagation(); editFloor(${floor.id}, '${escapedName}', ${siteId})" 
                                 title="Edit floor">
-                                ✏️
+                                âœï¸
                             </button>
                         </div>
                     </div>
@@ -2002,7 +1613,7 @@ INVENTORY_TEMPLATE = """
             document.getElementById('floor-separator').style.display = 'inline';
             
             document.getElementById('content-title').innerHTML = `
-                <span>🏢</span>
+                <span>ðŸ¢</span>
                 ${displayFloorName} - Switch Inventory
             `;
             
@@ -2017,7 +1628,7 @@ INVENTORY_TEMPLATE = """
             document.getElementById('floor-separator').style.display = 'none';
             
             document.getElementById('content-title').innerHTML = `
-                <span>🏢</span>
+                <span>ðŸ¢</span>
                 ${siteName} - Switch Inventory
             `;
             
@@ -2102,7 +1713,7 @@ INVENTORY_TEMPLATE = """
             if (switches.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">🔌</div>
+                        <div class="empty-icon">ðŸ”Œ</div>
                         <div class="empty-title">No Switches Found</div>
                         <div class="empty-description">No switches match the current filter criteria</div>
                     </div>
@@ -2127,7 +1738,7 @@ INVENTORY_TEMPLATE = """
             
             switches.forEach(sw => {
                 const statusClass = sw.enabled ? 'active' : 'inactive';
-                const statusIcon = sw.enabled ? '✅' : '❌';
+                const statusIcon = sw.enabled ? 'âœ…' : 'âŒ';
                 const statusText = sw.enabled ? 'Active' : 'Inactive';
                 
                 html += `
@@ -2147,11 +1758,11 @@ INVENTORY_TEMPLATE = """
                         <td>
                             <div class="switch-actions">
                                 <button class="action-btn" onclick="editSwitch(${sw.id})" title="Edit switch">
-                                    ✏️ Edit
+                                    âœï¸ Edit
                                 </button>
                                 <button class="action-btn" onclick="deleteSwitch(${sw.id}, '${sw.name.replace(/'/g, "\\'")}')"
                                     title="Delete switch" style="color: #dc3545; border-color: #dc3545;">
-                                    🗑️ Delete
+                                    ðŸ—‘ï¸ Delete
                                 </button>
                             </div>
                         </td>
@@ -2324,7 +1935,7 @@ INVENTORY_TEMPLATE = """
                                title="Only letters, numbers, underscores, and hyphens allowed. No spaces or special characters.">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Create Site</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Create Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2367,7 +1978,7 @@ INVENTORY_TEMPLATE = """
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Create Floor</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Create Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2393,8 +2004,8 @@ INVENTORY_TEMPLATE = """
                                title="Valid IPv4 address required (e.g., 192.168.1.100)">
                     </div>
                         <div class="form-group">
-                            <label for="edit-switch-model">Model</label>
-                            <select id="edit-switch-model" required>
+                            <label for="switch-model">Model</label>
+                            <select id="switch-model" required>
                                 <option value="">Select switch model...</option>
                                 <optgroup label="Dell N2000 Series">
                                     <option value="Dell N2024" ${switchData.model === 'Dell N2024' ? 'selected' : ''}>Dell N2024</option>
@@ -2457,7 +2068,7 @@ INVENTORY_TEMPLATE = """
                         <label for="edit-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Update Switch</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Update Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2473,7 +2084,7 @@ INVENTORY_TEMPLATE = """
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">×</button>
+                        <button class="modal-close" onclick="closeModal()">Ã—</button>
                     </div>
                     <div class="modal-body">
                         ${content}
@@ -2566,7 +2177,7 @@ INVENTORY_TEMPLATE = """
                         <label for="new-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Add Switch</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Add Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2780,8 +2391,8 @@ INVENTORY_TEMPLATE = """
                         <input type="text" id="edit-site-name" name="name" value="${siteName}" required placeholder="e.g., NYC_MAIN" maxlength="50">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Update Site</button>
-                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">🗑️ Delete Site</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Update Site</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">ðŸ—‘ï¸ Delete Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2819,8 +2430,8 @@ INVENTORY_TEMPLATE = """
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">💾 Update Floor</button>
-                        <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">🗑️ Delete Floor</button>
+                        <button type="submit" class="btn-primary">ðŸ’¾ Update Floor</button>
+                        <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">ðŸ—‘ï¸ Delete Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2852,7 +2463,7 @@ INVENTORY_TEMPLATE = """
                         // Clear results and reset UI
                         document.getElementById('switches-content').innerHTML = `
                             <div class="empty-state">
-                                <div class="empty-icon">🔍</div>
+                                <div class="empty-icon">ðŸ”</div>
                                 <div class="empty-title">No Floor Selected</div>
                                 <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                             </div>
@@ -2892,7 +2503,7 @@ INVENTORY_TEMPLATE = """
                                     currentFloorData = null;
                                     document.getElementById('switches-content').innerHTML = `
                                         <div class="empty-state">
-                                            <div class="empty-icon">🔍</div>
+                                            <div class="empty-icon">ðŸ”</div>
                                             <div class="empty-title">No Floor Selected</div>
                                             <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                                         </div>
@@ -2998,13 +2609,13 @@ INVENTORY_TEMPLATE = """
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3><span>⚠️</span> ${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">×</button>
+                        <h3><span>âš ï¸</span> ${title}</h3>
+                        <button class="modal-close" onclick="closeModal()">Ã—</button>
                     </div>
                     <div class="modal-body">
                         <div class="delete-warning">
                             <div class="delete-warning-title">
-                                <span>🚨</span> Warning
+                                <span>ðŸš¨</span> Warning
                             </div>
                             <div class="delete-warning-text">
                                 ${message}
@@ -3015,7 +2626,7 @@ INVENTORY_TEMPLATE = """
                         </div>
                         <div class="delete-actions">
                             <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-                            <button class="btn-delete" id="confirm-delete-btn">🗑️ Delete</button>
+                            <button class="btn-delete" id="confirm-delete-btn">ðŸ—‘ï¸ Delete</button>
                         </div>
                     </div>
                 </div>
@@ -3033,7 +2644,7 @@ INVENTORY_TEMPLATE = """
         function showError(message) {
             document.getElementById('site-tree-container').innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">❌</div>
+                    <div class="empty-icon">âŒ</div>
                     <div class="empty-title">Error</div>
                     <div class="empty-description">${message}</div>
                 </div>
@@ -3042,1354 +2653,4 @@ INVENTORY_TEMPLATE = """
     </script>
 </body>
 </html>
-"""
 
-LOGIN_TEMPLATE = r"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dell Switch Port Tracer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        /* CSS Reset to prevent unwanted scrolling */
-        * {
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow-x: hidden; /* Prevent horizontal scroll */
-        }
-        
-        .login-page {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            height: 100vh; /* Ensure exact viewport height */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            position: relative; /* For absolute positioned elements */
-        }
-        .login-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-            padding: 50px;
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .logo-section {
-            margin-bottom: 40px;
-        }
-        .logo-section img {
-            height: 80px;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-        }
-        .app-title {
-            color: var(--deep-navy);
-            font-size: 28px;
-            font-weight: 700;
-            margin: 0 0 12px 0;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .app-subtitle {
-            color: #6b7280;
-            font-size: 16px;
-            margin: 0 0 40px 0;
-            font-weight: 500;
-            opacity: 0.8;
-        }
-        .form-group {
-            margin-bottom: 25px;
-            text-align: left;
-        }
-        .form-group label {
-            display: block;
-            color: var(--deep-navy);
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 15px;
-        }
-        .form-input {
-            width: 100%;
-            padding: 16px 20px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(5px);
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: var(--orange);
-            box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.1);
-            background: white;
-            transform: translateY(-2px);
-        }
-        .form-input::placeholder {
-            color: #9ca3af;
-            font-weight: 400;
-        }
-        .login-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--orange), #e68900);
-            color: white;
-            border: none;
-            padding: 18px 24px;
-            border-radius: 12px;
-            font-size: 17px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 10px;
-        }
-        .login-btn:hover {
-            background: linear-gradient(135deg, #e68900, #cc7700);
-            transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(255, 152, 0, 0.4);
-        }
-        .login-btn:active {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
-        }
-        .error-card {
-            background: rgba(254, 242, 242, 0.95);
-            border: 2px solid #fca5a5;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-top: 25px;
-            color: #dc2626;
-            font-size: 14px;
-            text-align: left;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
-        }
-        .error-card strong {
-            font-weight: 600;
-            display: block;
-            margin-bottom: 4px;
-        }
-        .feature-card {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(240, 249, 255, 0.8);
-            border: 1px solid rgba(186, 230, 253, 0.5);
-            border-radius: 12px;
-            backdrop-filter: blur(5px);
-        }
-        .feature-note {
-            color: #0369a1;
-            font-size: 13px;
-            line-height: 1.6;
-            text-align: left;
-        }
-        .feature-note strong {
-            color: var(--deep-navy);
-            font-weight: 600;
-        }
-        .version-badge {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            color: var(--deep-navy);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 40px 30px;
-                margin: 0 20px;
-                max-width: 400px;
-            }
-            .app-title {
-                font-size: 24px;
-            }
-            .app-subtitle {
-                font-size: 14px;
-            }
-            .version-badge {
-                position: relative;
-                top: auto;
-                right: auto;
-                margin-bottom: 20px;
-                display: inline-block;
-            }
-        }
-        /* Floating elements animation */
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        .logo-section img {
-            animation: float 6s ease-in-out infinite;
-        }
-    </style>
-</head>
-<body class="login-page">
-    <div class="version-badge">v2.1.2</div>
-    
-    <div class="login-container">
-        <div class="logo-section">
-            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo">
-            <h1 class="app-title">Switch Port Tracer</h1>
-            <p class="app-subtitle">Enterprise Network Management Portal</p>
-        </div>
-        
-        <form method="post">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" class="form-input" placeholder="Enter your username" required autofocus>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
-            </div>
-            <button type="submit" class="login-btn">🔐 Sign In</button>
-        </form>
-        
-        {% if error %}
-        <div class="error-card">
-            <strong>❌ Authentication Failed</strong>
-            {{ error }}
-        </div>
-        {% endif %}
-    </div>
-</body>
-</html>
-"""
-
-# MAIN_TEMPLATE was moved to external file templates/main.html
-
-@app.before_request
-def check_cpu_before_request():
-    """Monitor CPU load before processing compute-intensive requests.
-    
-    This function acts as a gatekeeper for resource-intensive operations like MAC tracing.
-    It checks system CPU load and rejects requests if the system is under high load to
-    prevent system overload and maintain service stability.
-    
-    CPU Load Monitoring:
-    - Green Zone (0-40%): All requests accepted
-    - Yellow Zone (40-60%): Limited concurrent requests
-    - Red Zone (60%+): New requests rejected with 503 status
-    
-    Only applies to compute-intensive endpoints like '/trace' to avoid impacting
-    regular web interface navigation and administrative functions.
-    
-    Returns:
-        None: Allows request to proceed
-        Response: 503 Service Unavailable if CPU load is too high
-    """
-    # Only check CPU for compute-intensive operations to avoid blocking UI navigation
-    if request.endpoint in ['trace']:
-        # Check if system can accept new requests based on current CPU load
-        can_accept, reason = cpu_monitor.can_accept_request()
-        if not can_accept:
-            # Log CPU-based request rejection for monitoring and troubleshooting
-            logger.warning(f"Request rejected due to high CPU load: {reason}")
-            audit_logger.warning(f"CPU Protection - Request rejected from {request.remote_addr}: {reason}")
-            return jsonify({
-                'status': 'error', 
-                'message': f'System under high load: {reason}. Please try again in a moment.',
-                'error_type': 'cpu_overload'
-            }), 503  # Service Unavailable
-
-# Routes
-@app.route('/cpu-status')
-def cpu_status():
-    """CPU monitoring status endpoint for admin users."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        stats = cpu_monitor.get_statistics()
-        return jsonify(stats), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/switch-protection-status')
-def switch_protection_status():
-    """Switch protection monitoring status endpoint for admin users."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    if not switch_monitor or not SWITCH_PROTECTION_AVAILABLE:
-        return jsonify({'error': 'Switch protection monitoring not available'}), 503
-    
-    try:
-        global_stats = switch_monitor.get_global_stats()
-        return jsonify({
-            'status': 'active',
-            'timestamp': datetime.now().isoformat(),
-            'global_stats': global_stats,
-            'configuration': {
-                'max_connections_per_switch': switch_monitor.max_connections_per_switch,
-                'max_total_connections': switch_monitor.max_total_connections,
-                'commands_per_second_limit': switch_monitor.commands_per_second_limit
-            }
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        user_info = verify_user(username, password)
-        if user_info:
-            # Use display name or actual username for session
-            display_name = user_info.get('display_name', username)
-            session_username = user_info.get('username', username)
-            
-            session['username'] = session_username
-            session['role'] = user_info['role']
-            session['display_name'] = display_name
-            session['auth_method'] = user_info.get('auth_method', 'local')
-            
-            auth_method = user_info.get('auth_method', 'local')
-            audit_logger.info(f"User: {session_username} ({user_info['role']}) - LOGIN SUCCESS via {auth_method}")
-            return redirect(url_for('index'))
-        else:
-            audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
-    
-    return render_template_string(LOGIN_TEMPLATE)
-
-@app.route('/logout')
-def logout():
-    username = session.get('username', 'Unknown')
-    session.pop('username', None)
-    audit_logger.info(f"User: {username} - LOGOUT")
-    return redirect(url_for('login'))
-
-@app.route('/')
-def index():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    # Get switches data (role-based filtering handled in frontend)
-    user_role = session.get('role', 'oss')
-    formatted_data = format_switches_for_frontend()
-    return render_template('main.html', 
-                         username=session['username'],
-                         user_role=user_role,
-                         sites=formatted_data.get('sites', []),
-                         sites_json=json.dumps(formatted_data))
-
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Kubernetes liveness and readiness probes."""
-    try:
-# Use PostgreSQL to check if switches configuration is available
-        try:
-            site_count = Site.query.count()
-            if site_count == 0:
-                return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
-            return jsonify({
-                'status': 'healthy',
-            })
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return jsonify({'status': 'unhealthy', 'reason': 'Database connection failed'}), 503
-        
-        return jsonify({
-            'status': 'healthy',
-            'version': '1.0.0',
-            'timestamp': datetime.now().isoformat(),
-            'sites_count': len(switches_config.get('sites', {})),
-            'windows_auth': WINDOWS_AUTH_AVAILABLE
-        }), 200
-    except Exception as e:
-        return jsonify({
-            'status': 'unhealthy',
-            'reason': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 503
-
-# Utility functions (is_valid_mac, get_mac_format_error_message) moved to utils.py module
-
-@app.route('/trace', methods=['POST'])
-def trace():
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    data = request.json
-    site = data.get('site')
-    floor = data.get('floor')
-    mac = data.get('mac')
-    username = session['username']
-    
-    if not all([site, floor, mac]):
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    # MAC address validation to prevent command injection
-    if not is_valid_mac(mac):
-        audit_logger.warning(f"User: {username} - INVALID MAC FORMAT - MAC: {mac}")
-        detailed_error = get_mac_format_error_message(mac)
-        return jsonify(detailed_error), 400
-    
-    # Log the trace request
-    audit_logger.info(f"User: {username} - TRACE REQUEST - Site: {site}, Floor: {floor}, MAC: {mac}")
-    
-    # Get switches for the specified site and floor
-    switches = get_site_floor_switches(site, floor)
-    
-    if not switches:
-        audit_logger.warning(f"User: {username} - NO SWITCHES FOUND - Site: {site}, Floor: {floor}")
-        return jsonify({'error': 'No switches found for specified site and floor'}), 404
-    
-    # Trace MAC address
-    results = trace_mac_on_switches(switches, mac, username)
-    
-    # Apply role-based filtering
-    user_role = session.get('role', 'oss')
-    filtered_results = apply_role_based_filtering(results, user_role)
-    
-    # Sort results to prioritize interface ports (Gi) over uplink ports (Te/Tw)
-    def get_port_priority(result):
-        if result['status'] != 'found':
-            return 999  # Put non-found results at the end
-        
-        port_name = result.get('port', '')
-        # Priority: Gi ports (access/interface) first, then Te/Tw (uplink) ports
-        if port_name.startswith('Gi'):
-            return 1  # Highest priority for Gigabit Ethernet (interface ports)
-        elif port_name.startswith('Te'):
-            return 2  # Lower priority for TenGig (uplink ports)
-        elif port_name.startswith('Tw'):
-            return 3  # Lowest priority for TwentyGig (uplink ports)
-        else:
-            return 4  # Other port types
-    
-    sorted_results = sorted(filtered_results, key=get_port_priority)
-    
-    return jsonify(sorted_results)
-
-# CRUD Routes for Switch Management (NetAdmin/SuperAdmin only)
-
-@app.route('/inventory')
-def switch_inventory():
-    """Hierarchical switch inventory interface for network administrators."""
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    return render_template_string(INVENTORY_TEMPLATE, username=session['username'], user_role=user_role)
-
-@app.route('/api/switches')
-def api_get_switches():
-    """API endpoint to get all switches with their sites and floors."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        switches = db.session.query(Switch, Floor, Site).join(Floor, Switch.floor_id == Floor.id).join(Site, Floor.site_id == Site.id).all()
-        
-        switches_data = []
-        for switch, floor, site in switches:
-            switches_data.append({
-                'id': switch.id,
-                'name': switch.name,
-                'ip_address': switch.ip_address,
-                'model': switch.model,
-                'description': switch.description or '',
-                'enabled': switch.enabled,
-                'site_name': site.name,
-                'floor_name': floor.name,
-                'site_id': site.id,
-                'floor_id': floor.id
-            })
-        
-        return jsonify(switches_data)
-    except Exception as e:
-        logger.error(f"Error fetching switches: {str(e)}")
-        return jsonify({'error': 'Failed to fetch switches'}), 500
-
-@app.route('/api/sites')
-def api_get_sites():
-    """API endpoint to get all sites and their floors."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        sites = Site.query.all()
-        sites_data = []
-        
-        for site in sites:
-            floors_data = []
-            for floor in site.floors:
-                floors_data.append({
-                    'id': floor.id,
-                    'name': floor.name
-                })
-            
-            sites_data.append({
-                'id': site.id,
-                'name': site.name,
-                'floors': floors_data
-            })
-        
-        return jsonify(sites_data)
-    except Exception as e:
-        logger.error(f"Error fetching sites: {str(e)}")
-        return jsonify({'error': 'Failed to fetch sites'}), 500
-
-@app.route('/api/sites', methods=['POST'])
-def api_create_site():
-    """API endpoint to create a new site."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        data = request.json
-        username = session['username']
-        
-        # Validate required fields
-        if not data.get('name'):
-            return jsonify({'error': 'Missing required field: name'}), 400
-        
-        # Check if site name already exists
-        existing_site = Site.query.filter(Site.name == data['name']).first()
-        if existing_site:
-            return jsonify({'error': 'Site name already exists'}), 400
-        
-        # Create new site
-        new_site = Site(name=data['name'])
-        db.session.add(new_site)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SITE CREATED - {data['name']}")
-        
-        return jsonify({'message': 'Site created successfully', 'id': new_site.id}), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating site: {str(e)}")
-        return jsonify({'error': 'Failed to create site'}), 500
-
-@app.route('/api/sites/<int:site_id>', methods=['PUT'])
-def api_update_site(site_id):
-    """API endpoint to update an existing site."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        site = Site.query.get_or_404(site_id)
-        data = request.json
-        username = session['username']
-        
-        # Store old value for audit log
-        old_name = site.name
-        
-        # Check if new name conflicts with other sites
-        if data.get('name') and data['name'] != site.name:
-            existing = Site.query.filter(Site.name == data['name'], Site.id != site_id).first()
-            if existing:
-                return jsonify({'error': 'Site name already exists'}), 400
-        
-        # Update site fields
-        if 'name' in data:
-            site.name = data['name']
-        
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SITE UPDATED - {old_name} -> {site.name}")
-        
-        return jsonify({'message': 'Site updated successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating site: {str(e)}")
-        return jsonify({'error': 'Failed to update site'}), 500
-
-@app.route('/api/sites/<int:site_id>', methods=['DELETE'])
-def api_delete_site(site_id):
-    """API endpoint to delete a site and all associated floors and switches."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        site = Site.query.get_or_404(site_id)
-        username = session['username']
-        
-        # Store values for audit log
-        site_name = site.name
-        floor_count = len(site.floors)
-        switch_count = sum(len(floor.switches) for floor in site.floors)
-        
-        # Delete site (cascading deletes will handle floors and switches)
-        db.session.delete(site)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SITE DELETED - {site_name} (with {floor_count} floors and {switch_count} switches)")
-        
-        return jsonify({'message': 'Site deleted successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting site: {str(e)}")
-        return jsonify({'error': 'Failed to delete site'}), 500
-
-@app.route('/api/floors', methods=['POST'])
-def api_create_floor():
-    """API endpoint to create a new floor."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        data = request.json
-        username = session['username']
-        
-        # Validate required fields
-        required_fields = ['name', 'site_id']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Check if site exists
-        site = Site.query.get(data['site_id'])
-        if not site:
-            return jsonify({'error': 'Site not found'}), 404
-        
-        # Check if floor name already exists in this site
-        existing_floor = Floor.query.filter(
-            Floor.name == data['name'], 
-            Floor.site_id == data['site_id']
-        ).first()
-        if existing_floor:
-            return jsonify({'error': 'Floor name already exists in this site'}), 400
-        
-        # Create new floor
-        new_floor = Floor(
-            name=data['name'],
-            site_id=data['site_id']
-        )
-        db.session.add(new_floor)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - FLOOR CREATED - {data['name']} in site {site.name}")
-        
-        return jsonify({'message': 'Floor created successfully', 'id': new_floor.id}), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating floor: {str(e)}")
-        return jsonify({'error': 'Failed to create floor'}), 500
-
-@app.route('/api/floors/<int:floor_id>', methods=['PUT'])
-def api_update_floor(floor_id):
-    """API endpoint to update an existing floor."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        floor = Floor.query.get_or_404(floor_id)
-        data = request.json
-        username = session['username']
-        
-        # Store old values for audit log
-        old_name = floor.name
-        old_site_name = floor.site.name
-        
-        # Check if new name conflicts with other floors in the same site
-        if data.get('name') and data['name'] != floor.name:
-            site_id = data.get('site_id', floor.site_id)
-            existing = Floor.query.filter(
-                Floor.name == data['name'], 
-                Floor.site_id == site_id,
-                Floor.id != floor_id
-            ).first()
-            if existing:
-                return jsonify({'error': 'Floor name already exists in this site'}), 400
-        
-        # Update floor fields
-        if 'name' in data:
-            floor.name = data['name']
-        if 'site_id' in data:
-            # Verify new site exists
-            new_site = Site.query.get(data['site_id'])
-            if not new_site:
-                return jsonify({'error': 'New site not found'}), 404
-            floor.site_id = data['site_id']
-        
-        db.session.commit()
-        
-        # Log the action
-        new_site_name = floor.site.name
-        audit_logger.info(f"User: {username} - FLOOR UPDATED - {old_name} in {old_site_name} -> {floor.name} in {new_site_name}")
-        
-        return jsonify({'message': 'Floor updated successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating floor: {str(e)}")
-        return jsonify({'error': 'Failed to update floor'}), 500
-
-@app.route('/api/floors/<int:floor_id>', methods=['DELETE'])
-def api_delete_floor(floor_id):
-    """API endpoint to delete a floor and all associated switches."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        floor = Floor.query.get_or_404(floor_id)
-        username = session['username']
-        
-        # Store values for audit log
-        floor_name = floor.name
-        site_name = floor.site.name
-        switch_count = len(floor.switches)
-        
-        # Delete floor (cascading deletes will handle switches)
-        db.session.delete(floor)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - FLOOR DELETED - {floor_name} in site {site_name} (with {switch_count} switches)")
-        
-        return jsonify({'message': 'Floor deleted successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting floor: {str(e)}")
-        return jsonify({'error': 'Failed to delete floor'}), 500
-
-@app.route('/api/switches', methods=['POST'])
-def api_create_switch():
-    """API endpoint to create a new switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        data = request.json
-        username = session['username']
-        
-        # Validate required fields
-        required_fields = ['name', 'ip_address', 'model', 'floor_id']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Check if switch name or IP already exists
-        existing_switch = Switch.query.filter(
-            (Switch.name == data['name']) | (Switch.ip_address == data['ip_address'])
-        ).first()
-        
-        if existing_switch:
-            return jsonify({'error': 'Switch name or IP address already exists'}), 400
-        
-        # Create new switch
-        new_switch = Switch(
-            name=data['name'],
-            ip_address=data['ip_address'],
-            model=data['model'],
-            description=data.get('description', ''),
-            enabled=data.get('enabled', True),
-            floor_id=data['floor_id']
-        )
-        
-        db.session.add(new_switch)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH CREATED - {data['name']} ({data['ip_address']})")
-        
-        return jsonify({'message': 'Switch created successfully', 'id': new_switch.id}), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating switch: {str(e)}")
-        return jsonify({'error': 'Failed to create switch'}), 500
-
-@app.route('/api/switches/<int:switch_id>', methods=['PUT'])
-def api_update_switch(switch_id):
-    """API endpoint to update an existing switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        switch = Switch.query.get_or_404(switch_id)
-        data = request.json
-        username = session['username']
-        
-        # Store old values for audit log
-        old_name = switch.name
-        old_ip = switch.ip_address
-        
-        # Check if new name or IP conflicts with other switches
-        if data.get('name') and data['name'] != switch.name:
-            existing = Switch.query.filter(Switch.name == data['name'], Switch.id != switch_id).first()
-            if existing:
-                return jsonify({'error': 'Switch name already exists'}), 400
-        
-        if data.get('ip_address') and data['ip_address'] != switch.ip_address:
-            existing = Switch.query.filter(Switch.ip_address == data['ip_address'], Switch.id != switch_id).first()
-            if existing:
-                return jsonify({'error': 'IP address already exists'}), 400
-        
-        # Update switch fields
-        if 'name' in data:
-            switch.name = data['name']
-        if 'ip_address' in data:
-            switch.ip_address = data['ip_address']
-        if 'model' in data:
-            switch.model = data['model']
-        if 'description' in data:
-            switch.description = data['description']
-        if 'enabled' in data:
-            switch.enabled = data['enabled']
-        if 'floor_id' in data:
-            switch.floor_id = data['floor_id']
-        
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH UPDATED - {old_name} ({old_ip}) -> {switch.name} ({switch.ip_address})")
-        
-        return jsonify({'message': 'Switch updated successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating switch: {str(e)}")
-        return jsonify({'error': 'Failed to update switch'}), 500
-
-@app.route('/api/switches/<int:switch_id>', methods=['DELETE'])
-def api_delete_switch(switch_id):
-    """API endpoint to delete a switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        switch = Switch.query.get_or_404(switch_id)
-        username = session['username']
-        
-        # Store values for audit log
-        switch_name = switch.name
-        switch_ip = switch.ip_address
-        
-        db.session.delete(switch)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH DELETED - {switch_name} ({switch_ip})")
-        
-        return jsonify({'message': 'Switch deleted successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting switch: {str(e)}")
-        return jsonify({'error': 'Failed to delete switch'}), 500
-
-## VLAN Management API
-
-@app.route('/api/switches/list', methods=['GET'])
-def api_get_switches_list():
-    """API endpoint to retrieve list of switches for dropdowns with site/floor info."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin', 'oss']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-
-    try:
-        # Join with floors and sites to get complete information
-        switches = db.session.query(Switch, Floor, Site).join(
-            Floor, Switch.floor_id == Floor.id
-        ).join(
-            Site, Floor.site_id == Site.id
-        ).filter(Switch.enabled == True).all()
-        
-        switches_list = []
-        for switch, floor, site in switches:
-            switches_list.append({
-                'id': switch.id,
-                'name': switch.name,
-                'ip_address': switch.ip_address,
-                'model': switch.model,
-                'description': switch.description or '',
-                'site_name': site.name,
-                'floor_name': floor.name,
-                'site_id': site.id,
-                'floor_id': floor.id
-            })
-        return jsonify(switches_list)
-    except Exception as e:
-        logger.error(f"Failed to retrieve switches: {str(e)}")
-        return jsonify({'error': 'Failed to retrieve switches'}), 500
-
-# Legacy placeholder routes removed - functionality implemented in vlan_management_v2.py
-# Active routes:
-# - /api/vlan/change (POST) - Advanced VLAN management (implemented below)
-# - /api/vlan/check (POST) - VLAN existence check (implemented below)
-# - /api/port/status (POST) - Port status check (implemented below)
-
-@app.route('/vlan')
-def vlan_management():
-    """Advanced VLAN management interface."""
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    # Load the new advanced VLAN template
-    try:
-        with open('vlan_template_v2.html', 'r', encoding='utf-8') as f:
-            vlan_template = f.read()
-    except FileNotFoundError:
-        # Fallback to old template if new one doesn't exist
-        try:
-            with open('vlan_template.html', 'r', encoding='utf-8') as f:
-                vlan_template = f.read()
-        except FileNotFoundError:
-            return jsonify({'error': 'VLAN template not found'}), 500
-    except Exception as e:
-        logger.error(f"Error reading VLAN template: {str(e)}")
-        return jsonify({'error': 'Error loading VLAN template'}), 500
-    
-    return render_template_string(vlan_template, username=session['username'], user_role=user_role)
-
-# Import and add advanced VLAN management routes
-from vlan_management_v2 import vlan_change_workflow, add_vlan_management_routes
-
-@app.route('/api/vlan/change', methods=['POST'])
-def api_change_port_vlan_advanced():
-    """
-    Advanced VLAN Change API Endpoint (v2.1.2)
-    ==========================================
-    
-    Provides comprehensive VLAN management with enterprise-grade input validation,
-    security checks, and detailed audit logging. This endpoint implements the
-    enhanced VLAN Manager security features introduced in version 2.1.2.
-    
-    SECURITY FEATURES:
-    - Multi-layer input validation to prevent command injection attacks
-    - Enterprise-grade port format validation (Dell switch compatibility)
-    - VLAN ID validation according to IEEE 802.1Q standards
-    - VLAN name validation with business naming convention support
-    - Port description sanitization to prevent CLI command injection
-    - Comprehensive audit logging for security compliance
-    
-    VALIDATION DETAILS:
-    - Port formats: Supports Dell interface naming (Gi, Te, Tw) with ranges
-    - VLAN IDs: 1-4094 (IEEE standard), excludes reserved VLANs (0, 4095)
-    - VLAN names: Enterprise naming conventions (Zone_Client_Name, etc.)
-    - Descriptions: Safe characters only, max 200 chars, no injection patterns
-    
-    ACCESS CONTROL:
-    - Requires authentication (session-based)
-    - NetAdmin or SuperAdmin role required
-    - All security violations logged for audit
-    
-    Returns:
-        dict: VLAN change results or detailed validation error messages
-    """
-    # Authentication and authorization checks
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        data = request.json
-        username = session['username']
-        
-        # Validate required fields are present
-        required_fields = ['switch_id', 'ports', 'vlan_id', 'vlan_name']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Import enterprise-grade validation functions from VLAN Manager v2
-        from vlan_management_v2 import (is_valid_port_input, is_valid_port_description, 
-                                        is_valid_vlan_id, is_valid_vlan_name,
-                                        get_port_format_error_message, get_vlan_format_error_message)
-        
-        # SECURITY CHECKPOINT 1: Validate port input format
-        # Prevents command injection through malformed port specifications
-        ports_input = data.get('ports', '').strip()
-        if not is_valid_port_input(ports_input):
-            # Log security violation for audit trail
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT FORMAT - Attempted: {ports_input}")
-            detailed_error = get_port_format_error_message(ports_input)
-            return jsonify(detailed_error), 400
-        
-        # SECURITY CHECKPOINT 2: Validate VLAN ID according to IEEE standards
-        # Ensures VLAN ID is within valid range and prevents injection
-        vlan_id = data.get('vlan_id')
-        if not is_valid_vlan_id(vlan_id):
-            # Log security violation for audit trail
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN ID - Attempted: {vlan_id}")
-            detailed_error = get_vlan_format_error_message('vlan_id', str(vlan_id))
-            return jsonify(detailed_error), 400
-        
-        # SECURITY CHECKPOINT 3: Validate VLAN name for business standards
-        # Prevents command injection and enforces enterprise naming conventions
-        vlan_name = data.get('vlan_name', '').strip()
-        if not is_valid_vlan_name(vlan_name):
-            # Log security violation for audit trail
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN NAME - Attempted: {vlan_name}")
-            detailed_error = get_vlan_format_error_message('vlan_name', vlan_name)
-            return jsonify(detailed_error), 400
-        
-        # SECURITY CHECKPOINT 4: Validate port description (optional but critical)
-        # Sanitizes description to prevent CLI command injection attacks
-        description = data.get('description', '').strip()
-        if description and not is_valid_port_description(description):
-            # Log security violation for audit trail
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT DESCRIPTION - Attempted: {description}")
-            detailed_error = get_vlan_format_error_message('description', description)
-            return jsonify(detailed_error), 400
-        
-        # Process optional workflow control flags
-        force_change = data.get('force_change', False)
-        skip_non_access = data.get('skip_non_access', False)
-        
-        # Execute VLAN change workflow with validated and sanitized inputs
-        # All inputs have passed security validation at this point
-        result = vlan_change_workflow(
-            switch_id=data['switch_id'],
-            ports_input=ports_input,        # Validated port format
-            description=description,         # Sanitized description
-            vlan_id=vlan_id,                # Validated VLAN ID
-            vlan_name=vlan_name,            # Validated VLAN name
-            force_change=force_change,
-            skip_non_access=skip_non_access
-        )
-        
-        # Comprehensive audit logging for security compliance
-        if result['status'] == 'success':
-            audit_logger.info(f"User: {username} - VLAN CHANGE SUCCESS - Switch: {result.get('switch_info', {}).get('name', 'unknown')}, VLAN: {vlan_id} ({vlan_name}), Ports: {ports_input}, Changed: {len(result.get('ports_changed', []))}")
-        else:
-            audit_logger.warning(f"User: {username} - VLAN CHANGE FAILED - Switch ID: {data['switch_id']}, VLAN: {vlan_id}, Error: {result.get('error', 'unknown')}")
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        # Log unexpected errors for debugging and security monitoring
-        logger.error(f"VLAN change API unexpected error: {str(e)}")
-        audit_logger.error(f"User: {session.get('username', 'unknown')} - VLAN CHANGE API ERROR: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-
-@app.route('/api/vlan/check', methods=['POST'])
-def api_check_vlan():
-    """
-    VLAN Existence Check API Endpoint (v2.1.2)
-    ==========================================
-    
-    Secure API endpoint for checking VLAN existence on Dell switches with
-    comprehensive input validation and security features.
-    
-    SECURITY FEATURES:
-    - IEEE 802.1Q VLAN ID validation (1-4094 range)
-    - Command injection prevention through strict input validation
-    - Comprehensive audit logging for security compliance
-    - Authentication and role-based authorization
-    
-    FUNCTIONALITY:
-    - Connects to specified switch via secure SSH
-    - Queries VLAN table for existence verification
-    - Returns VLAN details including name and configuration status
-    - Supports multiple Dell switch models (N2000, N3000, N3200)
-    
-    SUPPORTED MODELS:
-    - Dell N2048 (N2000 series) with specialized command handling
-    - Dell N3000 series switches
-    - Dell N3200 series switches (N3248)
-    
-    ACCESS CONTROL:
-    - NetAdmin or SuperAdmin role required
-    - Session-based authentication
-    - All invalid attempts logged for security monitoring
-    
-    Returns:
-        dict: VLAN information or detailed validation error messages
-    """
-    # Authentication and authorization validation
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        from vlan_management_v2 import VLANManager, is_valid_vlan_id, get_vlan_format_error_message
-        data = request.json
-        username = session['username']
-        switch_id = data.get('switch_id')
-        vlan_id = data.get('vlan_id')
-        
-        # Validate required parameters
-        if not all([switch_id, vlan_id]):
-            return jsonify({'error': 'Missing switch_id or vlan_id'}), 400
-        
-        # SECURITY CHECKPOINT: Validate VLAN ID according to IEEE 802.1Q standards
-        # Prevents command injection and ensures compliance with VLAN standards
-        if not is_valid_vlan_id(vlan_id):
-            # Log security violation with detailed information for audit
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN ID - Switch ID: {switch_id}, Attempted VLAN: {vlan_id}")
-            detailed_error = get_vlan_format_error_message('vlan_id', str(vlan_id))
-            return jsonify(detailed_error), 400
-        
-        # Database query to retrieve switch information
-        switch = Switch.query.get(switch_id)
-        if not switch:
-            audit_logger.warning(f"User: {username} - VLAN CHECK FAILED - Switch not found: ID {switch_id}")
-            return jsonify({'error': 'Switch not found'}), 404
-        
-        # Initialize secure VLAN manager connection
-        vlan_manager = VLANManager(
-            switch.ip_address,
-            SWITCH_USERNAME,
-            SWITCH_PASSWORD,
-            switch.model
-        )
-        
-        # Attempt secure SSH connection to switch
-        if not vlan_manager.connect():
-            audit_logger.error(f"User: {username} - VLAN CHECK CONNECTION FAILED - Switch: {switch.name} ({switch.ip_address})")
-            return jsonify({'error': 'Could not connect to switch'}), 500
-        
-        try:
-            # Execute VLAN existence check with model-specific command handling
-            vlan_info = vlan_manager.get_vlan_info(vlan_id)
-            
-            # Log successful VLAN check for audit trail
-            audit_logger.info(f"User: {username} - VLAN CHECK SUCCESS - Switch: {switch.name} ({switch.ip_address}), VLAN: {vlan_id}, Exists: {vlan_info.get('exists', False)}")
-            
-            return jsonify(vlan_info)
-            
-        finally:
-            # Always ensure secure disconnection from switch
-            vlan_manager.disconnect()
-            
-    except Exception as e:
-        # Log unexpected errors for security monitoring and debugging
-        logger.error(f"VLAN check API unexpected error: {str(e)}")
-        audit_logger.error(f"User: {session.get('username', 'unknown')} - VLAN CHECK API ERROR - Switch ID: {switch_id}, VLAN: {vlan_id}, Error: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-
-@app.route('/api/port/status', methods=['POST'])
-def api_check_port_status():
-    """
-    Port Status Check API Endpoint (v2.1.2)
-    =======================================
-    
-    Secure API endpoint for retrieving detailed port status information from
-    Dell switches with comprehensive input validation and security features.
-    
-    SECURITY FEATURES:
-    - Enterprise-grade port format validation (Dell switch compatibility)
-    - Command injection prevention through strict input validation
-    - Comprehensive audit logging for security compliance
-    - Authentication and role-based authorization
-    
-    FUNCTIONALITY:
-    - Connects to specified switch via secure SSH
-    - Retrieves port operational status (up/down)
-    - Queries port mode configuration (access/trunk/general)
-    - Returns VLAN assignments and descriptions
-    - Identifies uplink ports based on model and description
-    
-    PORT INFORMATION RETURNED:
-    - Operational status (up/down/unknown)
-    - Port mode (access/trunk/general)
-    - Current VLAN assignment
-    - Port description (if configured)
-    - Uplink detection flag
-    - Raw configuration output for debugging
-    
-    SUPPORTED MODELS:
-    - Dell N2048 (N2000 series) with specialized command handling
-    - Dell N3000 series switches
-    - Dell N3200 series switches (N3248)
-    
-    ACCESS CONTROL:
-    - NetAdmin or SuperAdmin role required
-    - Session-based authentication
-    - All invalid attempts logged for security monitoring
-    
-    Returns:
-        dict: Port status information or detailed validation error messages
-    """
-    # Authentication and authorization validation
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        from vlan_management_v2 import VLANManager, is_valid_port_input, get_port_format_error_message
-        data = request.json
-        username = session['username']
-        switch_id = data.get('switch_id')
-        ports_input = data.get('ports', '').strip()
-        
-        # Validate required parameters
-        if not all([switch_id, ports_input]):
-            return jsonify({'error': 'Missing switch_id or ports'}), 400
-        
-        # SECURITY CHECKPOINT: Validate port input format
-        # Prevents command injection through malformed port specifications
-        if not is_valid_port_input(ports_input):
-            # Log security violation with detailed information for audit
-            audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID PORT FORMAT - Switch ID: {switch_id}, Attempted Ports: {ports_input}")
-            detailed_error = get_port_format_error_message(ports_input)
-            return jsonify(detailed_error), 400
-        
-        # Database query to retrieve switch information
-        switch = Switch.query.get(switch_id)
-        if not switch:
-            audit_logger.warning(f"User: {username} - PORT STATUS CHECK FAILED - Switch not found: ID {switch_id}")
-            return jsonify({'error': 'Switch not found'}), 404
-        
-        # Initialize secure VLAN manager connection
-        vlan_manager = VLANManager(
-            switch.ip_address,
-            SWITCH_USERNAME,
-            SWITCH_PASSWORD,
-            switch.model
-        )
-        
-        # Attempt secure SSH connection to switch
-        if not vlan_manager.connect():
-            audit_logger.error(f"User: {username} - PORT STATUS CONNECTION FAILED - Switch: {switch.name} ({switch.ip_address})")
-            return jsonify({'error': 'Could not connect to switch'}), 500
-        
-        try:
-            # Parse and validate port specifications
-            ports = vlan_manager.parse_port_range(ports_input)
-            port_statuses = []
-            
-            # Query each port for detailed status information
-            for port in ports:
-                # Get comprehensive port status including mode, VLAN, and description
-                status = vlan_manager.get_port_status(port)
-                
-                # Add uplink detection based on switch model and port characteristics
-                status['is_uplink'] = vlan_manager.is_uplink_port(port)
-                
-                port_statuses.append(status)
-            
-            # Log successful port status check for audit trail
-            audit_logger.info(f"User: {username} - PORT STATUS SUCCESS - Switch: {switch.name} ({switch.ip_address}), Ports: {ports_input}, Count: {len(port_statuses)}")
-            
-            return jsonify({
-                'ports': port_statuses,
-                'switch_model': switch.model,
-                'switch_name': switch.name,
-                'switch_ip': switch.ip_address
-            })
-            
-        finally:
-            # Always ensure secure disconnection from switch
-            vlan_manager.disconnect()
-            
-    except Exception as e:
-        # Log unexpected errors for security monitoring and debugging
-        logger.error(f"Port status API unexpected error: {str(e)}")
-        audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id}, Ports: {ports_input}, Error: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-
-
-if __name__ == '__main__':
-    print("🔌 Starting Dell Switch Port Tracer Web Service...")
-    print(f"📊 Web Interface: http://localhost:5000")
-    print("👤 Available Users:")
-    print("   • OSS: oss / oss123 (Limited access)")
-    print("   • NetAdmin: netadmin / netadmin123 (Full access)")
-    print("   • SuperAdmin: superadmin / superadmin123 (Full access)")
-    print("   • Legacy: admin / password (Full access)") 
-    print("📝 Logs: port_tracer.log (system) | audit.log (user actions)")
-    print("🔒 Features: Role-based VLAN filtering, Dell uplink detection")
-    
-    # Production configuration
-    app.run(debug=False, host='0.0.0.0', port=5000)

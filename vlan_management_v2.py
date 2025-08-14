@@ -1376,10 +1376,21 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         port_statuses = []
         active_or_non_access_ports = []
         safe_ports = []
+        ports_already_correct = []  # New: track ports already set to target VLAN
         
         for port in ports:
             status = vlan_manager.get_port_status(port)
             port_statuses.append(status)
+            
+            # Check if port is already configured with the target VLAN
+            if status['current_vlan'] == str(vlan_id):
+                ports_already_correct.append({
+                    'port': port,
+                    'reason': f'Port already assigned to VLAN {vlan_id}',
+                    'current_status': status
+                })
+                logger.info(f"Port {port} already configured with target VLAN {vlan_id}, will be skipped")
+                continue  # Skip further processing for this port
             
             # Check if port is active or not in access mode (up and/or not access mode)
             is_active_or_non_access = False
@@ -1425,14 +1436,18 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         final_ports = []
         skipped_ports = []
         
+        # Add already correct ports to skipped list
+        skipped_ports.extend([p['port'] for p in ports_already_correct])
+        
         if skip_non_access:
             final_ports = safe_ports
-            skipped_ports = [p['port'] for p in active_or_non_access_ports]
+            skipped_ports.extend([p['port'] for p in active_or_non_access_ports])
         elif force_change:
-            final_ports = [port for port in ports if not vlan_manager.is_uplink_port(port)]
-            # Still respect uplink protection even with force
+            # Still respect uplink protection even with force, and exclude already correct ports
+            final_ports = [port for port in ports if not vlan_manager.is_uplink_port(port) and port not in skipped_ports]
         else:
-            final_ports = ports
+            # Exclude already correct ports from final ports list
+            final_ports = [port for port in ports if port not in skipped_ports]
         
         # Execute VLAN operation
         results = {
@@ -1492,6 +1507,7 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             'changed': len(results['ports_changed']),
             'failed': len(results['ports_failed']),
             'skipped': len(results['ports_skipped']),
+            'already_correct': len(ports_already_correct),
             'uplink_protected': len([p for p in ports if vlan_manager.is_uplink_port(p)])
         }
         
@@ -1514,6 +1530,15 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             # VLAN operation performed
             if results['vlan_operation_result']:
                 success_parts.append(results['vlan_operation_result'])
+                
+            # Add information about skipped ports that were already correct
+            if ports_already_correct:
+                already_correct_count = len(ports_already_correct)
+                already_correct_ports = [p['port'] for p in ports_already_correct]
+                port_list = ', '.join(already_correct_ports[:5])
+                if len(already_correct_ports) > 5:
+                    port_list += f" and {len(already_correct_ports) - 5} more"
+                success_parts.append(f"Skipped {already_correct_count} ports already assigned to VLAN {vlan_id}: {port_list}")
             
             results['success_message'] = '\n'.join(success_parts)
         else:
