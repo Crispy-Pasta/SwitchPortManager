@@ -74,10 +74,10 @@ from utils import (
     apply_role_based_filtering, load_switches_from_database
 )
 try:
-    from api_routes import register_api_routes
+    from api_routes import api_bp
 except ImportError:
     # API routes module not available, will handle routes directly in main file
-    pass
+    api_bp = None
 
 # Windows Authentication availability flag
 WINDOWS_AUTH_AVAILABLE = True  # Set by auth module
@@ -112,12 +112,6 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # Initialize database
 from database import db, Site, Floor, Switch
 db.init_app(app)
-
-# Configuration
-SWITCH_USERNAME = os.getenv('SWITCH_USERNAME')
-SWITCH_PASSWORD = os.getenv('SWITCH_PASSWORD')
-
-# User roles and credentials are now loaded from auth module
 
 # Configure logging with optional syslog support
 handlers = [
@@ -160,6 +154,19 @@ logging.basicConfig(
     handlers=handlers
 )
 logger = logging.getLogger(__name__)
+
+# Register API blueprint if available
+if api_bp:
+    app.register_blueprint(api_bp)
+    logger.info("API routes blueprint registered successfully")
+else:
+    logger.warning("API routes blueprint not available")
+
+# Configuration
+SWITCH_USERNAME = os.getenv('SWITCH_USERNAME')
+SWITCH_PASSWORD = os.getenv('SWITCH_PASSWORD')
+
+# User roles and credentials are now loaded from auth module
 
 # CPU Safety configuration (override concurrent limits based on CPU protection zones)
 cpu_monitor = initialize_cpu_monitor(
@@ -1720,6 +1727,462 @@ MAIN_TEMPLATE = """
 </html>
 """
 
+# Inventory Template with Site and Floor Management
+INVENTORY_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Site & Switch Inventory</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5.0">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        .inventory-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            max-width: 350px;
+        }
+        .right-panel {
+            flex: 2;
+            min-width: 600px;
+        }
+        .section {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--light-blue);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section h3 {
+            margin: 0 0 15px 0;
+            color: var(--deep-navy);
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .form-row input, .form-row select {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--light-blue);
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: var(--orange);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--deep-navy);
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 300px;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .toast.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        .toast.error {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            background: #f8fafc;
+        }
+        .list-item:hover {
+            background: #e2e8f0;
+        }
+        .list-item-content {
+            flex: 1;
+        }
+        .list-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="main-page">
+    <div class="container">
+        <div class="user-info">Logged in as: {{ username }} | <a href="/logout">Logout</a></div>
+        <div style="text-align:center; margin-bottom: 10px;">
+            <img src="{{ url_for('static', filename='img/kmc_logo.png') }}" alt="KMC Logo" style="height: 60px; margin-bottom: 8px; display:block; margin-left:auto; margin-right:auto;">
+        </div>
+        <div style="text-align:center; margin-bottom: 18px;">
+            <h1 style="margin:0;">Site & Switch Inventory</h1>
+        </div>
+        
+        <div class="navigation-bar">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🔍 Port Tracer</a>
+                <a href="/manage" class="nav-link">⚙️ Manage Switches</a>
+                <a href="/inventory" class="nav-link active">📊 Inventory</a>
+                <a href="/cpu-status" class="nav-link" target="_blank">📊 CPU Status</a>
+                <a href="/switch-protection-status" class="nav-link" target="_blank">🛡️ Protection Status</a>
+            </div>
+        </div>
+
+        <div class="inventory-container">
+            <div class="left-panel">
+                <!-- Site Management -->
+                <div class="section">
+                    <h3>🏢 Manage Sites</h3>
+                    <form id="site-form">
+                        <input type="hidden" id="site-id">
+                        <div class="form-row">
+                            <input type="text" id="site-name" placeholder="Site name (e.g., KMC-Main)" required>
+                        </div>
+                        <div class="form-row">
+                            <button type="submit" class="btn btn-primary">💾 Save Site</button>
+                            <button type="button" class="btn btn-secondary" id="clear-site-btn">🗑️ Clear</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Floor Management -->
+                <div class="section">
+                    <h3>🏬 Manage Floors</h3>
+                    <form id="floor-form">
+                        <input type="hidden" id="floor-id">
+                        <div class="form-row">
+                            <select id="floor-site-select" required>
+                                <option value="">Select site...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="floor-name" placeholder="Floor name (e.g., Floor 1)" required>
+                        </div>
+                        <div class="form-row">
+                            <button type="submit" class="btn btn-primary">💾 Save Floor</button>
+                            <button type="button" class="btn btn-secondary" id="clear-floor-btn">🗑️ Clear</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <!-- Sites List -->
+                <div class="section">
+                    <h3>📋 Sites & Floors</h3>
+                    <div id="sites-list">Loading sites...</div>
+                </div>
+
+                <!-- Quick Statistics -->
+                <div class="section">
+                    <h3>📊 Quick Statistics</h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--orange);" id="total-sites">-</div>
+                            <div style="font-size: 12px; color: var(--rich-black);">SITES</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--orange);" id="total-floors">-</div>
+                            <div style="font-size: 12px; color: var(--rich-black);">FLOORS</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--orange);" id="total-switches">-</div>
+                            <div style="font-size: 12px; color: var(--rich-black);">SWITCHES</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--orange);" id="enabled-switches">-</div>
+                            <div style="font-size: 12px; color: var(--rich-black);">ENABLED</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toast = document.getElementById('toast');
+            let allSites = [];
+            let allSwitches = [];
+
+            function showToast(message, type) {
+                toast.textContent = message;
+                toast.className = `toast show ${type}`;
+                setTimeout(() => {
+                    toast.className = toast.className.replace('show', '');
+                }, 4000);
+            }
+
+            function loadSites() {
+                fetch('/api/sites')
+                    .then(response => response.json())
+                    .then(data => {
+                        allSites = data;
+                        renderSitesList();
+                        populateFloorSiteSelect();
+                        updateStats();
+                    })
+                    .catch(error => {
+                        console.error('Error loading sites:', error);
+                        showToast('Error loading sites', 'error');
+                    });
+            }
+
+            function loadSwitches() {
+                fetch('/api/switches')
+                    .then(response => response.json())
+                    .then(data => {
+                        allSwitches = data;
+                        updateStats();
+                    })
+                    .catch(error => {
+                        console.error('Error loading switches:', error);
+                    });
+            }
+
+            function updateStats() {
+                document.getElementById('total-sites').textContent = allSites.length;
+                let totalFloors = 0;
+                allSites.forEach(site => {
+                    totalFloors += site.floors ? site.floors.length : 0;
+                });
+                document.getElementById('total-floors').textContent = totalFloors;
+                document.getElementById('total-switches').textContent = allSwitches.length;
+                const enabledSwitches = allSwitches.filter(s => s.enabled).length;
+                document.getElementById('enabled-switches').textContent = enabledSwitches;
+            }
+
+            function populateFloorSiteSelect() {
+                const select = document.getElementById('floor-site-select');
+                select.innerHTML = '<option value="">Select site...</option>';
+                allSites.forEach(site => {
+                    const option = document.createElement('option');
+                    option.value = site.id;
+                    option.textContent = site.name;
+                    select.appendChild(option);
+                });
+            }
+
+            function renderSitesList() {
+                const container = document.getElementById('sites-list');
+                if (allSites.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No sites found. Create your first site!</div>';
+                    return;
+                }
+
+                let html = '';
+                allSites.forEach(site => {
+                    html += `
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <strong>${site.name}</strong>
+                                <div style="font-size: 12px; color: #666;">
+                                    ${site.floors ? site.floors.length : 0} floors
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <button class="btn btn-primary btn-small edit-site-btn" data-id="${site.id}" data-name="${site.name}">✏️ Edit</button>
+                                <button class="btn btn-danger btn-small delete-site-btn" data-id="${site.id}" data-name="${site.name}">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (site.floors && site.floors.length > 0) {
+                        site.floors.forEach(floor => {
+                            html += `
+                                <div class="list-item" style="margin-left: 20px; background: #f1f5f9;">
+                                    <div class="list-item-content">
+                                        📁 ${floor.name}
+                                    </div>
+                                    <div class="list-item-actions">
+                                        <button class="btn btn-primary btn-small edit-floor-btn" data-id="${floor.id}" data-name="${floor.name}" data-site-id="${site.id}">✏️ Edit</button>
+                                        <button class="btn btn-danger btn-small delete-floor-btn" data-id="${floor.id}" data-name="${floor.name}">🗑️ Delete</button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+                container.innerHTML = html;
+            }
+
+            // Site form submission
+            document.getElementById('site-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const siteId = document.getElementById('site-id').value;
+                const siteName = document.getElementById('site-name').value;
+
+                const data = { name: siteName };
+                const url = siteId ? `/api/sites/${siteId}` : '/api/sites';
+                const method = siteId ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        showToast(result.error, 'error');
+                    } else {
+                        showToast(result.message, 'success');
+                        document.getElementById('site-form').reset();
+                        document.getElementById('site-id').value = '';
+                        loadSites();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error saving site', 'error');
+                });
+            });
+
+            // Floor form submission
+            document.getElementById('floor-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const floorId = document.getElementById('floor-id').value;
+                const floorName = document.getElementById('floor-name').value;
+                const siteId = document.getElementById('floor-site-select').value;
+
+                const data = { name: floorName, site_id: siteId };
+                const url = floorId ? `/api/floors/${floorId}` : '/api/floors';
+                const method = floorId ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        showToast(result.error, 'error');
+                    } else {
+                        showToast(result.message, 'success');
+                        document.getElementById('floor-form').reset();
+                        document.getElementById('floor-id').value = '';
+                        loadSites();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error saving floor', 'error');
+                });
+            });
+
+            // Event delegation for edit/delete buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('edit-site-btn')) {
+                    const siteId = e.target.dataset.id;
+                    const siteName = e.target.dataset.name;
+                    document.getElementById('site-id').value = siteId;
+                    document.getElementById('site-name').value = siteName;
+                } else if (e.target.classList.contains('delete-site-btn')) {
+                    const siteId = e.target.dataset.id;
+                    const siteName = e.target.dataset.name;
+                    if (confirm(`Are you sure you want to delete site "${siteName}"?\n\nThis will also delete all floors and switches in this site.`)) {
+                        fetch(`/api/sites/${siteId}`, { method: 'DELETE' })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.error) {
+                                    showToast(result.error, 'error');
+                                } else {
+                                    showToast(result.message, 'success');
+                                    loadSites();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showToast('Error deleting site', 'error');
+                            });
+                    }
+                } else if (e.target.classList.contains('edit-floor-btn')) {
+                    const floorId = e.target.dataset.id;
+                    const floorName = e.target.dataset.name;
+                    const siteId = e.target.dataset.siteId;
+                    document.getElementById('floor-id').value = floorId;
+                    document.getElementById('floor-name').value = floorName;
+                    document.getElementById('floor-site-select').value = siteId;
+                } else if (e.target.classList.contains('delete-floor-btn')) {
+                    const floorId = e.target.dataset.id;
+                    const floorName = e.target.dataset.name;
+                    if (confirm(`Are you sure you want to delete floor "${floorName}"?\n\nThis will also delete all switches on this floor.`)) {
+                        fetch(`/api/floors/${floorId}`, { method: 'DELETE' })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.error) {
+                                    showToast(result.error, 'error');
+                                } else {
+                                    showToast(result.message, 'success');
+                                    loadSites();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showToast('Error deleting floor', 'error');
+                            });
+                    }
+                }
+            });
+
+            // Clear buttons
+            document.getElementById('clear-site-btn').addEventListener('click', function() {
+                document.getElementById('site-form').reset();
+                document.getElementById('site-id').value = '';
+            });
+
+            document.getElementById('clear-floor-btn').addEventListener('click', function() {
+                document.getElementById('floor-form').reset();
+                document.getElementById('floor-id').value = '';
+            });
+
+            // Initialize
+            loadSites();
+            loadSwitches();
+        });
+    </script>
+</body>
+</html>
+"""
+
 # Implement a before_request hook to check CPU load before processing requests
 @app.before_request
 def check_cpu_before_request():
@@ -1915,209 +2378,20 @@ def manage_switches():
     
     return render_template_string(MANAGE_TEMPLATE, username=session['username'], user_role=user_role)
 
-@app.route('/api/switches')
-def api_get_switches():
-    """API endpoint to get all switches with their sites and floors."""
+# Add missing route for site/inventory management
+@app.route('/inventory')
+def inventory_management():
+    """Combined site and switch inventory management interface."""
     if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
+        return redirect(url_for('login'))
     
     user_role = session.get('role', 'oss')
     if user_role not in ['netadmin', 'superadmin']:
         return jsonify({'error': 'Insufficient permissions'}), 403
     
-    try:
-        switches = db.session.query(Switch, Floor, Site).join(Floor, Switch.floor_id == Floor.id).join(Site, Floor.site_id == Site.id).all()
-        
-        switches_data = []
-        for switch, floor, site in switches:
-            switches_data.append({
-                'id': switch.id,
-                'name': switch.name,
-                'ip_address': switch.ip_address,
-                'model': switch.model,
-                'description': switch.description or '',
-                'enabled': switch.enabled,
-                'site_name': site.name,
-                'floor_name': floor.name,
-                'site_id': site.id,
-                'floor_id': floor.id
-            })
-        
-        return jsonify(switches_data)
-    except Exception as e:
-        logger.error(f"Error fetching switches: {str(e)}")
-        return jsonify({'error': 'Failed to fetch switches'}), 500
+    return render_template_string(INVENTORY_TEMPLATE, username=session['username'], user_role=user_role)
 
-@app.route('/api/sites')
-def api_get_sites():
-    """API endpoint to get all sites and their floors."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        sites = Site.query.all()
-        sites_data = []
-        
-        for site in sites:
-            floors_data = []
-            for floor in site.floors:
-                floors_data.append({
-                    'id': floor.id,
-                    'name': floor.name
-                })
-            
-            sites_data.append({
-                'id': site.id,
-                'name': site.name,
-                'floors': floors_data
-            })
-        
-        return jsonify(sites_data)
-    except Exception as e:
-        logger.error(f"Error fetching sites: {str(e)}")
-        return jsonify({'error': 'Failed to fetch sites'}), 500
-
-@app.route('/api/switches', methods=['POST'])
-def api_create_switch():
-    """API endpoint to create a new switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        data = request.json
-        username = session['username']
-        
-        # Validate required fields
-        required_fields = ['name', 'ip_address', 'model', 'floor_id']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Check if switch name or IP already exists
-        existing_switch = Switch.query.filter(
-            (Switch.name == data['name']) | (Switch.ip_address == data['ip_address'])
-        ).first()
-        
-        if existing_switch:
-            return jsonify({'error': 'Switch name or IP address already exists'}), 400
-        
-        # Create new switch
-        new_switch = Switch(
-            name=data['name'],
-            ip_address=data['ip_address'],
-            model=data['model'],
-            description=data.get('description', ''),
-            enabled=data.get('enabled', True),
-            floor_id=data['floor_id']
-        )
-        
-        db.session.add(new_switch)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH CREATED - {data['name']} ({data['ip_address']})")
-        
-        return jsonify({'message': 'Switch created successfully', 'id': new_switch.id}), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error creating switch: {str(e)}")
-        return jsonify({'error': 'Failed to create switch'}), 500
-
-@app.route('/api/switches/<int:switch_id>', methods=['PUT'])
-def api_update_switch(switch_id):
-    """API endpoint to update an existing switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        switch = Switch.query.get_or_404(switch_id)
-        data = request.json
-        username = session['username']
-        
-        # Store old values for audit log
-        old_name = switch.name
-        old_ip = switch.ip_address
-        
-        # Check if new name or IP conflicts with other switches
-        if data.get('name') and data['name'] != switch.name:
-            existing = Switch.query.filter(Switch.name == data['name'], Switch.id != switch_id).first()
-            if existing:
-                return jsonify({'error': 'Switch name already exists'}), 400
-        
-        if data.get('ip_address') and data['ip_address'] != switch.ip_address:
-            existing = Switch.query.filter(Switch.ip_address == data['ip_address'], Switch.id != switch_id).first()
-            if existing:
-                return jsonify({'error': 'IP address already exists'}), 400
-        
-        # Update switch fields
-        if 'name' in data:
-            switch.name = data['name']
-        if 'ip_address' in data:
-            switch.ip_address = data['ip_address']
-        if 'model' in data:
-            switch.model = data['model']
-        if 'description' in data:
-            switch.description = data['description']
-        if 'enabled' in data:
-            switch.enabled = data['enabled']
-        if 'floor_id' in data:
-            switch.floor_id = data['floor_id']
-        
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH UPDATED - {old_name} ({old_ip}) -> {switch.name} ({switch.ip_address})")
-        
-        return jsonify({'message': 'Switch updated successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error updating switch: {str(e)}")
-        return jsonify({'error': 'Failed to update switch'}), 500
-
-@app.route('/api/switches/<int:switch_id>', methods=['DELETE'])
-def api_delete_switch(switch_id):
-    """API endpoint to delete a switch."""
-    if 'username' not in session:
-        return jsonify({'error': 'Not authenticated'}), 401
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    try:
-        switch = Switch.query.get_or_404(switch_id)
-        username = session['username']
-        
-        # Store values for audit log
-        switch_name = switch.name
-        switch_ip = switch.ip_address
-        
-        db.session.delete(switch)
-        db.session.commit()
-        
-        # Log the action
-        audit_logger.info(f"User: {username} - SWITCH DELETED - {switch_name} ({switch_ip})")
-        
-        return jsonify({'message': 'Switch deleted successfully'})
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting switch: {str(e)}")
-        return jsonify({'error': 'Failed to delete switch'}), 500
+# API routes are now handled by the api_routes blueprint
 
 @app.route('/vlan')
 def vlan_management():
@@ -2130,18 +2404,6 @@ def vlan_management():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     return render_template('vlan.html', username=session['username'], user_role=user_role)
-
-@app.route('/inventory')
-def inventory_management():
-    """Switch inventory management interface for network administrators."""
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    user_role = session.get('role', 'oss')
-    if user_role not in ['netadmin', 'superadmin']:
-        return jsonify({'error': 'Insufficient permissions'}), 403
-    
-    return render_template('inventory.html', username=session['username'], user_role=user_role)
 
 # VLAN Management API Routes (imported from vlan_management_v2.py)
 try:
