@@ -65,16 +65,18 @@ from collections import defaultdict
 
 # Import modular components (v2.2.0 refactoring)
 from auth import verify_user, get_user_permissions, USERS, ROLE_PERMISSIONS
-from switch_manager import (
-    initialize_cpu_monitor, get_cpu_monitor,
-    initialize_switch_protection_monitor, get_switch_protection_monitor,
-    concurrent_switch_trace, CONCURRENT_USERS_PER_SITE
-)
+from switch_manager import DellSwitchSSH
+from cpu_safety_monitor import initialize_cpu_monitor, get_cpu_monitor
+from switch_protection_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
 from utils import (
     format_mac_address, clean_mac_for_search, validate_mac_format,
     get_switches_config, load_switches_config, calculate_batch_metrics
 )
-from api_routes import register_api_routes
+try:
+    from api_routes import register_api_routes
+except ImportError:
+    # API routes module not available, will handle routes directly in main file
+    pass
 
 # Windows Authentication availability flag
 WINDOWS_AUTH_AVAILABLE = True  # Set by auth module
