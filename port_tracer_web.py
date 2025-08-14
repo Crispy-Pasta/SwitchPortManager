@@ -2119,6 +2119,38 @@ def api_delete_switch(switch_id):
         logger.error(f"Error deleting switch: {str(e)}")
         return jsonify({'error': 'Failed to delete switch'}), 500
 
+@app.route('/vlan')
+def vlan_management():
+    """VLAN management interface for network administrators."""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    return render_template('vlan.html', username=session['username'], user_role=user_role)
+
+@app.route('/inventory')
+def inventory_management():
+    """Switch inventory management interface for network administrators."""
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user_role = session.get('role', 'oss')
+    if user_role not in ['netadmin', 'superadmin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    return render_template('inventory.html', username=session['username'], user_role=user_role)
+
+# VLAN Management API Routes (imported from vlan_management_v2.py)
+try:
+    from vlan_management_v2 import add_vlan_management_routes
+    add_vlan_management_routes(app)
+    logger.info("VLAN management routes registered successfully")
+except ImportError as e:
+    logger.warning(f"VLAN management routes not available: {str(e)}")
+
 if __name__ == '__main__':
     print("🔌 Starting Dell Switch Port Tracer Web Service...")
     print(f"📊 Web Interface: http://localhost:5000")
