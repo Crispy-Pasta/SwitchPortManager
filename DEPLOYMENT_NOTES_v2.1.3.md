@@ -1,6 +1,6 @@
-# Dell Port Tracer - Enhanced VLAN Management v2.2.0 Deployment Notes
+# Dell Port Tracer - Enhanced VLAN Management v2.1.3 Deployment Notes
 
-## 🚀 Version 2.2.0 - Enhanced VLAN Management with Interface Range Optimization
+## 🚀 Version 2.1.3 - Enhanced VLAN Management with Interface Range Optimization
 
 ### 📋 Overview
 This release introduces significant enhancements to VLAN management capabilities with intelligent interface range optimization, robust error handling, and enhanced user feedback.
@@ -38,7 +38,7 @@ This release introduces significant enhancements to VLAN management capabilities
 ### Code Enhancements
 - **Enhanced Function Documentation**: Detailed comments and troubleshooting guides
 - **Improved Logging**: Extensive debug information for operational visibility
-- **Version Tracking**: Updated to v2.2.0 across all components
+- **Version Tracking**: Updated to v2.1.3 across all components
 
 ### Key Functions Added/Enhanced:
 1. `generate_interface_ranges()` - Port grouping and range optimization
@@ -51,11 +51,11 @@ This release introduces significant enhancements to VLAN management capabilities
 ## 📦 Deployment Updates
 
 ### Docker Configuration
-- **Dockerfile**: Updated with v2.2.0 references and enhanced features
+- **Dockerfile**: Updated with v2.1.3 references and enhanced features
 - **Requirements**: Updated dependency documentation and version info
 
 ### Kubernetes Configuration  
-- **Deployment**: Updated to v2.2.0 with new environment variables
+- **Deployment**: Updated to v2.1.3 with new environment variables
 - **New Environment Variables**:
   ```yaml
   - name: VLAN_MANAGEMENT_ENABLED
@@ -145,7 +145,7 @@ This release introduces significant enhancements to VLAN management capabilities
 
 ## 📝 Change Log
 
-### Version 2.2.0 (2025-08-07)
+### Version 2.1.3 (2025-08-07)
 - **Added**: Interface range optimization for batch VLAN operations
 - **Added**: Intelligent fallback system for Dell N2048 compatibility
 - **Added**: Enhanced success response with detailed feedback
@@ -165,7 +165,7 @@ This release introduces significant enhancements to VLAN management capabilities
 ## 🤝 Support & Contacts
 
 **Network Operations Team**
-- **Version**: 2.2.0 (Enhanced VLAN Management with Interface Range Optimization)
+- **Version**: 2.1.3 (Enhanced VLAN Management with Interface Range Optimization)
 - **Compatibility**: Python 3.7+, Dell PowerConnect N-Series Switches
 - **Last Updated**: August 7, 2025
 

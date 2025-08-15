@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.2.0] - 2025-01-12
+## [2.1.3] - 2025-01-12
 
 ### Added
 - **Enhanced Management Interface**: Complete redesign of the admin interface with tabbed navigation

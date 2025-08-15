@@ -4,7 +4,7 @@
 
 ### Branch Status
 - **Current Branch**: `develop`
-- **Available Branches**: `main`, `develop`, `feature/ui-improvements`, `feature/vlan-management-v2`, `release/v2.1.1`
+- **Available Branches**: `main`, `develop`, `feature/ui-improvements`, `feature/vlan-management-v2`, `release/v2.1.3`
 - **Pending Changes**: Major refactoring + new features completed
 
 ### Changes Summary
@@ -25,20 +25,20 @@ Create feature branch for this major refactoring, then merge systematically.
 Update develop branch directly, then create release branch.
 
 ### Option 3: Release Branch Strategy
-Create new release branch for v2.2.0 with all changes.
+Create new release branch for v2.1.3 with all changes.
 
 ## Step-by-Step Implementation
 
 ### Phase 1: Prepare Feature Branch
 ```bash
 # Create feature branch for refactoring
-git checkout -b feature/enterprise-refactoring-v2.2.0
+git checkout -b feature/enterprise-refactoring-v2.1.3
 
 # Stage all new and modified files
 git add .
 
 # Commit with comprehensive message
-git commit -m "feat: Enterprise refactoring v2.2.0
+git commit -m "feat: Enterprise refactoring v2.1.3
 
 - Modular architecture: Split into auth, switch_manager, utils, api_routes
 - Enhanced VLAN management with security validation  
@@ -67,8 +67,8 @@ New Features:
 ```bash
 # If ready for immediate production
 git checkout main
-git merge feature/enterprise-refactoring-v2.2.0
-git tag v2.2.0
+git merge feature/enterprise-refactoring-v2.1.3
+git tag v2.1.3
 git push origin main --tags
 ```
 
@@ -76,28 +76,28 @@ git push origin main --tags
 ```bash
 # Standard development workflow
 git checkout develop  
-git merge feature/enterprise-refactoring-v2.2.0
+git merge feature/enterprise-refactoring-v2.1.3
 git push origin develop
 
 # Create release branch
-git checkout -b release/v2.2.0
+git checkout -b release/v2.1.3
 # Final testing and minor fixes
 git checkout main
-git merge release/v2.2.0
-git tag v2.2.0
+git merge release/v2.1.3
+git tag v2.1.3
 git push origin main --tags
 ```
 
 #### Option C: Staging Approach (Safest)
 ```bash
 # Create staging branch for testing
-git checkout -b staging/v2.2.0
-git merge feature/enterprise-refactoring-v2.2.0
+git checkout -b staging/v2.1.3
+git merge feature/enterprise-refactoring-v2.1.3
 # Deploy to staging environment for testing
 # After approval:
 git checkout main
-git merge staging/v2.2.0
-git tag v2.2.0
+git merge staging/v2.1.3
+git tag v2.1.3
 ```
 
 ### Phase 3: Branch Cleanup
@@ -105,7 +105,7 @@ git tag v2.2.0
 # After successful merge, clean up old branches
 git branch -d feature/ui-improvements
 git branch -d feature/vlan-management-v2  
-git branch -d release/v2.1.1
+git branch -d release/v2.1.3
 
 # Update develop branch
 git checkout develop
@@ -124,8 +124,8 @@ git push origin develop
 ```bash
 # If issues arise, quick rollback
 git checkout main
-git revert v2.2.0
-git tag v2.2.1-hotfix
+git revert v2.1.3
+git tag v2.1.4-hotfix
 ```
 
 ## Communication Plan
@@ -137,7 +137,7 @@ git tag v2.2.1-hotfix
 - [ ] Schedule training session for new features
 
 ### Change Documentation
-- [ ] Update CHANGELOG.md with v2.2.0 details
+- [ ] Update CHANGELOG.md with v2.1.3 details
 - [ ] Create migration guide for existing users
 - [ ] Document new API endpoints
 - [ ] Update deployment procedures

@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# Auto-deployment script for Dell Port Tracer v2.2.0
+# Auto-deployment script for Dell Port Tracer v2.1.3
 # This script checks for repository changes and restarts Docker container if needed
 # Updated for modular architecture and new container setup
 
 # Configuration
 REPO_DIR="/home/janzen/port-tracing-script"
-CONTAINER_NAME="dell-port-tracer-v2.2.0"
+CONTAINER_NAME="dell-port-tracer-v2.1.3"
 LOG_FILE="/home/janzen/auto-deploy.log"
 GITHUB_REPO="https://github.com/Crispy-Pasta/DellPortTracer.git"
 DOCKER_IMAGE="dell-port-tracer"
 ENV_FILE="/home/janzen/port-tracing-script/.env"
 
-# Critical files to monitor for changes (updated for v2.2.0)
+# Critical files to monitor for changes (updated for v2.1.3)
 CRITICAL_FILES=(
     "port_tracer_web.py"
     "auth.py"
@@ -29,7 +29,7 @@ CRITICAL_FILES=(
 
 # Function to log messages with timestamp
 log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] v2.2.0 - $1" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] v2.1.3 - $1" | tee -a "$LOG_FILE"
 }
 
 # Function to check if container is running
@@ -37,13 +37,13 @@ is_container_running() {
     docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"
 }
 
-# Function to restart the container (updated for v2.2.0)
+# Function to restart the container (updated for v2.1.3)
 restart_container() {
     log_message "Stopping existing container..."
     docker stop "$CONTAINER_NAME" > /dev/null 2>&1
     docker rm "$CONTAINER_NAME" > /dev/null 2>&1
     
-    log_message "Starting updated container with v2.2.0 configuration..."
+    log_message "Starting updated container with v2.1.3 configuration..."
     cd "$REPO_DIR"
     
     # Start container with proper network and env file
@@ -53,7 +53,7 @@ restart_container() {
         --env-file "$ENV_FILE" \
         -p 5000:5000 \
         --restart unless-stopped \
-        "$DOCKER_IMAGE":v2.2.0
+        "$DOCKER_IMAGE":v2.1.3
     
     if [ $? -eq 0 ]; then
         log_message "Container restarted successfully"
@@ -64,19 +64,19 @@ restart_container() {
     fi
 }
 
-# Function to rebuild Docker image (updated for v2.2.0)
+# Function to rebuild Docker image (updated for v2.1.3)
 rebuild_image() {
-    log_message "Rebuilding Docker image with v2.2.0 features..."
+    log_message "Rebuilding Docker image with v2.1.3 features..."
     cd "$REPO_DIR"
     
-    # Build with v2.2.0 tag
-    docker build -t "$DOCKER_IMAGE":v2.2.0 .
+    # Build with v2.1.3 tag
+    docker build -t "$DOCKER_IMAGE":v2.1.3 .
     
     if [ $? -eq 0 ]; then
         log_message "Docker image rebuilt successfully with modular architecture"
         
         # Also tag as latest for compatibility
-        docker tag "$DOCKER_IMAGE":v2.2.0 "$DOCKER_IMAGE":latest
+        docker tag "$DOCKER_IMAGE":v2.1.3 "$DOCKER_IMAGE":latest
         
         return 0
     else
@@ -87,7 +87,7 @@ rebuild_image() {
 
 # Function to run database migration if needed
 run_migration() {
-    log_message "Running database migration for v2.2.0..."
+    log_message "Running database migration for v2.1.3..."
     
     # Check if migration script exists
     if [ -f "$REPO_DIR/migrate_database.py" ]; then
@@ -131,9 +131,9 @@ health_check() {
     fi
 }
 
-# Main deployment function (updated for v2.2.0)
+# Main deployment function (updated for v2.1.3)
 main() {
-    log_message "Starting auto-deployment check for v2.2.0..."
+    log_message "Starting auto-deployment check for v2.1.3..."
     
     # Check if repository directory exists
     if [ ! -d "$REPO_DIR" ]; then
@@ -167,7 +167,7 @@ main() {
         exit 0
     fi
     
-    log_message "Changes detected in repository. Starting v2.2.0 deployment..."
+    log_message "Changes detected in repository. Starting v2.1.3 deployment..."
     log_message "Local commit: $LOCAL_COMMIT"
     log_message "Remote commit: $REMOTE_COMMIT"
     
@@ -183,7 +183,7 @@ main() {
     
     # Check if container is currently running
     if is_container_running; then
-        log_message "Container is currently running. Proceeding with v2.2.0 update..."
+        log_message "Container is currently running. Proceeding with v2.1.3 update..."
         
         # Rebuild Docker image with latest code
         if rebuild_image; then
@@ -194,40 +194,40 @@ main() {
                 
                 # Perform health check
                 if health_check; then
-                    log_message "v2.2.0 deployment completed successfully"
+                    log_message "v2.1.3 deployment completed successfully"
                 else
                     log_message "WARNING: Deployment completed but health check failed"
                 fi
             else
-                log_message "ERROR: v2.2.0 deployment failed during container restart"
+                log_message "ERROR: v2.1.3 deployment failed during container restart"
                 exit 1
             fi
         else
-            log_message "ERROR: v2.2.0 deployment failed during image rebuild"
+            log_message "ERROR: v2.1.3 deployment failed during image rebuild"
             exit 1
         fi
     else
-        log_message "Container is not running. Building v2.2.0 image and starting container..."
+        log_message "Container is not running. Building v2.1.3 image and starting container..."
         
         if rebuild_image; then
             if restart_container; then
                 run_migration
                 if health_check; then
-                    log_message "Initial v2.2.0 deployment completed successfully"
+                    log_message "Initial v2.1.3 deployment completed successfully"
                 else
                     log_message "WARNING: Container started but health check failed"
                 fi
             else
-                log_message "ERROR: Failed to start v2.2.0 container"
+                log_message "ERROR: Failed to start v2.1.3 container"
                 exit 1
             fi
         else
-            log_message "ERROR: Failed to build v2.2.0 Docker image"
+            log_message "ERROR: Failed to build v2.1.3 Docker image"
             exit 1
         fi
     fi
     
-    log_message "Auto-deployment v2.2.0 completed successfully"
+    log_message "Auto-deployment v2.1.3 completed successfully"
 }
 
 # Run main function
