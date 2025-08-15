@@ -625,9 +625,12 @@
         }
         
         .management-buttons .action-btn:hover {
-            background: #e68900;
-            border-color: #e68900;
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, var(--deep-navy), #1e3a8a);
+            color: white !important;
+            border-color: var(--deep-navy);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+            filter: brightness(1.1);
         }
         
         .switches-table {
@@ -1014,7 +1017,11 @@
         }
         
         .modal-body .btn-primary:hover {
-            background: #e68900;
+            background: linear-gradient(135deg, var(--deep-navy), #1e3a8a);
+            color: white !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+            filter: brightness(1.1);
         }
         
         .modal-body .btn-secondary {
@@ -1172,7 +1179,7 @@
             
             <div class="navigation-card">
                 <div class="nav-links">
-                    <a href="/" class="nav-link">&#128203; Port Tracer</a>
+                    <a href="/" class="nav-link">&#128463; Port Tracer</a>
                     {% if user_role in ['netadmin', 'superadmin'] %}
                     <a href="/vlan" class="nav-link">&#128295; VLAN Manager</a>
                     <a href="/inventory" class="nav-link active">&#127970; Switch Management</a>
@@ -1224,14 +1231,14 @@
             <div class="content-header">
                 <div class="breadcrumb">
                     <span>&#127970; Sites</span>
-                    <span class="breadcrumb-separator">&#8250;</span>
+                    <span class="breadcrumb-separator">&rsaquo;</span>
                     <span id="current-site">Select a site</span>
-                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">›</span>
+                    <span class="breadcrumb-separator" id="floor-separator" style="display: none;">&rsaquo;</span>
                     <span class="current" id="current-floor" style="display: none;">Select a floor</span>
                 </div>
                 
                 <h1 class="floor-title" id="content-title">
-                    <span>&#128203;</span>
+                        <span>&#128204;</span>
                     Switch Inventory
                 </h1>
                 
@@ -1264,7 +1271,7 @@
             <div class="switches-section" id="switches-section">
                 <div class="switches-header">
                     <h3 class="switches-title">
-                        <span>&#128268;</span>
+                        <span>&#128296;</span>
                         Switch Details
                     </h3>
                     
@@ -1285,7 +1292,7 @@
                 
                 <div id="switches-content">
                     <div class="empty-state">
-                        <div class="empty-icon">&#127970;</div>
+                                <div class="empty-icon">&#128463;</div>
                         <div class="empty-title">No Floor Selected</div>
                         <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                     </div>
@@ -1402,8 +1409,7 @@
             if (sites.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                                            <div class="empty-icon">&#127970;</div>
-&#127970;</div>
+                        <div class="empty-icon">&#127970;</div>
                         <div class="empty-title">No Sites Found</div>
                         <div class="empty-description">No sites are configured in the system</div>
                     </div>
@@ -1439,19 +1445,19 @@
                             <div class="site-header" onclick="toggleSite('${site.id}')" id="site-header-${site.id}">
                                 <div class="site-header-content">
                                     <div class="site-left">
-                                        <span>🏢</span>
+                                        <span>&#127970;</span>
                                         <span>${site.name}</span>
                                     </div>
                                     <div class="site-right">
                                         <div class="site-stats">
-                            <span>${floorCount} floors &#8226; ${totalSwitches} switches</span>
+                            <span>${floorCount} floors &bull; ${totalSwitches} switches</span>
                                         </div>
                                         <div class="site-actions">
                                             <button class="action-btn" onclick="event.stopPropagation(); editSite(${site.id}, '${escapedName}')" 
                                                 title="Edit site">
                                                 &#9999;&#65039;
                                             </button>
-                                            <div class="expand-icon">&#9654;</div>
+                            <div class="expand-icon">&#9654;</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1614,7 +1620,7 @@
             document.getElementById('floor-separator').style.display = 'inline';
             
             document.getElementById('content-title').innerHTML = `
-                <span>&#127970;</span>
+                <span>🏢</span>
                 ${displayFloorName} - Switch Inventory
             `;
             
@@ -1714,7 +1720,7 @@
             if (switches.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">&#128268;</div>
+                        <div class="empty-icon">&#128296;</div>
                         <div class="empty-title">No Switches Found</div>
                         <div class="empty-description">No switches match the current filter criteria</div>
                     </div>
@@ -1761,9 +1767,9 @@
                                 <button class="action-btn" onclick="editSwitch(${sw.id})" title="Edit switch">
                                     &#9999;&#65039; Edit
                                 </button>
-                                <button class="action-btn" onclick="showDeleteSwitchModal(${sw.id}, {name: '${sw.name.replace(/'/g, "\\'")}'})" 
+                                <button class="action-btn" onclick="deleteSwitch(${sw.id}, '${sw.name.replace(/'/g, "\\'")}')"
                                     title="Delete switch" style="color: #dc3545; border-color: #dc3545;">
-                                    &#128465;&#65039; Delete
+                                            &#128465;&#65039; Delete
                                 </button>
                             </div>
                         </td>
@@ -1936,7 +1942,7 @@
                                title="Only letters, numbers, underscores, and hyphens allowed. No spaces or special characters.">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Create Site</button>
+                        <button type="submit" class="btn-primary">&#128179; Create Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -1979,7 +1985,7 @@
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Create Floor</button>
+                        <button type="submit" class="btn-primary">&#128179; Create Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2005,8 +2011,8 @@
                                title="Valid IPv4 address required (e.g., 192.168.1.100)">
                     </div>
                         <div class="form-group">
-                            <label for="switch-model">Model</label>
-                            <select id="switch-model" required>
+                            <label for="edit-switch-model">Model</label>
+                            <select id="edit-switch-model" required>
                                 <option value="">Select switch model...</option>
                                 <optgroup label="Dell N2000 Series">
                                     <option value="Dell N2024" ${switchData.model === 'Dell N2024' ? 'selected' : ''}>Dell N2024</option>
@@ -2069,7 +2075,7 @@
                         <label for="edit-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Update Switch</button>
+                        <button type="submit" class="btn-primary">&#128179; Update Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2085,7 +2091,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">&#215;</button>
+                        <button class="modal-close" onclick="closeModal()">&times;</button>
                     </div>
                     <div class="modal-body">
                         ${content}
@@ -2178,7 +2184,7 @@
                         <label for="new-switch-enabled">Switch is enabled</label>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Add Switch</button>
+                        <button type="submit" class="btn-primary">&#128179; Add Switch</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2347,16 +2353,68 @@
                 if (response.ok) {
                     showToast('Switch updated successfully', 'success');
                     closeModal();
-                    // Refresh current floor if viewing
-                    if (currentFloorData) {
-                        await loadFloorSwitches(currentFloorData.id);
+                    
+                    // Immediately update the local switch data in allSwitches array
+                    const switchIndex = allSwitches.findIndex(sw => sw.id == switchId);
+                    if (switchIndex !== -1) {
+                        // Update the switch data with the new values
+                        allSwitches[switchIndex] = {
+                            ...allSwitches[switchIndex],
+                            name: data.name,
+                            ip_address: data.ip_address,
+                            model: data.model,
+                            description: data.description,
+                            enabled: data.enabled
+                        };
                     }
+                    
+                    // Update filteredSwitches array as well
+                    const filteredIndex = filteredSwitches.findIndex(sw => sw.id == switchId);
+                    if (filteredIndex !== -1) {
+                        filteredSwitches[filteredIndex] = {
+                            ...filteredSwitches[filteredIndex],
+                            name: data.name,
+                            ip_address: data.ip_address,
+                            model: data.model,
+                            description: data.description,
+                            enabled: data.enabled
+                        };
+                    }
+                    
+                    // Immediately re-render the table with updated data
+                    renderSwitches();
+                    updateStats();
+                    
+                    // Also refresh from server to ensure consistency (async in background)
+                    setTimeout(async () => {
+                        if (currentFloorData) {
+                            await loadFloorSwitches(currentFloorData.id);
+                        } else if (currentSiteData) {
+                            await loadSiteSwitches(currentSiteData.id, currentSiteData.name);
+                        }
+                        // Refresh sidebar counts
+                        if (typeof refreshSidebarCounts === 'function') {
+                            await refreshSidebarCounts();
+                        }
+                    }, 100);
                 } else {
                     showToast(result.error, 'error');
                 }
             } catch (error) {
                 showToast('Error updating switch', 'error');
             }
+        }
+        
+        function deleteSwitch(switchId, switchName) {
+            // Find the switch data
+            const switchData = allSwitches.find(sw => sw.id == switchId);
+            if (!switchData) {
+                showToast('Switch not found', 'error');
+                return;
+            }
+            
+            // Show confirmation modal
+            showDeleteSwitchModal(switchId, switchData);
         }
         
         // Toast notification system
@@ -2392,7 +2450,7 @@
                         <input type="text" id="edit-site-name" name="name" value="${siteName}" required placeholder="e.g., NYC_MAIN" maxlength="50">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Update Site</button>
+                        <button type="submit" class="btn-primary">&#128179; Update Site</button>
                         <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">&#128465;&#65039; Delete Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
@@ -2431,7 +2489,7 @@
                                title="Valid formats: F1-F99, GF, PH, B1-B9, Floor 1-99, 1-99, Ground Floor, Penthouse, or Basement">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">&#128190; Update Floor</button>
+                        <button type="submit" class="btn-primary">&#128179; Update Floor</button>
                         <button type="button" class="btn-danger" onclick="deleteFloorFromModal(${floorId}, '${floorName}')">&#128465;&#65039; Delete Floor</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
@@ -2464,7 +2522,7 @@
                         // Clear results and reset UI
                         document.getElementById('switches-content').innerHTML = `
                             <div class="empty-state">
-                                <div class="empty-icon">&#128203;</div>
+                                <div class="empty-icon">&#128269;</div>
                                 <div class="empty-title">No Floor Selected</div>
                                 <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                             </div>
@@ -2504,7 +2562,7 @@
                                     currentFloorData = null;
                                     document.getElementById('switches-content').innerHTML = `
                                         <div class="empty-state">
-                                            <div class="empty-icon">&#128203;</div>
+                                            <div class="empty-icon">&#128269;</div>
                                             <div class="empty-title">No Floor Selected</div>
                                             <div class="empty-description">Choose a site and floor from the sidebar to view switch inventory</div>
                                         </div>
@@ -2537,7 +2595,16 @@
                                 showToast(result.error, 'error');
                             } else {
                                 showToast(result.message, 'success');
-                                loadSwitches();
+                                // Refresh current floor or site switches
+                                if (currentFloorData) {
+                                    loadFloorSwitches(currentFloorData.id);
+                                } else if (currentSiteData) {
+                                    loadSiteSwitches(currentSiteData.id, currentSiteData.name);
+                                }
+                                // Refresh sidebar counts
+                                if (typeof refreshSidebarCounts === 'function') {
+                                    refreshSidebarCounts();
+                                }
                             }
                         })
                         .catch(error => {
@@ -2611,7 +2678,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3><span>&#9888;&#65039;</span> ${title}</h3>
-                        <button class="modal-close" onclick="closeModal()">&#215;</button>
+                        <button class="modal-close" onclick="closeModal()">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="delete-warning">
