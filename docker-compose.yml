@@ -1,93 +1,59 @@
 version: '3.8'
 
-# Dell Switch Port Tracer v2.1.1 - Docker Compose Configuration
-# Features: Enhanced UI/UX, VLAN Management v2, Switch Management optimizations
-# UI Improvements: Dropdown width constraints (250px), VLAN naming conventions
-# New Components: Advanced VLAN management with safety checks and validation
+# Dell Switch Port Tracer v2.1.3 - Development Docker Compose Configuration
+# Features: Enhanced UI/UX, VLAN Management v2, Safe deployment structure
+# Data Protection: Uses .env files and persistent volumes
+# Production: Use docker-compose.prod.yml for production deployments
 
 services:
   postgres:
-    image: postgres:15
-    container_name: port-tracer-postgres
+    image: postgres:15-alpine
+    container_name: dell-port-tracer-postgres-dev
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-port_tracer_db}
-      - POSTGRES_USER=${POSTGRES_USER:-dell_tracer_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password123}
-      - POSTGRES_HOST_AUTH_METHOD=md5
+      POSTGRES_DB: ${POSTGRES_DB:-port_tracer_db}
+      POSTGRES_USER: ${POSTGRES_USER:-dell_tracer_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password123}
+      POSTGRES_HOST_AUTH_METHOD: md5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     ports:
       - "5432:5432"
+    networks:
+      - dell-port-tracer
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dell_tracer_user} -d ${POSTGRES_DB:-port_tracer_db}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-dell_tracer_user} -d ${POSTGRES_DB:-port_tracer_db}']
       interval: 30s
       timeout: 10s
       retries: 5
 
-  port-tracer:
+  app:
     build: .
-    container_name: port-tracer-app
+    container_name: dell-port-tracer-app-dev
     ports:
       - "5000:5000"
-    environment:
-      # PostgreSQL Database Configuration
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-port_tracer_db}
-      - POSTGRES_USER=${POSTGRES_USER:-dell_tracer_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password123}
-      
-      # Dell Switch SSH Credentials
-      - SWITCH_USERNAME=${SWITCH_USERNAME}
-      - SWITCH_PASSWORD=${SWITCH_PASSWORD}
-      
-      # Web Service Configuration
-      - OSS_PASSWORD=${OSS_PASSWORD:-oss123}
-      - NETADMIN_PASSWORD=${NETADMIN_PASSWORD:-netadmin123}
-      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-superadmin123}
-      - WEB_PASSWORD=${WEB_PASSWORD:-password}
-      
-      # CPU Safety Thresholds
-      - CPU_GREEN_THRESHOLD=${CPU_GREEN_THRESHOLD:-20}
-      - CPU_YELLOW_THRESHOLD=${CPU_YELLOW_THRESHOLD:-40}
-      - CPU_RED_THRESHOLD=${CPU_RED_THRESHOLD:-60}
-      
-      # Switch Protection Monitor Configuration
-      - MAX_CONNECTIONS_PER_SWITCH=${MAX_CONNECTIONS_PER_SWITCH:-8}
-      - MAX_TOTAL_CONNECTIONS=${MAX_TOTAL_CONNECTIONS:-64}
-      - COMMANDS_PER_SECOND_LIMIT=${COMMANDS_PER_SECOND_LIMIT:-10}
-      
-      # Syslog Configuration (Optional)
-      - SYSLOG_ENABLED=${SYSLOG_ENABLED:-false}
-      - SYSLOG_SERVER=${SYSLOG_SERVER}
-      - SYSLOG_PORT=${SYSLOG_PORT:-514}
-      
-      # Windows Active Directory Configuration (Optional)
-      - USE_WINDOWS_AUTH=${USE_WINDOWS_AUTH:-false}
-      - AD_SERVER=${AD_SERVER}
-      - AD_DOMAIN=${AD_DOMAIN}
-      - AD_BASE_DN=${AD_BASE_DN}
-      - AD_USER_SEARCH_BASE=${AD_USER_SEARCH_BASE}
-      - AD_GROUP_SEARCH_BASE=${AD_GROUP_SEARCH_BASE}
-      - AD_REQUIRED_GROUP=${AD_REQUIRED_GROUP}
-      - AD_SERVICE_USER=${AD_SERVICE_USER}
-      - AD_SERVICE_PASSWORD=${AD_SERVICE_PASSWORD}
+    env_file:
+      - .env
     volumes:
       - ./logs:/app/logs
+      - ./backups:/app/backups
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - dell-port-tracer
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
       interval: 30s
       timeout: 10s
       retries: 3
 
 volumes:
   postgres_data:
+    driver: local
 
 networks:
-  port-tracer-network:
+  dell-port-tracer:
     driver: bridge
