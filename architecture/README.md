@@ -46,8 +46,11 @@ The Dell Port Tracer is a web-based application that helps network administrator
 
 ## Version Information
 
-- **Application Version**: 2.0
-- **Database**: PostgreSQL (migrated from SQLite)
-- **Deployment**: Docker Compose
-- **Authentication**: Windows AD/LDAP
-- **Last Updated**: 2025-01-05
+- **Application Version**: 2.1.3
+- **Architecture**: 3-Container Production Setup (app, nginx, postgres)
+- **Database**: PostgreSQL with persistent named volumes
+- **Deployment**: Docker Compose with SSL/HTTPS support
+- **Authentication**: Windows AD/LDAP + Local accounts
+- **Security**: SSL/HTTPS enabled, automated certificate generation
+- **Backup**: Automated backup and rollback with deploy-safe.sh
+- **Last Updated**: August 15, 2025

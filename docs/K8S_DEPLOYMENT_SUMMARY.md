@@ -1,28 +1,34 @@
-# Dell Switch Port Tracer v2.0 - Kubernetes Deployment Summary
+# Dell Switch Port Tracer v2.1.3 - Kubernetes Deployment Summary
 
 ## 🚀 Production Server Status
-**Server**: 10.50.0.225:8443  
+**Server**: 10.50.0.225:443 (SSL/HTTPS)  
 **Status**: ✅ **HEALTHY & READY**  
-**Version**: Running v2.0 features with Docker container  
+**Version**: Running v2.1.3 with 3-container Docker Compose stack  
 **Health Check**: All endpoints functional  
 
 ### ✅ Production Tests Passed (100% Success Rate)
 - **Health Endpoint**: ✅ 27 sites, Windows Auth enabled
 - **Authentication**: ✅ All user types (admin, superadmin, netadmin, oss)
-- **Trace Functionality**: ✅ MAC address tracing operational
-- **CPU Monitoring**: ✅ CPU safety monitoring active
-- **Switch Protection**: ✅ Connection limits configured
+- **Trace Functionality**: ✅ SSH-based MAC address tracing operational
+- **SSL/HTTPS**: ✅ Secure access with automatic certificates
+- **Database Persistence**: ✅ PostgreSQL with encrypted credentials
 - **Role-based Access**: ✅ Proper filtering by user role
 
-## 🐳 Docker Status
-**Container**: `dell-port-tracer:latest`  
+## 🐳 Docker Status (v2.1.3)
+**Architecture**: 3-Container Production Stack  
 **Status**: ✅ **RUNNING & HEALTHY**  
-**Features**: All v2.0 features active  
-- CPU Safety Monitor ✅
-- Switch Protection Monitor ✅
+**Containers**:
+- `dell-port-tracer-nginx` ✅ SSL/HTTPS + Reverse Proxy
+- `dell-port-tracer-app` ✅ Flask Application + SSH Connectivity
+- `dell-port-tracer-postgres` ✅ PostgreSQL Database + Persistence
+
+**Features**: All v2.1.3 features active  
+- SSH-based Switch Communication ✅
+- PostgreSQL Database with Encrypted Credentials ✅
+- SSL/HTTPS with Automatic Certificates ✅
 - Windows AD Authentication ✅
-- Syslog Integration ✅
-- Role-based filtering ✅
+- Comprehensive Audit Logging ✅
+- Role-based Access Control ✅
 
 ## ☸️ Kubernetes Deployment Files Status
 
@@ -33,27 +39,37 @@
 - ✅ **k8s-configmap.yaml** - Switch configuration ready
 - ✅ **k8s-ingress.yaml** - NGINX ingress with session affinity
 
-### New v2.0 Environment Variables Added:
+### v2.1.3 Environment Variables:
 ```yaml
-# CPU Safety Settings
-- CPU_SAFETY_ENABLED: "true"
-- CPU_GREEN_THRESHOLD: "40.0"
-- CPU_YELLOW_THRESHOLD: "60.0" 
-- CPU_RED_THRESHOLD: "80.0"
+# Database Configuration (PostgreSQL)
+- DATABASE_URL: "postgresql://username:password@postgres:5432/dell_port_tracer"
+- POSTGRES_DB: "dell_port_tracer"
+- POSTGRES_USER: "port_tracer_user"
+- POSTGRES_PASSWORD: "secure_password_here"
 
-# Switch Protection Settings
-- SWITCH_PROTECTION_ENABLED: "true"
-- MAX_CONNECTIONS_PER_SWITCH: "8"
-- MAX_TOTAL_CONNECTIONS: "64"
-- COMMANDS_PER_SECOND_LIMIT: "10"
+# Flask Application
+- FLASK_ENV: "production"
+- SECRET_KEY: "generate_strong_secret_key_here"
+- FLASK_DEBUG: "False"
 
-# Syslog Settings (optional)
-- SYSLOG_ENABLED: "false"
-- SYSLOG_SERVER: "localhost"
+# Dell Switch SSH Access
+- DEFAULT_SSH_USERNAME: "admin"
+- DEFAULT_SSH_PASSWORD: "encrypted_password"
+
+# Windows AD/LDAP Authentication
+- LDAP_SERVER: "ldap://your-domain-controller.company.com"
+- LDAP_DOMAIN: "COMPANY"
+- LDAP_BASE_DN: "DC=company,DC=com"
+- LDAP_USER_SEARCH_BASE: "OU=Users,DC=company,DC=com"
+
+# SSL Configuration (nginx)
+- SSL_CERT_PATH: "/etc/nginx/ssl/cert.pem"
+- SSL_KEY_PATH: "/etc/nginx/ssl/key.pem"
+
+# Logging
+- LOG_LEVEL: "INFO"
+- SYSLOG_SERVER: "your-syslog-server.company.com"
 - SYSLOG_PORT: "514"
-
-# Authentication
-- USE_WINDOWS_AUTH: "true"
 ```
 
 ## 📂 Repository Status

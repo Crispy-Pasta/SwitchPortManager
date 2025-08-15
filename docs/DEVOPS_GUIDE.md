@@ -1,4 +1,4 @@
-# Dell Switch Port Tracer - DevOps Guide
+# Dell Switch Port Tracer v2.1.3 - DevOps Guide
 
 ## 📋 Table of Contents
 - [System Architecture](#system-architecture)
@@ -12,26 +12,63 @@
 
 ---
 
-## 🏗️ System Architecture
+## 🏢 System Architecture (v2.1.3)
 
-### **Application Stack**
+### **3-Container Docker Compose Stack**
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Browser   │◄───┤   Load Balancer  │◄───┤   Dell Switches │
-│    (Users)      │    │   (nginx/k8s)    │    │   (SSH Access)  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ Static Assets   │    │  Flask Web App   │    │  switches.json  │
-│ (CSS/JS/Images) │    │ (port_tracer.py) │    │ (Configuration) │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Docker        │    │  Windows AD      │    │    Audit/Log    │
-│  (Container)    │    │ (Authentication) │    │     Storage     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     Dell Port Tracer v2.1.3                     │
+│                   Production Architecture                        │
+└─────────────────────────────────────────────────────────────────┘
+
+          ┌────────────────────────────────────────┐
+          │        Web Client (User Browser)         │
+          │          HTML/CSS/JS + jQuery            │
+          │         Role-based UI Elements           │
+          └─────────────────────────┬───────────────┘
+                                    │
+                   HTTPS/SSL (Port 443)
+                   HTTP→HTTPS Redirect (Port 80)
+                                    │
+                                    ▼
+          ┌────────────────────────────────────────┐
+          │      dell-port-tracer-nginx              │
+          │  • SSL/HTTPS Termination                │
+          │  • Reverse Proxy & Load Balancing       │
+          │  • Security Headers                     │
+          │  • Static File Serving                  │
+          └─────────────────────────┬───────────────┘
+                      Proxy Pass     │
+                      (app:5000)     │
+                                    ▼
+          ┌────────────────────────────────────────┐
+          │       dell-port-tracer-app              │
+          │  • Flask Web Application                │
+          │  • SSH to Dell Switches                 │
+          │  • Windows AD/LDAP Authentication       │
+          │  • Role-based Access Control            │
+          │  • Port Tracing Logic (Netmiko)         │
+          └─────────────────────────┬───────────────┘
+                      PostgreSQL     │
+                      Connection     │
+                      (postgres:5432)│
+                                    ▼
+          ┌────────────────────────────────────────┐
+          │     dell-port-tracer-postgres           │
+          │  • PostgreSQL 15 Database               │
+          │  • Switch Inventory Storage             │
+          │  • Encrypted Credentials                 │
+          │  • Comprehensive Audit Logs             │
+          │  • Persistent Named Volume               │
+          └────────────────────────────────────────┘
+
+          ┌────────────────────────────────────────┐
+          │              External Systems             │
+          ├────────────────────────────────────────┤
+          │  Dell Switches ◄── SSH (Port 22)         │
+          │  Windows AD    ◄── LDAP (389/636)        │
+          │  Syslog Server ◄── UDP (Port 514)        │
+          └────────────────────────────────────────┘
 ```
 
 ### **Key Components**
@@ -53,46 +90,99 @@
 
 ## 🚀 Deployment Methods
 
-### **1. Docker Deployment (Recommended)**
+### **1. Docker Compose Deployment (Recommended)**
 
-#### **Build Image**
+#### **Production 3-Container Stack**
 ```bash
 # Clone repository
 git clone https://github.com/Crispy-Pasta/DellPortTracer.git
 cd DellPortTracer
 
-# Build Docker image
-docker build -t dell-port-tracer:latest .
+# Configure environment
+cp .env.example .env
+# Edit .env with appropriate values
 
-# Run container
-docker run -d \
-  --name dell-port-tracer \
-  -p 8443:5000 \
-  -v /opt/dell-tracer/logs:/app/logs \
-  -v /opt/dell-tracer/switches.json:/app/switches.json \
-  --env-file /opt/dell-tracer/.env \
-  --restart unless-stopped \
-  dell-port-tracer:latest
+# Deploy production stack
+docker-compose -f docker-compose.prod.yml up -d
+
+# Verify deployment
+docker-compose -f docker-compose.prod.yml ps
+docker-compose -f docker-compose.prod.yml logs
 ```
 
-#### **Docker Compose**
+#### **Production Docker Compose Configuration**
 ```yaml
 version: '3.8'
 services:
-  dell-port-tracer:
-    build: .
+  nginx:
+    image: nginx:alpine
+    container_name: dell-port-tracer-nginx
     ports:
-      - "8443:5000"
+      - "80:80"      # HTTP (redirects to HTTPS)
+      - "443:443"    # HTTPS
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/ssl/private:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - app
+    networks:
+      - dell-tracer-network
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dell-port-tracer-app
+    environment:
+      - DATABASE_URL=postgresql://porttracer:${POSTGRES_PASSWORD}@postgres:5432/porttracer_db
+    env_file:
+      - .env
     volumes:
       - ./logs:/app/logs
-      - ./switches.json:/app/switches.json
-    env_file: .env
+      - ./data/switches:/app/data/switches:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dell-tracer-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: dell-port-tracer-postgres
+    environment:
+      - POSTGRES_DB=porttracer_db
+      - POSTGRES_USER=porttracer
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=md5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - dell-tracer-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U porttracer -d porttracer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  dell-tracer-network:
+    driver: bridge
 ```
 
 ### **2. Kubernetes Deployment**
@@ -163,23 +253,36 @@ sudo systemctl start dell-port-tracer
 
 #### **Required Variables**
 ```bash
-# Switch Credentials
-SWITCH_USERNAME=admin
-SWITCH_PASSWORD=switch_password
+# Database Configuration
+POSTGRES_PASSWORD=secure_db_password_123
+DATABASE_URL=postgresql://porttracer:${POSTGRES_PASSWORD}@postgres:5432/porttracer_db
 
-# Web Authentication  
+# Switch Credentials (AES-256 Encrypted)
+SWITCH_USERNAME=admin
+SWITCH_PASSWORD=encrypted_switch_password
+CREDENTIALS_ENCRYPTION_KEY=your_32_char_encryption_key_here
+
+# Web Authentication Passwords
 OSS_PASSWORD=oss123
 NETADMIN_PASSWORD=netadmin123
 SUPERADMIN_PASSWORD=superadmin123
 WEB_PASSWORD=password  # Legacy admin account
 
-# Windows AD (if enabled)
+# SSL/TLS Configuration
+SSL_CERT_PATH=/etc/ssl/private/porttracer.crt
+SSL_KEY_PATH=/etc/ssl/private/porttracer.key
+HTTPS_ENABLED=true
+
+# Windows AD Integration (Optional)
 USE_WINDOWS_AUTH=true
 AD_SERVER=ldap://domain.com
 AD_DOMAIN=domain.com
 AD_BASE_DN=DC=domain,DC=com
 AD_USER_SEARCH_BASE=DC=domain,DC=com
 AD_GROUP_SEARCH_BASE=DC=domain,DC=com
+AD_GROUP_MAPPING_OSS=OSS_Users
+AD_GROUP_MAPPING_NETADMIN=NetAdmin_Users
+AD_GROUP_MAPPING_SUPERADMIN=SuperAdmin_Users
 ```
 
 #### **Performance Tuning Variables**
@@ -243,28 +346,59 @@ The auto-deployment script (`auto-deploy.sh`) provides:
 
 #### **Application Health**
 ```bash
-# HTTP health check
+# HTTP health check (via nginx)
+curl -f https://localhost/health
+
+# Direct application health check
 curl -f http://localhost:5000/health
 
 # Expected response
 {
   "status": "healthy",
-  "version": "1.0.2", 
-  "timestamp": "2025-07-24T21:00:00Z",
+  "version": "2.1.3", 
+  "timestamp": "2025-01-27T21:00:00Z",
   "sites_count": 27,
-  "windows_auth": true
+  "windows_auth": true,
+  "database": "connected",
+  "database_type": "PostgreSQL 15",
+  "switch_inventory": "loaded",
+  "encryption_status": "enabled"
 }
 ```
 
-#### **Container Health**
+#### **Container Health (3-Container Stack)**
 ```bash
-# Docker health check
+# Check all containers in the stack
+docker-compose -f docker-compose.prod.yml ps
+
+# Individual container status
 docker ps --filter name=dell-port-tracer
-docker logs dell-port-tracer --tail 50
+
+# Container logs
+docker logs dell-port-tracer-nginx --tail 50
+docker logs dell-port-tracer-app --tail 50
+docker logs dell-port-tracer-postgres --tail 50
+
+# Combined logs from all services
+docker-compose -f docker-compose.prod.yml logs --tail=50
 
 # Kubernetes health check  
 kubectl get pods -l app=dell-port-tracer
 kubectl describe pod <pod-name>
+```
+
+#### **Database Health**
+```bash
+# PostgreSQL connection test
+docker exec dell-port-tracer-postgres pg_isready -U porttracer -d porttracer_db
+
+# Database size and connection info
+docker exec dell-port-tracer-postgres psql -U porttracer -d porttracer_db -c "\l+"
+docker exec dell-port-tracer-postgres psql -U porttracer -d porttracer_db -c "SELECT count(*) FROM pg_stat_activity;"
+
+# Expected healthy responses
+# pg_isready: accepting connections
+# Connection count should be reasonable (typically < 20)
 ```
 
 ### **Log Files**
@@ -316,19 +450,56 @@ CPU_USAGE_WARNING=75%       # Warn at 75% CPU usage
 
 ### **Common Issues**
 
-#### **1. Container Won't Start**
+#### **1. Container Stack Won't Start**
 ```bash
-# Check container logs
-docker logs dell-port-tracer --tail 50
+# Check all containers in the stack
+docker-compose -f docker-compose.prod.yml ps
+
+# Check individual container logs
+docker logs dell-port-tracer-nginx --tail 50
+docker logs dell-port-tracer-app --tail 50
+docker logs dell-port-tracer-postgres --tail 50
 
 # Common causes and solutions:
 # - Missing .env file: Create from .env.example
-# - Invalid switches.json: Validate JSON syntax
-# - Port conflict: Change port mapping
-# - Permission issues: Check file ownership
+# - Invalid POSTGRES_PASSWORD: Check environment variables
+# - SSL certificate issues: Verify cert/key files exist
+# - Port conflicts: Ensure ports 80, 443, 5432 available
+# - Permission issues: Check file ownership and Docker socket access
+# - Network conflicts: Ensure dell-tracer-network is available
 
-# Restart container
-docker restart dell-port-tracer
+# Restart the entire stack
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d
+
+# Restart individual services
+docker-compose -f docker-compose.prod.yml restart nginx
+docker-compose -f docker-compose.prod.yml restart app
+docker-compose -f docker-compose.prod.yml restart postgres
+```
+
+#### **2. Database Connection Issues**
+```bash
+# Check PostgreSQL container status
+docker logs dell-port-tracer-postgres --tail 50
+
+# Test database connectivity
+docker exec dell-port-tracer-postgres pg_isready -U porttracer -d porttracer_db
+
+# Connect to database directly
+docker exec -it dell-port-tracer-postgres psql -U porttracer -d porttracer_db
+
+# Common database issues:
+# - Wrong POSTGRES_PASSWORD in .env
+# - Database not initialized: Check init-scripts volume
+# - Connection limit reached: Check active connections
+# - Disk space full: Check postgres_data volume
+# - Network connectivity: Ensure app can reach postgres container
+
+# Reset database if needed (WARNING: destroys all data)
+docker-compose -f docker-compose.prod.yml down
+docker volume rm postgres_data
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 #### **2. Authentication Issues**

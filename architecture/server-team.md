@@ -4,60 +4,81 @@
 
 This documentation provides an overview of the server and infrastructure-related aspects of the Dell Port Tracer application, including deployment architecture, server components, monitoring, maintenance, and security.
 
-## Server Architecture Diagram
+## Server Architecture Diagram (v2.1.3)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      SERVER ARCHITECTURE                        │
+│             PRODUCTION SERVER ARCHITECTURE v2.1.3              │
 └─────────────────────────────────────────────────────────────────┘
 
-                  User Workstation
+                  User Workstations
                   ┌──────────────┐
                   │              │
-                  │  Web Browser │
-                  │              │
+                  │  Web Browser │ ◄── HTTPS (Port 443)
+                  │              │ ◄── HTTP (Port 80) → Redirect to HTTPS
                   └───────┬──────┘
                           │
-           HTTPS (Port 443) │
-                          │
-                          ▼
-                  ┌──────────────┐
-                  │   Internet    │
-                  └──────────────┘
+                          │ SSL/TLS Encrypted
                           │
                           ▼
                 ┌─────────────────┐
-                │    Firewall     ◄───────────────────────────── User Authentication
-                └─────────────────┘          Windows Active Directory (LDAP)
+                │  Linux Server   │ ◄───────────────────────────── Windows AD
+                │  (Production)   │          LDAP Authentication   (Optional)
+                └─────────┬───────┘                 (Port 389/636)
                           │
+                          │ Docker Compose Production Stack
                           ▼
-                ┌─────────────────┐
-                │                 │
-                │  nginx Reverse  │
-                │     Proxy       │
-                │                 │
-                └─────────┬───────┘
-                          │
-                          ▼
-          ┌────────────────────────────┐
-          │        Docker Host         │
-          └─────────────────┬──────────┘
-                            │
-                            │
-    ┌────────────────────────────────────────────┐
-    │                                            │
-    │               Docker Network               │
-    │                                            │
-    ├────────────────────────────────────────────┤
-    │   Docker Container: Flask App              │
-    │   (Port 5000)                              │
-    │--------------------------------------------│
-    │   Docker Container: PostgreSQL Database    │
-    │   (Port 5432)                              │
-    │--------------------------------------------│
-    │   Docker Container: Internal Services      │
-    │                                            │
-    └────────────────────────────────────────────┘
+          ┌──────────────────────────────────────────┐
+          │            Docker Network                │
+          │         (dell-port-tracer)               │
+          ├──────────────────────────────────────────┤
+          │                                          │
+          │  ┌─────────────────────────────────────┐ │
+          │  │     dell-port-tracer-nginx          │ │
+          │  │    • SSL/HTTPS Termination          │ │
+          │  │    • Reverse Proxy                  │ │
+          │  │    • Security Headers               │ │
+          │  │    • Ports: 80:80, 443:443          │ │
+          │  │    • Self-signed SSL Certs          │ │
+          │  └─────────────┬───────────────────────┘ │
+          │                │                         │
+          │                ▼                         │
+          │  ┌─────────────────────────────────────┐ │
+          │  │     dell-port-tracer-app            │ │
+          │  │    • Flask Application Server       │ │
+          │  │    • Port Tracing Logic              │ │
+          │  │    • SSH to Dell Switches           │ │
+          │  │    • Internal Port: 5000             │ │
+          │  │    • Health Checks: /health          │ │
+          │  └─────────────┬───────────────────────┘ │
+          │                │                         │
+          │                ▼                         │
+          │  ┌─────────────────────────────────────┐ │
+          │  │   dell-port-tracer-postgres         │ │
+          │  │    • PostgreSQL Database            │ │
+          │  │    • Persistent Named Volume        │ │
+          │  │    • Automatic Backups              │ │
+          │  │    • Internal Port: 5432             │ │
+          │  │    • Health Checks: pg_isready      │ │
+          │  └─────────────────────────────────────┘ │
+          └──────────────────────────────────────────┘
+
+          ┌──────────────────────────────────────────┐
+          │           Persistent Storage             │
+          ├──────────────────────────────────────────┤
+          │  • dell_port_tracer_postgres_data        │
+          │  • ./logs/nginx (bind mount)             │
+          │  • ./logs/app (bind mount)               │
+          │  • ./backups (bind mount)                │
+          └──────────────────────────────────────────┘
+
+          ┌──────────────────────────────────────────┐
+          │         External Connections             │
+          ├──────────────────────────────────────────┤
+          │  Dell Switches ◄── SSH (Port 22)        │
+          │  Windows AD    ◄── LDAP (389/636)       │
+          │  Syslog Server ◄── UDP (Port 514)       │
+          └──────────────────────────────────────────┘
 ```
 
 ## Deployment Architecture
@@ -80,60 +101,95 @@ This documentation provides an overview of the server and infrastructure-related
 
 ## Container Architecture Details
 
-### Docker Compose Services
+### Docker Compose Services (v2.1.3)
 
 ```yaml
-# docker-compose.yml
+# docker-compose.prod.yml - Production Configuration
 version: '3.8'
+
 services:
-  port-tracer:
-    image: dell-port-tracer:latest
-    container_name: port-tracer
-    ports:
-      - "5000:5000"
-    environment:
-      - DATABASE_URL=postgresql://dell_tracer_user:dell_tracer_pass@postgres:5432/dell_port_tracer
-      - WINDOWS_AUTH_ENABLED=true
-      - LDAP_SERVER=your-domain-controller.com
-      - LDAP_PORT=389
-    depends_on:
-      - postgres
-    networks:
-      - port-tracer-network
+  postgres:
+    image: postgres:15-alpine
+    container_name: dell-port-tracer-postgres
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: port_tracer_db
+      POSTGRES_USER: porttracer_user
+      POSTGRES_PASSWORD: porttracer_pass
+    volumes:
+      # Named volume for consistent database persistence
+      - postgres_data_persistent:/var/lib/postgresql/data
+      # Protected backups directory
+      - ./backups:/backups
+    networks:
+      - dell-port-tracer
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ['CMD-SHELL', 'pg_isready -U porttracer_user -d port_tracer_db']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: dell-port-tracer-app
+    restart: unless-stopped
+    env_file:
+      # Use single environment file
+      - .env
+    volumes:
+      # Application logs (persistent)
+      - ./logs/app:/app/logs
+      # Protected backups directory
+      - ./backups:/app/backups
+      # Protected data directory (read-only)
+      - ./data:/app/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dell-port-tracer
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/health']
       interval: 30s
       timeout: 10s
       retries: 3
 
-  postgres:
-    image: postgres:15
-    container_name: postgres
-    environment:
-      - POSTGRES_DB=dell_port_tracer
-      - POSTGRES_USER=dell_tracer_user
-      - POSTGRES_PASSWORD=dell_tracer_pass
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
-    networks:
-      - port-tracer-network
+  nginx:
+    image: nginx:alpine
+    container_name: dell-port-tracer-nginx
     restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      # Nginx configuration
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # SSL certificates (auto-generated)
+      - ./data/ssl:/etc/nginx/ssl:ro
+      # Nginx logs
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - dell-port-tracer
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dell_tracer_user"]
+      test: ['CMD', 'nginx', '-t']
       interval: 30s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
+      timeout: 10s
+      retries: 3
 
 networks:
-  port-tracer-network:
+  dell-port-tracer:
     driver: bridge
+
+volumes:
+  # Named volume with consistent name for database persistence
+  # This survives container rebuilds and prevents data loss
+  postgres_data_persistent:
+    driver: local
+    name: dell_port_tracer_postgres_data
 ```
 
 ### nginx Configuration
@@ -210,89 +266,135 @@ LOG_LEVEL=INFO
 LOG_FORMAT=json
 ```
 
-## Deployment Steps
+## Production Deployment Process (v2.1.3)
 
 ### 1. Server Preparation
 
 ```bash
 # Install Docker and Docker Compose
 sudo apt update
-sudo apt install docker.io docker-compose
+sudo apt install docker.io docker-compose-plugin curl git
 sudo systemctl enable docker
 sudo systemctl start docker
 
 # Add user to docker group
 sudo usermod -aG docker $USER
+newgrp docker  # Apply group membership
 
-# Install nginx
-sudo apt install nginx
-sudo systemctl enable nginx
-sudo systemctl start nginx
+# Verify Docker installation
+docker --version
+docker-compose --version
 ```
 
-### 2. Application Deployment
+### 2. Application Deployment (Recommended: Safe Script)
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/dell-port-tracer.git
-cd dell-port-tracer
+git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+cd SwitchPortManager
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your configuration
+# Configure environment from template
+cp config/.env.template .env
 
-# Build and start containers
-docker-compose build
-docker-compose up -d
+# Edit .env with your production configuration
+vim .env  # Configure all required variables
+
+# Deploy using safe script (automated with backup/rollback)
+./deploy-safe.sh
+```
+
+### 3. Manual Deployment (Alternative)
+
+```bash
+# If you prefer manual control:
+
+# Build application container
+docker-compose -f docker-compose.prod.yml build --no-cache
+
+# Start all services
+docker-compose -f docker-compose.prod.yml up -d
+
+# Wait for services to initialize
+sleep 30
 
 # Verify deployment
-docker-compose ps
-docker-compose logs
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+docker logs dell-port-tracer-app --tail 10
+curl -k https://localhost/health
 ```
 
-### 3. nginx Configuration
+### 4. SSL Certificate Management
 
+**Production SSL certificates:**
 ```bash
-# Copy nginx configuration
-sudo cp nginx/dell-port-tracer.conf /etc/nginx/sites-available/
-sudo ln -s /etc/nginx/sites-available/dell-port-tracer.conf /etc/nginx/sites-enabled/
+# Create SSL directory
+mkdir -p data/ssl
 
-# Test and reload nginx
-sudo nginx -t
-sudo systemctl reload nginx
+# For production CA certificates:
+cp your-cert.pem data/ssl/fullchain.pem
+cp your-key.pem data/ssl/privkey.pem
+chmod 600 data/ssl/privkey.pem
+
+# Update nginx configuration to use production certificates
+# Then restart nginx container
+docker restart dell-port-tracer-nginx
 ```
 
-### 4. SSL/TLS Certificate Setup
-
+**Self-signed certificates (default):**
 ```bash
-# Using Let's Encrypt (recommended)
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-server.domain.com
-
-# Or copy existing certificates
-sudo cp your-certificate.crt /etc/ssl/certs/
-sudo cp your-private.key /etc/ssl/private/
-sudo chmod 600 /etc/ssl/private/your-private.key
+# SSL certificates are automatically generated on first run
+# No additional configuration required
 ```
 
-### 5. Database Initialization
+### 5. Database Operations
 
 ```bash
-# Initialize database schema
-docker-compose exec port-tracer python init_db.py
+# Database is automatically initialized
+# Manual operations if needed:
 
-# Migrate data from SQLite (if applicable)
-docker-compose exec port-tracer python migrate_data.py
+# Create manual database backup
+docker exec dell-port-tracer-postgres pg_dump -U porttracer_user port_tracer_db > backup.sql
+
+# Restore from backup
+cat backup.sql | docker exec -i dell-port-tracer-postgres psql -U porttracer_user -d port_tracer_db
+
+# Check database status
+docker exec dell-port-tracer-postgres psql -U porttracer_user -d port_tracer_db -c "SELECT version();"
 ```
 
 ### 6. Active Directory Integration Testing
 
 ```bash
-# Test LDAP connectivity
-docker-compose exec port-tracer python tools/test_ldap_connection.py
+# Test Windows AD authentication (if configured)
+docker exec dell-port-tracer-app python -c "from app.auth import test_ldap; test_ldap()"
 
-# Test user authentication
-docker-compose exec port-tracer python tools/test_ad_auth.py
+# Check environment variables
+docker exec dell-port-tracer-app printenv | grep -E 'AD_SERVER|LDAP|AUTH'
+
+# Test application authentication
+curl -k -X POST https://localhost/login -d "username=testuser&password=testpass"
+```
+
+### 7. Production Verification
+
+```bash
+# Complete production readiness check
+echo "=== Container Status ==="
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+echo "=== Health Checks ==="
+curl -k https://localhost/health | jq .
+
+echo "=== SSL Certificate Info ==="
+openssl s_client -connect localhost:443 -servername localhost < /dev/null 2>/dev/null | openssl x509 -noout -dates
+
+echo "=== Database Connectivity ==="
+docker exec dell-port-tracer-postgres pg_isready -U porttracer_user -d port_tracer_db
+
+echo "=== Log Status ==="
+ls -la logs/
+docker logs dell-port-tracer-app --tail 5
+docker logs dell-port-tracer-nginx --tail 5
 ```
 
 ## Monitoring and Maintenance

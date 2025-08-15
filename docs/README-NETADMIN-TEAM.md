@@ -1,11 +1,13 @@
-# Dell Switch Port Tracer v2.0 - NetAdmin Team Guide
+# Dell Switch Port Tracer v2.1.3 - NetAdmin Team Guide
 
 ## 🎯 **NetAdmin Team Overview**
 
-As a **Network Administrator (NetAdmin)** team member, you have **full access** to all Dell Switch Port Tracer features for comprehensive network management and troubleshooting.
+As a **Network Administrator (NetAdmin)** team member, you have **full access** to all Dell Switch Port Tracer v2.1.3 features for comprehensive network management and troubleshooting using secure SSH connections and PostgreSQL database storage.
 
 ![NetAdmin Role](https://img.shields.io/badge/Role-NetAdmin-blue)
 ![Access Level](https://img.shields.io/badge/Access-Full-green)
+![Version](https://img.shields.io/badge/version-2.1.3-blue)
+![Architecture](https://img.shields.io/badge/architecture-Docker%20Compose-green)
 
 ---
 
@@ -31,36 +33,36 @@ As a **Network Administrator (NetAdmin)** team member, you have **full access** 
 ## 🏗️ **Application Architecture (NetAdmin View)**
 
 ```
-Dell Switch Port Tracer v2.0 Architecture
+Dell Switch Port Tracer v2.1.3 Architecture - 3-Container Docker Stack
 │
-├── 🌐 Web Interface Layer
-│   ├── Flask Web Framework (port 5000)
+├── 🌐 Frontend Layer (nginx Container)
+│   ├── SSL/HTTPS Termination (Port 443)
+│   ├── HTTP to HTTPS Redirect (Port 80)
+│   ├── Reverse Proxy to Flask App
+│   ├── Security Headers
+│   └── Static File Serving
+│
+├── 🚀 Application Layer (app Container)
+│   ├── Flask Web Framework (Internal Port 5000)
 │   ├── Role-Based Access Control (RBAC)
 │   ├── Windows AD Integration (LDAP3)
+│   ├── SSH-based MAC Tracing Engine
+│   │   ├── Parallel SSH Connections (Netmiko)
+│   │   ├── Dell Switch Command Processing
+│   │   ├── MAC Table Parsing & Analysis
+│   │   └── Result Filtering by Role
 │   └── Session Management & Security
 │
-├── 🔍 MAC Tracing Engine
-│   ├── Parallel SSH Connections (Paramiko)
-│   ├── Dell Switch Command Processing
-│   ├── MAC Table Parsing & Analysis
-│   └── Result Filtering by Role
-│
-├── 🛡️ Enterprise Protection (v2.0)
-│   ├── CPU Safety Monitor
-│   │   ├── Configurable CPU thresholds
-│   │   ├── Per-switch monitoring
-│   │   └── Automatic connection limiting
-│   ├── Switch Protection Monitor
-│   │   ├── Connection rate limiting
-│   │   ├── Concurrent connection limits
-│   │   └── Switch health monitoring
-│   └── Syslog Integration
-│       ├── Centralized logging
-│       ├── Structured log format
-│       └── Enterprise SIEM integration
+├── 📋 Database Layer (postgres Container)
+│   ├── PostgreSQL 15 Database
+│   ├── Switch Inventory Management
+│   ├── Encrypted Credential Storage
+│   ├── Comprehensive Audit Logging
+│   ├── User Management & Roles
+│   └── Persistent Named Volume
 │
 ├── 📊 Network Device Management
-│   ├── Switch Inventory (switches.json)
+│   ├── Database-driven Switch Inventory
 │   ├── Multi-Site Support
 │   ├── Dell Model Detection
 │   │   ├── N2000 Series (N2048)
@@ -68,10 +70,12 @@ Dell Switch Port Tracer v2.0 Architecture
 │   │   └── N3200 Series (N3248, advanced models)
 │   └── Automatic Port Categorization
 │
-└── 🔐 Security & Audit
-    ├── Comprehensive Audit Logging
+└── 🔐 Security & Audit (v2.1.3)
+    ├── SSL/HTTPS Encryption
+    ├── PostgreSQL Audit Logging
+    ├── Encrypted SSH Credentials
     ├── Role-Based Information Filtering
-    ├── Secure SSH Key Management
+    ├── Secure Container Networking
     └── Enterprise Authentication
 ```
 

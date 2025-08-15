@@ -1,4 +1,4 @@
-# Dell Switch Port Tracer - User Guide
+# Dell Switch Port Tracer v2.1.3 - User Guide
 
 ## 📖 Table of Contents
 - [Overview](#overview)
@@ -14,14 +14,22 @@
 
 ## 🏢 Overview
 
-The Dell Switch Port Tracer is an enterprise-grade web application designed for network administrators to quickly trace MAC addresses across Dell switches in multi-site environments. The application provides real-time port identification with detailed configuration information while maintaining security through role-based access control.
+The Dell Switch Port Tracer v2.1.3 is an enterprise-grade web application designed for network administrators to quickly trace MAC addresses across Dell switches in multi-site environments. The application uses secure SSH connections to switches and provides real-time port identification with detailed configuration information while maintaining security through role-based access control.
+
+### Architecture (v2.1.3)
+- **3-Container Docker Stack**: nginx + Flask app + PostgreSQL database
+- **SSL/HTTPS**: Secure web access with automatic certificates
+- **SSH-based Switch Access**: Secure encrypted connections to Dell switches
+- **PostgreSQL Database**: Persistent storage with encrypted credentials
+- **Windows AD Integration**: LDAP authentication with corporate directory
 
 ### Key Benefits
-- **6x Faster Tracing**: Concurrent processing reduces search time from 30+ seconds to 5-8 seconds
+- **6x Faster Tracing**: SSH concurrent processing reduces search time from 30+ seconds to 5-8 seconds
 - **Multi-Site Support**: Manage 27+ sites with 155+ switches simultaneously  
 - **Role-Based Security**: OSS, NetAdmin, and SuperAdmin access levels
 - **Windows AD Integration**: Seamless authentication with existing infrastructure
 - **Real-Time Results**: Live progress updates and detailed port information
+- **Production Ready**: SSL/HTTPS, database persistence, automated backups
 
 ---
 

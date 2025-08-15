@@ -1,12 +1,13 @@
-# Dell Switch Port Tracer v2.0
+# Dell Switch Port Tracer v2.1.3
 
 ## 🚀 **Enterprise-Grade MAC Address Tracing Solution**
 
-A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities.
+A secure, production-ready web application for tracing MAC addresses across Dell switches with advanced monitoring, SSL/HTTPS support, and automated deployment capabilities.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Docker%20%7C%20Linux-lightgrey)
+![Status](https://img.shields.io/badge/status-Production%20Ready-green)
 
 ## 🚀 Features
 
@@ -45,79 +46,123 @@ pip install -r requirements.txt
 
 ## 🔧 Installation
 
-### Option 1: Standard Python Deployment
+### Recommended: Production Docker Deployment
+
+**Complete 3-container architecture with SSL/HTTPS support**
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager
    ```
 
-2. **Install Dependencies**
+2. **Configure Environment**
+   Copy the template and configure your environment:
    ```bash
-   pip install -r requirements.txt
+   cp config/.env.template .env
+   # Edit .env with your specific values
    ```
 
-3. **Configure Environment Variables**
-   Create a `.env` file:
+   Required variables in `.env`:
    ```env
+   # Application Security
+   SECRET_KEY=your_secure_secret_key_here
+   
    # Dell Switch SSH Credentials
    SWITCH_USERNAME=your_switch_username
    SWITCH_PASSWORD=your_switch_password
 
-   # Web Service Configuration
-   OSS_PASSWORD=oss123
-   NETADMIN_PASSWORD=netadmin123
-   SUPERADMIN_PASSWORD=superadmin123
+   # Database Configuration (auto-configured)
+   DATABASE_URL=postgresql://porttracer_user:porttracer_pass@postgres:5432/port_tracer_db
+   
+   # User Authentication
+   ADMIN_PASSWORD=your_admin_password
+   OSS_PASSWORD=your_oss_password
+   NETADMIN_PASSWORD=your_netadmin_password
+   SUPERADMIN_PASSWORD=your_superadmin_password
 
-   # Windows Active Directory Configuration (Optional)
+   # Windows Active Directory (Optional)
    USE_WINDOWS_AUTH=true
-   AD_SERVER=ldap://your-domain.com
+   AD_SERVER=10.20.100.15
    AD_DOMAIN=your-domain.com
    AD_BASE_DN=DC=your-domain,DC=com
    ```
 
-4. **Configure Switch Inventory**
-   Update `switches.json` with your network topology
-
-5. **Start the Application**
+3. **Deploy with Safe Script**
    ```bash
+   # Automated deployment with backup and rollback protection
+   ./deploy-safe.sh
+   ```
+
+4. **Access the Application**
+   - **HTTPS**: `https://your-server-ip/` (SSL enabled)
+   - **HTTP**: `http://your-server-ip/` (also available)
+   - **Custom Domain**: Configure DNS for `https://kmc-port-tracer/`
+
+### Architecture Components
+
+**3-Container Production Setup:**
+- **dell-port-tracer-app**: Flask application (Python)
+- **dell-port-tracer-nginx**: Reverse proxy with SSL/HTTPS
+- **dell-port-tracer-postgres**: Database with persistent storage
+
+**Features:**
+- ✅ **SSL/HTTPS enabled** with automatic certificate generation
+- ✅ **Database persistence** with named volumes and backups
+- ✅ **Safe deployment** with automatic backup and rollback
+- ✅ **Health monitoring** for all containers
+- ✅ **Production logging** and audit trails
+
+### Alternative: Development Setup
+
+**For development or testing purposes:**
+
+1. **Python Direct Deployment**
+   ```bash
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager/app
+   pip install -r requirements.txt
+   
+   # Configure environment
+   cp ../.env.example .env
+   # Edit .env with your settings
+   
    python port_tracer_web.py
    ```
 
-### Option 2: Docker Deployment
-
-1. **Build and Run with Docker Compose**
+2. **Development Docker Compose**
    ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
-   docker-compose up -d
+   # Basic 2-container setup without SSL
+   docker-compose -f docker-compose.yml up -d
    ```
 
-2. **Access the Application**
-   - Open http://localhost:5000
+### Manual Docker Deployment
 
-### Option 3: Kubernetes Deployment
+**If you prefer manual control:**
 
-1. **Deploy to Kubernetes**
-   ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
-   
-   # For Windows
-   .\deploy.ps1 deploy
-   
-   # For Linux/Mac
-   chmod +x deploy.sh
-   ./deploy.sh deploy
-   ```
+```bash
+# 1. Start database
+docker run -d --name dell-port-tracer-postgres \
+  -e POSTGRES_DB=port_tracer_db \
+  -e POSTGRES_USER=porttracer_user \
+  -e POSTGRES_PASSWORD=porttracer_pass \
+  -v dell_port_tracer_postgres_data:/var/lib/postgresql/data \
+  postgres:15-alpine
 
-2. **Access Methods**
-   - **NodePort**: `http://<node-ip>:30080`
-   - **Port Forward**: `kubectl port-forward service/dell-port-tracer-service 8080:80`
-   - **Ingress**: Configure DNS for production access
+# 2. Build and start application
+docker build -t dell-port-tracer-app ./app
+docker run -d --name dell-port-tracer-app \
+  --env-file .env \
+  --link dell-port-tracer-postgres:postgres \
+  dell-port-tracer-app
 
-For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+# 3. Start nginx proxy
+docker run -d --name dell-port-tracer-nginx \
+  -p 80:80 -p 443:443 \
+  -v ./nginx.conf:/etc/nginx/nginx.conf:ro \
+  --link dell-port-tracer-app:app \
+  nginx:alpine
+```
 
 ## 🔐 Authentication & Authorization
 

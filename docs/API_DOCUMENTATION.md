@@ -1,20 +1,37 @@
 # Dell Switch Port Tracer - API Documentation
 
 **Version:** 2.1.3  
-**Last Updated:** August 2025
+**Last Updated:** August 2025  
+**Architecture:** Docker Compose 3-Container Stack  
+**Database:** PostgreSQL with encrypted credentials
 
 ## Overview
 
-The Dell Switch Port Tracer provides RESTful API endpoints for network management, MAC address tracing, VLAN management, and switch inventory control.
+The Dell Switch Port Tracer v2.1.3 provides RESTful API endpoints for SSH-based network management, MAC address tracing, switch inventory control, and comprehensive audit logging. The application uses secure SSH connections to Dell switches and PostgreSQL for persistent storage.
+
+## Architecture
+
+### Production Stack
+- **dell-port-tracer-nginx**: SSL/HTTPS termination and reverse proxy
+- **dell-port-tracer-app**: Flask application with SSH connectivity
+- **dell-port-tracer-postgres**: PostgreSQL database with persistent storage
+
+### Key Features
+- ✅ SSH-based switch communication (replaced SNMP)
+- ✅ Windows AD/LDAP authentication
+- ✅ PostgreSQL database with encrypted credentials
+- ✅ SSL/HTTPS with automatic certificates
+- ✅ Comprehensive audit logging
+- ✅ Role-based access control
 
 ## Authentication
 
 All API endpoints require session-based authentication. Users must log in through the web interface first.
 
 ### User Roles
-- **OSS** (`oss`): Limited access, MAC tracing only
-- **NetAdmin** (`netadmin`): Full VLAN management and inventory access
-- **SuperAdmin** (`superadmin`): Full administrative access
+- **OSS** (`oss`): Limited access, view access ports only
+- **NetAdmin** (`netadmin`): Full network access including uplinks and VLANs
+- **SuperAdmin** (`superadmin`): Complete administrative access and system management
 
 ## API Endpoints
 
