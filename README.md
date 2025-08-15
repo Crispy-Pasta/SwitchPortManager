@@ -1,4 +1,6 @@
-# Dell Switch Port Tracer v2.2.0
+# Switch Port Manager v2.1.3
+
+> **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
 ## 🚀 **Enterprise-Grade MAC Address Tracing Solution**
 
@@ -67,8 +69,8 @@ pip install -r requirements.txt
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager
    ```
 
 2. **Install Dependencies**
@@ -156,8 +158,8 @@ pip install -r requirements.txt
 
 1. **Build and Run with Docker Compose**
    ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager
    docker-compose up -d
    ```
 
@@ -168,8 +170,8 @@ pip install -r requirements.txt
 
 1. **Deploy to Kubernetes**
    ```bash
-   git clone https://github.com/Crispy-Pasta/DellPortTracer.git
-   cd DellPortTracer
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager
    
    # For Windows
    .\deploy.ps1 deploy
