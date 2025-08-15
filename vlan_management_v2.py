@@ -31,11 +31,50 @@ UI/UX IMPROVEMENTS:
 - Better user guidance for VLAN naming best practices and standardization
 - Detailed success messages showing optimization results
 
-TROUBLESHOoting GUIDE:
+COMPREHENSIVE TROUBLESHOOTING GUIDE:
+=================================
+DEBUGGING VLAN OPERATIONS:
 - Check logs for "Generated interface ranges" to see optimization attempts
-- Look for "Falling back to individual port configuration" for compatibility issues
+- Look for "Falling back to individual port configuration" for compatibility issues  
 - Monitor "Batch operation complete" messages for operation results
 - Use DEBUG level logging for detailed command execution traces
+- Search for "VLAN_MANAGER" in logs for all VLAN-related activities
+
+COMMON ISSUES AND SOLUTIONS:
+1. CONNECTION PROBLEMS:
+   - Verify SWITCH_USERNAME and SWITCH_PASSWORD environment variables
+   - Check switch SSH access: Dell switches limit to 10 concurrent sessions
+   - Ensure switch IP is reachable: ping test before VLAN operations
+   - Monitor "SSH connection failed" errors in port_tracer.log
+
+2. AUTHENTICATION ERRORS:
+   - Check switch credentials in environment variables
+   - Verify user has necessary switch privileges (enable mode access)
+   - Look for "Authentication failed" in logs
+   - Ensure switch user account is not locked or expired
+
+3. VLAN OPERATION FAILURES:
+   - Check VLAN exists: Use VLAN check API before assignment
+   - Verify port is not in trunk/general mode (access ports only)
+   - Look for uplink port protection warnings in logs
+   - Check for existing VLAN assignments that prevent changes
+
+4. PORT VALIDATION ERRORS:
+   - Use exact Dell format: Gi1/0/24, Te1/0/1, Tw1/0/1
+   - Verify stack/module/port numbers match switch hardware
+   - Check for typos in port specifications
+   - Review port range syntax: Gi1/0/1-5 (not Gi1/0/1-Gi1/0/5)
+
+5. MODEL-SPECIFIC ISSUES:
+   - Dell N2048: Limited interface range support, falls back to individual config
+   - Dell N3000: Full feature support, should use optimized ranges
+   - Check "Switch model detected" logs for compatibility mode
+
+LOG LOCATIONS AND MONITORING:
+- System logs: port_tracer.log (all operations and errors)
+- Audit logs: audit.log (user actions and security events)
+- VLAN specific: Search for "VLAN_MANAGER" prefix in logs
+- Debug mode: Set LOG_LEVEL=DEBUG for detailed SSH command traces
 
 SUPPORTED SWITCH MODELS:
 - Dell N2000 Series (N2048, N2024, etc.) - Special compatibility mode

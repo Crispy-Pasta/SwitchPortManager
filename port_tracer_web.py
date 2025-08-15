@@ -3381,9 +3381,9 @@ def login():
             return redirect(url_for('index'))
         else:
             audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
+            return render_template('auth/login.html', error="Invalid credentials")
     
-    return render_template_string(LOGIN_TEMPLATE)
+    return render_template('auth/login.html')
 
 @app.route('/logout')
 def logout():
@@ -3507,7 +3507,7 @@ def switch_inventory():
     if user_role not in ['netadmin', 'superadmin']:
         return jsonify({'error': 'Insufficient permissions'}), 403
     
-    return render_template_string(INVENTORY_TEMPLATE, username=session['username'], user_role=user_role)
+    return render_template('inventory.html', username=session['username'], user_role=user_role)
 
 @app.route('/api/switches')
 def api_get_switches():
@@ -3999,11 +3999,23 @@ def api_get_switches_list():
         logger.error(f"Failed to retrieve switches: {str(e)}")
         return jsonify({'error': 'Failed to retrieve switches'}), 500
 
-# Legacy placeholder routes removed - functionality implemented in vlan_management_v2.py
-# Active routes:
-# - /api/vlan/change (POST) - Advanced VLAN management (implemented below)
-# - /api/vlan/check (POST) - VLAN existence check (implemented below)
-# - /api/port/status (POST) - Port status check (implemented below)
+# ================================================================
+# ADVANCED VLAN MANAGEMENT API ENDPOINTS
+# ================================================================
+# 
+# TROUBLESHOOTING GUIDE:
+# - All VLAN operations require NetAdmin or SuperAdmin role
+# - Check audit.log for security violations and failed attempts
+# - Monitor port_tracer.log for switch connectivity issues
+# - Verify SWITCH_USERNAME/SWITCH_PASSWORD env vars are set
+# - Ensure Dell switches allow SSH connections (max 10 concurrent)
+# - VLAN operations timeout after 60 seconds for safety
+# 
+# SUPPORTED ENDPOINTS:
+# - POST /api/vlan/change - Main VLAN assignment workflow
+# - POST /api/vlan/check  - Check VLAN existence on switch
+# - POST /api/port/status - Get current port status and config
+# ================================================================
 
 @app.route('/vlan')
 def vlan_management():
@@ -4015,22 +4027,7 @@ def vlan_management():
     if user_role not in ['netadmin', 'superadmin']:
         return jsonify({'error': 'Insufficient permissions'}), 403
     
-    # Load the new advanced VLAN template
-    try:
-        with open('vlan_template_v2.html', 'r', encoding='utf-8') as f:
-            vlan_template = f.read()
-    except FileNotFoundError:
-        # Fallback to old template if new one doesn't exist
-        try:
-            with open('vlan_template.html', 'r', encoding='utf-8') as f:
-                vlan_template = f.read()
-        except FileNotFoundError:
-            return jsonify({'error': 'VLAN template not found'}), 500
-    except Exception as e:
-        logger.error(f"Error reading VLAN template: {str(e)}")
-        return jsonify({'error': 'Error loading VLAN template'}), 500
-    
-    return render_template_string(vlan_template, username=session['username'], user_role=user_role)
+    return render_template('vlan.html', username=session['username'], user_role=user_role)
 
 # Import and add advanced VLAN management routes
 from vlan_management_v2 import vlan_change_workflow, add_vlan_management_routes

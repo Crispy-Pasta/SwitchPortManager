@@ -42,19 +42,53 @@ class DellSwitchSSH:
     This class handles SSH connections to Dell switches with enhanced error handling,
     connection management, and troubleshooting capabilities for network operations.
     
-    Troubleshooting Guide:
+    COMPREHENSIVE TROUBLESHOOTING GUIDE:
+    =================================
+    CONNECTION ISSUES:
     - Connection Timeouts: Check network connectivity and switch SSH settings
-    - Authentication Failures: Verify SWITCH_USERNAME/SWITCH_PASSWORD in .env
-    - Session Limits: Dell switches support ~10 concurrent SSH sessions
-    - Command Timeouts: Commands have built-in delays for switch response times
-    - Lost Connections: Automatic cleanup and reconnection handling
+      * Verify switch is reachable: ping <switch_ip>
+      * Check TCP port 22 is open: telnet <switch_ip> 22
+      * Dell switches default 15-second SSH timeout - check logs for "connection timed out"
     
-    Monitoring Features:
-    - Command execution tracking for performance analysis
-    - Connection state management with proper cleanup
-    - Switch protection integration for load balancing
+    - Authentication Failures: Look for "Authentication failed" in logs
+      * Verify SWITCH_USERNAME and SWITCH_PASSWORD environment variables are set
+      * Check credentials have proper permissions on the switch
+      * Ensure switch account is not locked after multiple failed attempts
+      * See log message "Failed to connect to <ip>: Authentication failed"
     
-    Supported Switch Models:
+    - Session Limits: Dell switches have hard limits on concurrent sessions
+      * N2000/N3000/N3200 series limit: maximum 10 concurrent SSH sessions
+      * Look for "Connection refused" errors in port_tracer.log
+      * Use CPU monitoring to limit concurrent operations per site
+      * Verify switch sessions with `show sessions` command
+    
+    COMMAND EXECUTION ISSUES:
+    - Command Timeouts: Output parsing may fail if commands timeout
+      * Each command has built-in wait time (1.0 seconds default)
+      * Increase wait_time parameter for complex commands
+      * Use DEBUG logging to see raw command outputs
+      * Check "Executing on <ip>: <command>" log entries
+    
+    - Lost Connections: Connection drops during long operations
+      * Automatic cleanup and reconnection implemented
+      * Verify network stability between server and switches
+      * Look for "SSH connection to <ip> was closed unexpectedly"
+      * Check switch CPU load - high utilization causes drops
+    
+    MODEL-SPECIFIC BEHAVIORS:
+    - Command differences between Dell series:
+      * N2000: Older firmware, limited interface range support
+      * N3000: Standard CLI with full feature support
+      * N3200: Newer syntax, supports 10G access ports
+      * Fallback commands implemented for compatibility
+    
+    LOGGING AND MONITORING:
+    - Debug logging: Set LOG_LEVEL=DEBUG for detailed command traces
+    - Performance tracking: Monitor command execution times in logs
+    - Switch monitoring: Check CPU and memory utilization
+    - Log patterns: Look for "SWITCH_MANAGER" prefixed messages
+    
+    SUPPORTED SWITCH MODELS:
     - Dell N2000 Series: N2048 (GigE access, 10GE uplink)
     - Dell N3000 Series: N3024P (GigE access, 10GE uplink) 
     - Dell N3200 Series: N3248 (10GE access, 25GE uplink)
