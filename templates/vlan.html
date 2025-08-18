@@ -374,7 +374,7 @@
         }
         .summary-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
             margin: 20px 0;
         }
@@ -579,6 +579,18 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Keep Existing VLAN Name Option -->
+                <div style="margin-bottom: 20px; background: #e8f4fd; border: 2px solid #3498db; border-radius: 8px; padding: 15px;">
+                    <div class="checkbox-item" style="margin-bottom: 10px;">
+                        <input type="checkbox" id="keep_existing_vlan_name" name="keep_existing_vlan_name">
+                        <label for="keep_existing_vlan_name" style="font-weight: 600; color: #2c3e50;">📝 Keep Existing VLAN Name</label>
+                    </div>
+                    <div class="help-text" style="color: #1c4e6b; margin-top: 5px;">
+                        <strong>When enabled:</strong> Will not change the existing VLAN name on the switch. VLAN name field becomes optional.<br>
+                        <strong>When disabled:</strong> VLAN name field is required for creating new VLANs or updating existing VLAN names.
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -604,13 +616,10 @@
         <!-- Action Buttons -->
         <div class="btn-group">
             <button type="button" id="executeBtn" class="btn btn-primary">
-                ⚡ Execute VLAN Change
+                ⚡ Review and Execute Changes
             </button>
             <button type="button" id="clearBtn" class="btn btn-secondary">
                 🗑️ Clear Form
-            </button>
-            <button type="button" id="previewBtn" class="btn btn-warning">
-                👁️ Preview Changes
             </button>
         </div>
 
@@ -636,6 +645,86 @@
             <div class="btn-group">
                 <button id="confirmYes" class="btn btn-danger">✅ Yes, Proceed</button>
                 <button id="confirmNo" class="btn btn-secondary">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VLAN Check Modal -->
+    <div id="vlanCheckModal" class="confirmation-dialog">
+        <div class="confirmation-content">
+            <div class="confirmation-header">
+                <span class="icon" id="vlanCheckIcon">🔍</span>
+                <h3 id="vlanCheckTitle">VLAN Status Check</h3>
+            </div>
+            <div id="vlanCheckMessage"></div>
+            <div class="btn-group">
+                <button id="vlanCheckClose" class="btn btn-secondary">✅ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Port Status Modal -->
+    <div id="portStatusModal" class="confirmation-dialog">
+        <div class="confirmation-content" style="max-width: 800px;">
+            <div class="confirmation-header">
+                <span class="icon">🔍</span>
+                <h3 id="portStatusTitle">Port Status Check</h3>
+            </div>
+            <div id="portStatusMessage"></div>
+            <div class="btn-group">
+                <button id="portStatusClose" class="btn btn-secondary">✅ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Changes Modal -->
+    <div id="previewModal" class="confirmation-dialog">
+        <div class="confirmation-content" style="max-width: 1100px;">
+            <div class="confirmation-header">
+                <span class="icon">📋</span>
+                <h3 id="previewTitle">VLAN Changes Preview</h3>
+            </div>
+            <div id="previewMessage"></div>
+            <div class="btn-group">
+                <button id="previewClose" class="btn btn-secondary">✅ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="confirmation-dialog">
+        <div class="confirmation-content" style="max-width: 800px;">
+            <div class="confirmation-header">
+                <span class="icon">✅</span>
+                <h3 id="successTitle">VLAN Change Completed Successfully</h3>
+            </div>
+            <div id="successMessage"></div>
+            <div class="btn-group">
+                <button id="successClose" class="btn btn-success">✅ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="confirmation-dialog">
+        <div class="confirmation-content" style="max-width: 400px; text-align: center;">
+            <div class="confirmation-header" style="border-bottom: none; padding-bottom: 0;">
+                <div class="loading-spinner" style="width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            </div>
+            <div id="loadingMessage" style="padding: 20px; font-size: 16px; font-weight: 600; color: #2c3e50;">Processing, please wait...</div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="confirmation-dialog">
+        <div class="confirmation-content" style="max-width: 450px;">
+            <div class="confirmation-header" style="border-bottom: none; padding-bottom: 10px;">
+                <span class="icon" id="alertIcon">⚠️</span>
+                <h3 id="alertTitle" style="margin: 0; color: #2c3e50;">Validation Error</h3>
+            </div>
+            <div id="alertMessage" style="padding: 15px 0; font-size: 16px; color: #555; line-height: 1.4;"></div>
+            <div class="btn-group" style="justify-content: center;">
+                <button id="alertOk" class="btn btn-primary">OK</button>
             </div>
         </div>
     </div>
@@ -666,9 +755,8 @@
         }
         
         function bindEvents() {
-            $('#executeBtn').on('click', executeVlanChange);
+            $('#executeBtn').on('click', startVlanChangeWorkflow);
             $('#clearBtn').on('click', clearForm);
-            $('#previewBtn').on('click', previewChanges);
             $('#checkPortsBtn').on('click', checkPortStatus);
             $('#checkVlanBtn').on('click', checkVlanStatus);
             $('#confirmYes').on('click', confirmAction);
@@ -678,6 +766,59 @@
             $('#confirmationDialog').on('click', function(e) {
                 if (e.target === this) {
                     closeConfirmation();
+                }
+            });
+            
+            // Modal event handlers
+            $('#vlanCheckClose').on('click', closeVlanCheckModal);
+            $('#portStatusClose').on('click', closePortStatusModal);
+            $('#previewClose').on('click', closePreviewModal);
+            $('#successClose').on('click', closeSuccessModal);
+            $('#alertOk').on('click', closeAlertModal);
+            
+            // Close modals on backdrop click
+            $('#vlanCheckModal, #portStatusModal, #previewModal, #successModal, #alertModal').on('click', function(e) {
+                if (e.target === this) {
+                    closeVlanCheckModal();
+                    closePortStatusModal();
+                    closePreviewModal();
+                    closeSuccessModal();
+                    closeAlertModal();
+                }
+            });
+            
+            // Handle keep existing VLAN name toggle
+            $('#keep_existing_vlan_name').on('change', function() {
+                const isChecked = $(this).is(':checked');
+                const vlanNameInput = $('#vlan_name_input');
+                
+                if (isChecked) {
+                    vlanNameInput.prop('required', false);
+                    vlanNameInput.attr('placeholder', 'Will keep existing VLAN name (optional)');
+                    vlanNameInput.parent().find('.help-text').html(
+                        'VLAN name input is optional when keeping existing name<br>' + 
+                        '<small><strong>Note:</strong> If VLAN exists, its current name will be preserved</small>'
+                    );
+                } else {
+                    vlanNameInput.prop('required', true);
+                    vlanNameInput.attr('placeholder', 'e.g., Zone_Client_Name, Internal_Network');
+                    vlanNameInput.parent().find('.help-text').html(
+                        'VLAN name (creates/updates if needed)<br>' + 
+                        '<small><strong>Naming Standards:</strong> Zone_Client_Name, Internal_Network, Guest_Access, IoT_Devices</small>'
+                    );
+                }
+            });
+            
+            // Ensure mutually exclusive safety options
+            $('#force_change').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#skip_non_access').prop('checked', false);
+                }
+            });
+            
+            $('#skip_non_access').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#force_change').prop('checked', false);
                 }
             });
         }
@@ -762,51 +903,28 @@
             $('#ports_input').siblings('.help-text').html('<strong>STRICT FORMAT:</strong> gix/x/x-gx/x/x where x=stack/port numbers. Select switch to see specific interface requirements.<br><strong>Important:</strong> Use full interface names only. Separate multiple entries with commas.');
         }
         
-        function executeVlanChange() {
+        function startVlanChangeWorkflow() {
             if (!validateForm()) return;
             
             const formData = getFormData();
-            showLoading(true, 'Processing VLAN changes, please wait...');
+            formData.preview_only = true; // Always start with a preview/review
             
+            showLoadingModal('Reviewing changes, please wait...');
+            
+            // Use the VLAN change workflow in preview mode first
             $.ajax({
                 url: '/api/vlan/change',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(formData),
                 success: function(result) {
-                    showLoading(false);
-                    handleWorkflowResult(result);
-                },
-                error: function(xhr) {
-                    showLoading(false);
-                    const error = xhr.responseJSON?.error || 'Unknown error occurred';
-                    showResult('error', `Error: ${error}`);
-                }
-            });
-        }
-        
-        function previewChanges() {
-            if (!validateForm()) return;
-            
-            const formData = getFormData();
-            formData.preview_only = true; // This will be a dry run
-            
-            showLoading(true, 'Previewing changes, please wait...');
-            
-            // Use the full VLAN change workflow in preview mode
-            $.ajax({
-                url: '/api/vlan/change',
-                method: 'POST', 
-                contentType: 'application/json',
-                data: JSON.stringify(formData),
-                success: function(result) {
-                    showLoading(false);
+                    hideLoadingModal();
                     showChangePreview(result, formData);
                 },
                 error: function(xhr) {
-                    showLoading(false);
-                    const error = xhr.responseJSON?.error || 'Failed to preview changes';
-                    showResult('error', `Preview Error: ${error}`);
+                    hideLoadingModal();
+                    const error = xhr.responseJSON?.error || 'Failed to review changes';
+                    showResult('error', `Review Error: ${error}`);
                 }
             });
         }
@@ -816,11 +934,11 @@
             const ports = $('#ports_input').val().trim();
             
             if (!switchId || !ports) {
-                showResult('warning', 'Please select a switch and enter ports to check.');
+                showAlert('⚠️', 'Input Required', 'Please select a switch and enter ports to check.');
                 return;
             }
             
-            showLoading(true, 'Checking port status, please wait...');
+            showLoadingModal('Checking port status, please wait...');
             
             $.ajax({
                 url: '/api/port/status',
@@ -831,11 +949,11 @@
                     ports: ports
                 }),
                 success: function(result) {
-                    showLoading(false);
+                    hideLoadingModal();
                     showPortStatusResult(result);
                 },
                 error: function(xhr) {
-                    showLoading(false);
+                    hideLoadingModal();
                     const error = xhr.responseJSON?.error || 'Failed to check port status';
                     showResult('error', `Port Check Error: ${error}`);
                 }
@@ -845,17 +963,13 @@
         function checkVlanStatus() {
             const switchId = $('#switch_select').val();
             const vlanId = $('#vlan_id_input').val();
-            const checkBtn = $('#checkVlanBtn');
             
             if (!switchId || !vlanId) {
-                showResult('warning', 'Please select a switch and enter a VLAN ID to check.');
+                showAlert('⚠️', 'Input Required', 'Please select a switch and enter a VLAN ID to check.');
                 return;
             }
             
-            // Show checking status
-            checkBtn.prop('disabled', true);
-            checkBtn.html('🔄 Checking...');
-            showResult('info', 'Checking VLAN existence on switch...');
+            showLoadingModal('Checking VLAN status, please wait...');
             
             $.ajax({
                 url: '/api/vlan/check',
@@ -866,20 +980,15 @@
                     vlan_id: vlanId
                 }),
                 success: function(result) {
+                    hideLoadingModal();
                     const status = result.exists ? 'exists' : 'will be created';
                     const name = result.exists ? result.name : 'N/A';
-                    showResult('success', 
-                        `VLAN ${vlanId} ${status} on selected switch.<br>
-                         Current name: <strong>${name}</strong>`);
+                    showVlanCheckModal(vlanId, status, name, result.exists);
                 },
                 error: function(xhr) {
+                    hideLoadingModal();
                     const error = xhr.responseJSON?.error || 'Failed to check VLAN';
-                    showResult('error', `VLAN Check Error: ${error}`);
-                },
-                complete: function() {
-                    // Reset button state
-                    checkBtn.prop('disabled', false);
-                    checkBtn.html('🔍 Check VLAN');
+                    showVlanCheckModal(vlanId, 'error', error, false, true);
                 }
             });
         }
@@ -909,7 +1018,7 @@
                     <p>Do you want to proceed with only the safe ports?</p>
                 `;
             } else if (result.type === 'active_or_non_access_ports') {
-                title = '⚠️ Active or Non-Access Mode Ports Detected';
+                title = 'Active or Non-Access Mode Ports Detected';
                 message = `
                     <p><strong>${result.message}</strong></p>
                     <div style="max-height: 300px; overflow-y: auto;">
@@ -954,21 +1063,23 @@
         }
         
         function confirmAction() {
+            // Store the workflow data before closing confirmation (which sets it to null)
+            const workflowData = currentWorkflowData;
             closeConfirmation();
             
-            if (currentWorkflowData && currentWorkflowData.status === 'confirmation_needed') {
+            if (workflowData && workflowData.status === 'confirmation_needed') {
                 // Re-execute with force or skip flags based on the confirmation type
                 const formData = getFormData();
                 
-                if (currentWorkflowData.type === 'uplink_protection') {
+                if (workflowData.type === 'uplink_protection') {
                     // Proceed with safe ports only (don't set force_change)
                     formData.force_change = false;
-                } else if (currentWorkflowData.type === 'active_or_non_access_ports') {
+                } else if (workflowData.type === 'active_or_non_access_ports') {
                     // Force change all ports
                     formData.force_change = true;
                 }
                 
-                showLoading(true, 'Processing VLAN changes, please wait...');
+                showLoadingModal('Processing VLAN changes, please wait...');
                 
                 $.ajax({
                     url: '/api/vlan/change',
@@ -976,11 +1087,11 @@
                     contentType: 'application/json',
                     data: JSON.stringify(formData),
                     success: function(result) {
-                        showLoading(false);
+                        hideLoadingModal();
                         handleWorkflowResult(result);
                     },
                     error: function(xhr) {
-                        showLoading(false);
+                        hideLoadingModal();
                         const error = xhr.responseJSON?.error || 'Unknown error occurred';
                         showResult('error', `Error: ${error}`);
                     }
@@ -994,175 +1105,20 @@
         }
         
         function showSuccessResult(result) {
-            let html = `
-                <h3>✅ VLAN Change Completed Successfully</h3>
-                <div class="summary-stats">
-                    <div class="stat-item">
-                        <div class="stat-number">${result.summary.changed}</div>
-                        <div class="stat-label">Ports Changed</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${result.summary.failed}</div>
-                        <div class="stat-label">Failed</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${result.summary.skipped}</div>
-                        <div class="stat-label">Skipped</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">${result.summary.uplink_protected}</div>
-                        <div class="stat-label">Uplink Protected</div>
-                    </div>
-                </div>
-                
-                <p><strong>Switch:</strong> ${result.switch_info.name} (${result.switch_info.site_name} - ${result.switch_info.floor_name})</p>
-                <p><strong>VLAN:</strong> ${result.vlan_id} - ${result.vlan_name}</p>
-            `;
-            
-            if (result.vlan_operation_result) {
-                html += `<p><strong>VLAN Operation:</strong> ${result.vlan_operation_result}</p>`;
-            }
-            
-            if (result.ports_changed.length > 0) {
-                html += `<p><strong>Ports Successfully Changed:</strong> ${result.ports_changed.join(', ')}</p>`;
-            }
-            
-            if (result.ports_failed.length > 0) {
-                html += `<p><strong>Ports Failed:</strong> ${result.ports_failed.join(', ')}</p>`;
-            }
-            
-            if (result.ports_skipped.length > 0) {
-                html += `<p><strong>Ports Skipped:</strong> ${result.ports_skipped.join(', ')}</p>`;
-            }
-            
-            showResult('success', html);
+            showSuccessModal(result);
         }
         
         function showPortPreview(result) {
-            let html = `
-                <h3>🔍 Port Status Check - ${result.switch_model} Switch</h3>
-                <table class="port-status-table">
-                    <thead>
-                        <tr>
-                            <th>Port</th>
-                            <th>Status</th>
-                            <th>Mode</th>
-                            <th>Current VLAN</th>
-                            <th>Uplink</th>
-                            <th>Safety</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            result.ports.forEach(function(port) {
-                const cautionClass = port.is_uplink ? 'uplink-warning' : 
-                                   (port.status === 'up' && port.mode !== 'access') ? 'mode-trunk' : '';
-                const caution = port.is_uplink ? '🚨 Uplink' : 
-                               (port.status === 'up' && port.mode !== 'access') ? '⚠️ Active/Non-Access' : '✅ Safe';
-                
-                html += `
-                    <tr class="${cautionClass}">
-                        <td>${port.port}</td>
-                        <td class="status-${port.status}">${port.status.toUpperCase()}</td>
-                        <td class="mode-${port.mode}">${port.mode.toUpperCase()}</td>
-                        <td>${port.current_vlan}</td>
-                        <td>${port.is_uplink ? '🚨 Yes' : '✅ No'}</td>
-                        <td>${caution}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                    </tbody>
-                </table>
-                <p class="help-text">
-                    🚨 <strong>Uplink ports</strong> are protected and will not be changed.<br>
-                    ⚠️ <strong>Active or Non-Access ports</strong> are UP or not in ACCESS mode - require confirmation.<br>
-                    ✅ <strong>Safe ports</strong> are DOWN and in ACCESS mode - can be changed safely.
-                </p>
-            `;
-            
-            showResult('warning', html);
+            showPortStatusModal(result);
         }
         
         function showChangePreview(result, formData) {
             if (result.status === 'success') {
-                // This is a dry-run success - show what would be changed
-                let html = `
-                    <h3>👁️ Preview: VLAN Changes - ${result.switch_info.name}</h3>
-                    <div class="summary-stats">
-                        <div class="stat-item">
-                            <div class="stat-number">${result.summary.changed}</div>
-                            <div class="stat-label">Ports to Change</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">${result.summary.skipped}</div>
-                            <div class="stat-label">Would Skip</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">${result.summary.uplink_protected}</div>
-                            <div class="stat-label">Uplink Protected</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number">${result.summary.failed}</div>
-                            <div class="stat-label">Failed/Issues</div>
-                        </div>
-                    </div>
-                    
-                    <div style="background: #e8f4fd; border: 2px solid #3498db; border-radius: 8px; padding: 15px; margin: 15px 0;">
-                        <h4 style="color: #2c3e50; margin: 0 0 10px 0;">📋 Planned Changes</h4>
-                        <p><strong>Target VLAN:</strong> ${formData.vlan_id} - ${formData.vlan_name}</p>
-                        <p><strong>Port Description:</strong> ${formData.description}</p>
-                        <p><strong>Switch:</strong> ${result.switch_info.name} (${result.switch_info.site_name} - ${result.switch_info.floor_name})</p>
-                `;
-                
-                if (result.vlan_operation_result) {
-                    html += `<p><strong>VLAN Operation:</strong> ${result.vlan_operation_result}</p>`;
-                }
-                
-                html += `</div>`;
-                
-                if (result.ports_changed.length > 0) {
-                    html += `
-                        <div style="background: #d5f4e6; border: 2px solid #27ae60; border-radius: 8px; padding: 15px; margin: 10px 0;">
-                            <h4 style="color: #155724; margin: 0 0 10px 0;">✅ Ports Ready to Change</h4>
-                            <p><strong>These ports will be changed:</strong> ${result.ports_changed.join(', ')}</p>
-                        </div>
-                    `;
-                }
-                
-                if (result.ports_skipped.length > 0) {
-                    html += `
-                        <div style="background: #fff3cd; border: 2px solid #f39c12; border-radius: 8px; padding: 15px; margin: 10px 0;">
-                            <h4 style="color: #856404; margin: 0 0 10px 0;">⏭️ Ports Would Be Skipped</h4>
-                            <p><strong>These ports would be skipped:</strong> ${result.ports_skipped.join(', ')}</p>
-                            <p class="help-text">Reasons: Uplink protection, active or non-access mode status, or user settings</p>
-                        </div>
-                    `;
-                }
-                
-                if (result.ports_failed.length > 0) {
-                    html += `
-                        <div style="background: #f8d7da; border: 2px solid #e74c3c; border-radius: 8px; padding: 15px; margin: 10px 0;">
-                            <h4 style="color: #721c24; margin: 0 0 10px 0;">❌ Issues Detected</h4>
-                            <p><strong>These ports have issues:</strong> ${result.ports_failed.join(', ')}</p>
-                            <p class="help-text">These ports may require attention or manual intervention</p>
-                        </div>
-                    `;
-                }
-                
-                html += `
-                    <div style="background: #f8f9fa; border: 2px solid #6c757d; border-radius: 8px; padding: 15px; margin: 15px 0;">
-                        <h4 style="color: #495057; margin: 0 0 10px 0;">ℹ️ Preview Summary</h4>
-                        <p>This is a <strong>preview only</strong> - no actual changes have been made to the switch.</p>
-                        <p>Use the "Execute VLAN Change" button to apply these changes for real.</p>
-                        <p>If you see any issues above, review your port selections and settings before executing.</p>
-                    </div>
-                `;
-                
-                showResult('success', html);
+                // Show preview in modal
+                showPreviewModal(result, formData);
             } else if (result.status === 'confirmation_needed') {
+                // Store the workflow data before showing confirmation dialog
+                currentWorkflowData = result;
                 // Show the preview with the confirmation details
                 showConfirmationDialog(result);
             } else if (result.status === 'error') {
@@ -1190,42 +1146,46 @@
             const vlanName = $('#vlan_name_input').val().trim();
             
             if (!switchId) {
-                showResult('warning', 'Please select a switch.');
+                showAlert('⚠️', 'Switch Required', 'Please select a target switch from the dropdown.');
                 return false;
             }
             
             if (!ports) {
-                showResult('warning', 'Please enter ports to configure.');
+                showAlert('⚠️', 'Ports Required', 'Please enter the port range or individual ports to configure.');
                 return false;
             }
             
             if (!description) {
-                showResult('warning', 'Please enter a port description.');
-                $('#description_input').focus();
+                showAlert('⚠️', 'Description Required', 'Please enter a description for the port configuration.');
+                setTimeout(() => $('#description_input').focus(), 300);
                 return false;
             }
             
             // Enhanced VLAN ID validation
             if (!vlanIdInput || vlanIdInput.trim() === '') {
-                showResult('warning', 'Please enter a VLAN ID.');
-                $('#vlan_id_input').focus();
+                showAlert('⚠️', 'VLAN ID Required', 'Please enter a VLAN ID between 1 and 4094.');
+                setTimeout(() => $('#vlan_id_input').focus(), 300);
                 return false;
             }
             
             if (isNaN(vlanId) || vlanId < 1 || vlanId > 4094) {
-                showResult('warning', 'VLAN ID must be between 1 and 4094.');
-                $('#vlan_id_input').focus().select();
+                showAlert('❌', 'Invalid VLAN ID', 'VLAN ID must be a number between 1 and 4094.');
+                setTimeout(() => $('#vlan_id_input').focus().select(), 300);
                 return false;
             }
             
             if (vlanIdInput.length > 4 || vlanId > 4094) {
-                showResult('warning', 'VLAN ID cannot exceed 4094.');
-                $('#vlan_id_input').val(4094).focus().select();
+                showAlert('❌', 'VLAN ID Too Large', 'VLAN ID cannot exceed 4094. The value has been corrected.');
+                $('#vlan_id_input').val(4094);
+                setTimeout(() => $('#vlan_id_input').focus().select(), 300);
                 return false;
             }
             
-            if (!vlanName) {
-                showResult('warning', 'Please enter a VLAN name.');
+            // Check if keep existing VLAN name is enabled
+            const keepExistingVlanName = $('#keep_existing_vlan_name').is(':checked');
+            
+            if (!keepExistingVlanName && !vlanName) {
+                showAlert('⚠️', 'VLAN Name Required', 'Please enter a VLAN name or enable the "Keep Existing VLAN Name" option.');
                 return false;
             }
             
@@ -1240,7 +1200,8 @@
                 vlan_id: parseInt($('#vlan_id_input').val()),
                 vlan_name: $('#vlan_name_input').val().trim(),
                 force_change: $('#force_change').is(':checked'),
-                skip_non_access: $('#skip_non_access').is(':checked')
+                skip_non_access: $('#skip_non_access').is(':checked'),
+                keep_existing_vlan_name: $('#keep_existing_vlan_name').is(':checked')
             };
         }
         
@@ -1258,10 +1219,10 @@
                     $('#loadingIndicator p').text(message);
                 }
                 $('#loadingIndicator').show();
-                $('#executeBtn, #previewBtn').prop('disabled', true);
+                $('#executeBtn').prop('disabled', true);
             } else {
                 $('#loadingIndicator').hide();
-                $('#executeBtn, #previewBtn').prop('disabled', false);
+                $('#executeBtn').prop('disabled', false);
                 // Reset to default message
                 $('#loadingIndicator p').text('Processing VLAN changes, please wait...');
             }
@@ -1280,6 +1241,317 @@
         
         function hideResults() {
             $('#resultsSection').hide();
+        }
+        
+        // Modal functions
+        function showVlanCheckModal(vlanId, status, name, exists, isError = false) {
+            let icon, title, message;
+            
+            if (isError) {
+                icon = '❌';
+                title = `VLAN ${vlanId} Check Failed`;
+                message = `
+                    <div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 6px; padding: 15px; margin: 10px 0;">
+                        <p><strong>Error:</strong> ${name}</p>
+                        <p>Unable to verify VLAN ${vlanId} existence on the selected switch. Please check your connection and try again.</p>
+                    </div>
+                `;
+            } else {
+                icon = exists ? '✅' : '📋';
+                title = `VLAN ${vlanId} Status Check`;
+                const statusColor = exists ? '#28a745' : '#007bff';
+                message = `
+                    <div style="background: ${exists ? '#d4edda' : '#cce7ff'}; border: 1px solid ${statusColor}; border-radius: 6px; padding: 15px; margin: 10px 0;">
+                        <p><strong>Status:</strong> VLAN ${vlanId} <strong>${status}</strong> on the selected switch.</p>
+                        <p><strong>Current name:</strong> <strong>${name}</strong></p>
+                        <p><em>${exists ? '✅ VLAN already exists and can be used immediately.' : '📋 VLAN will be created automatically when you execute the VLAN change.'}</em></p>
+                    </div>
+                `;
+            }
+            
+            $('#vlanCheckIcon').text(icon);
+            $('#vlanCheckTitle').text(title);
+            $('#vlanCheckMessage').html(message);
+            $('#vlanCheckModal').show();
+        }
+        
+        function closeVlanCheckModal() {
+            $('#vlanCheckModal').hide();
+        }
+        
+        function showPortStatusModal(result) {
+            let html = `
+                <h4>${result.switch_model} Switch Port Status</h4>
+                <table class="port-status-table">
+                    <thead>
+                        <tr>
+                            <th>Port</th>
+                            <th>Status</th>
+                            <th>Mode</th>
+                            <th>Current VLAN</th>
+                            <th>Uplink</th>
+                            <th>Safety</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            result.ports.forEach(function(port) {
+                let cautionClass = '';
+                let caution = '';
+                
+                if (port.is_uplink) {
+                    cautionClass = 'uplink-warning';
+                    caution = '🚨 Uplink';
+                } else if (port.status === 'up' || port.mode !== 'access') {
+                    cautionClass = 'mode-trunk';
+                    caution = '⚠️ Active/Non-Access';
+                } else {
+                    cautionClass = '';
+                    caution = '✅ Safe';
+                }
+                
+                html += `
+                    <tr class="${cautionClass}">
+                        <td>${port.port}</td>
+                        <td class="status-${port.status}">${port.status.toUpperCase()}</td>
+                        <td class="mode-${port.mode}">${port.mode.toUpperCase()}</td>
+                        <td>${port.current_vlan}</td>
+                        <td>${port.is_uplink ? '🚨 Yes' : '✅ No'}</td>
+                        <td>${caution}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <p class="help-text" style="margin: 0; font-size: 13px; color: #666;">
+                        🚨 <strong>Uplink ports</strong> are protected and will not be changed.<br>
+                        ⚠️ <strong>Active or Non-Access ports</strong> are UP or not in ACCESS mode - require confirmation.<br>
+                        ✅ <strong>Safe ports</strong> are DOWN and in ACCESS mode - can be changed safely.
+                    </p>
+                </div>
+            `;
+            
+            $('#portStatusMessage').html(html);
+            $('#portStatusModal').show();
+        }
+        
+        function closePortStatusModal() {
+            $('#portStatusModal').hide();
+        }
+        
+        function showPreviewModal(result, formData) {
+            let html = `
+                <h4>${result.switch_info.name} - VLAN Changes Preview</h4>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.changed}</div>
+                        <div class="stat-label">Ports to Change</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.skipped}</div>
+                        <div class="stat-label">Would Skip</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.uplink_protected}</div>
+                        <div class="stat-label">Uplink Protected</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.failed}</div>
+                        <div class="stat-label">Failed/Issues</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e8f4fd; border: 1px solid #3498db; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                    <h5>📋 Planned Changes</h5>
+                    <p><strong>Target VLAN:</strong> ${formData.vlan_id} - ${formData.vlan_name}</p>
+                    <p><strong>Port Description:</strong> ${formData.description}</p>
+                    <p><strong>Switch:</strong> ${result.switch_info.name} (${result.switch_info.site_name} - ${result.switch_info.floor_name})</p>
+            `;
+            
+            if (result.vlan_operation_result) {
+                html += `<p><strong>VLAN Operation:</strong> ${result.vlan_operation_result}</p>`;
+            }
+            
+            html += `</div>`;
+            
+            if (result.ports_changed.length > 0) {
+                html += `
+                    <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #155724; margin: 0 0 8px 0;">✅ Ports Ready to Change</h6>
+                        <p style="margin: 0;"><strong>These ports will be changed:</strong> ${result.ports_changed.join(', ')}</p>
+                    </div>
+                `;
+            }
+            
+            if (result.ports_skipped.length > 0) {
+                html += `
+                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #856404; margin: 0 0 8px 0;">⏭️ Ports Would Be Skipped</h6>
+                        <p style="margin: 0;"><strong>These ports would be skipped:</strong> ${result.ports_skipped.join(', ')}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active or non-access mode status, or user settings</p>
+                    </div>
+                `;
+            }
+            
+            if (result.ports_failed.length > 0) {
+                html += `
+                    <div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #721c24; margin: 0 0 8px 0;">❌ Issues Detected</h6>
+                        <p style="margin: 0;"><strong>These ports have issues:</strong> ${result.ports_failed.join(', ')}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">These ports may require attention or manual intervention</p>
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div style="background: #f8f9fa; border: 1px solid #6c757d; border-radius: 6px; padding: 12px; margin: 15px 0;">
+                    <h6 style="color: #495057; margin: 0 0 8px 0;">ℹ️ Preview Summary</h6>
+                    <p style="margin: 0;">This is a <strong>preview only</strong> - no actual changes have been made to the switch.</p>
+                    <p style="margin: 5px 0 0 0;">Ready to execute? Click "Execute Changes" below to apply these changes to the switch.</p>
+                </div>
+            `;
+            
+            $('#previewMessage').html(html);
+            
+            // Update the preview modal buttons to include an execute option
+            $('#previewModal .btn-group').html(`
+                <button id="executeFromPreview" class="btn btn-primary">⚡ Execute Changes</button>
+                <button id="previewClose" class="btn btn-secondary">✅ Close</button>
+            `);
+            
+            // Bind the execute button event
+            $('#executeFromPreview').on('click', function() {
+                closePreviewModal();
+                executeChangesFromPreview(formData);
+            });
+            
+            // Re-bind the close button event
+            $('#previewClose').on('click', closePreviewModal);
+            
+            $('#previewModal').show();
+        }
+        
+        function executeChangesFromPreview(formData) {
+            // Remove preview_only flag and execute the actual changes
+            const executeFormData = { ...formData };
+            delete executeFormData.preview_only;
+            
+            showLoadingModal('Executing VLAN changes, please wait...');
+            
+            $.ajax({
+                url: '/api/vlan/change',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(executeFormData),
+                success: function(result) {
+                    hideLoadingModal();
+                    handleWorkflowResult(result);
+                },
+                error: function(xhr) {
+                    hideLoadingModal();
+                    const error = xhr.responseJSON?.error || 'Failed to execute changes';
+                    showResult('error', `Execution Error: ${error}`);
+                }
+            });
+        }
+        
+        function closePreviewModal() {
+            $('#previewModal').hide();
+        }
+        
+        function showSuccessModal(result) {
+            let html = `
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.changed}</div>
+                        <div class="stat-label">Ports Changed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.failed}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.skipped}</div>
+                        <div class="stat-label">Skipped</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">${result.summary.uplink_protected}</div>
+                        <div class="stat-label">Uplink Protected</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e8f4fd; border: 1px solid #3498db; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                    <h5>📋 Operation Details</h5>
+                    <p><strong>Switch:</strong> ${result.switch_info.name} (${result.switch_info.site_name} - ${result.switch_info.floor_name})</p>
+                    <p><strong>VLAN:</strong> ${result.vlan_id} - ${result.vlan_name}</p>
+            `;
+            
+            if (result.vlan_operation_result) {
+                html += `<p><strong>VLAN Operation:</strong> ${result.vlan_operation_result}</p>`;
+            }
+            
+            html += `</div>`;
+            
+            if (result.ports_changed.length > 0) {
+                html += `
+                    <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #155724; margin: 0 0 8px 0;">✅ Ports Successfully Changed</h6>
+                        <p style="margin: 0;"><strong>Changed ports:</strong> ${result.ports_changed.join(', ')}</p>
+                    </div>
+                `;
+            }
+            
+            if (result.ports_failed.length > 0) {
+                html += `
+                    <div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #721c24; margin: 0 0 8px 0;">❌ Failed Ports</h6>
+                        <p style="margin: 0;"><strong>Failed ports:</strong> ${result.ports_failed.join(', ')}</p>
+                    </div>
+                `;
+            }
+            
+            if (result.ports_skipped.length > 0) {
+                html += `
+                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 10px 0;">
+                        <h6 style="color: #856404; margin: 0 0 8px 0;">⏭️ Skipped Ports</h6>
+                        <p style="margin: 0;"><strong>Skipped ports:</strong> ${result.ports_skipped.join(', ')}</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active ports, or user settings</p>
+                    </div>
+                `;
+            }
+            
+            $('#successMessage').html(html);
+            $('#successModal').show();
+        }
+        
+        function closeSuccessModal() {
+            $('#successModal').hide();
+        }
+        
+        // Loading Modal functions
+        function showLoadingModal(message) {
+            $('#loadingMessage').text(message || 'Processing, please wait...');
+            $('#loadingModal').show();
+        }
+        
+        function hideLoadingModal() {
+            $('#loadingModal').hide();
+        }
+        
+        // Alert Modal functions
+        function showAlert(icon, title, message) {
+            $('#alertIcon').text(icon);
+            $('#alertTitle').text(title);
+            $('#alertMessage').text(message);
+            $('#alertModal').show();
+        }
+        
+        function closeAlertModal() {
+            $('#alertModal').hide();
         }
     </script>
 </body>

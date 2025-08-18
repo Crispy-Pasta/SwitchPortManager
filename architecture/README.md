@@ -6,8 +6,8 @@ This directory contains architecture documentation and diagrams for the Dell Por
 
 ### 📊 [Network Team Documentation](./network-team.md)
 - **Audience**: Network administrators, network engineers
-- **Focus**: Network topology, switch connections, SNMP operations, port tracing workflows
-- **Key Topics**: Network discovery, switch management, port tracing logic, SNMP protocols
+- **Focus**: Network topology, switch connections, SSH operations, port tracing workflows, VLAN management
+- **Key Topics**: Network discovery, switch management, port tracing logic, SSH protocols, VLAN configuration
 
 ### 🖥️ [Server Team Documentation](./server-team.md) 
 - **Audience**: System administrators, infrastructure engineers, DevOps
@@ -23,19 +23,21 @@ This directory contains architecture documentation and diagrams for the Dell Por
 
 | Team | Primary Concerns | Key Components |
 |------|------------------|----------------|
-| **Network** | Switch connectivity, SNMP operations, port tracing accuracy | Switches, SNMP, Network topology |
+| **Network** | Switch connectivity, SSH operations, port tracing accuracy, VLAN management | Switches, SSH, Network topology, VLAN configuration |
 | **Server** | Infrastructure, deployment, security, monitoring | Docker, PostgreSQL, nginx, AD |
 | **Development** | Code architecture, APIs, data models, user experience | Flask app, database, frontend, authentication |
 
 ## System Overview
 
-The Dell Port Tracer is a web-based application that helps network administrators trace network connections through Dell switches using SNMP protocols. The system consists of:
+The Dell Port Tracer is a comprehensive web-based application that helps network administrators trace network connections and manage VLANs across Dell switches using SSH-based secure communication. The system consists of:
 
-- **Web Application**: Flask-based Python application
-- **Database**: PostgreSQL for storing switch configurations and trace history
-- **Authentication**: Windows Active Directory integration
+- **Web Application**: Flask-based Python application with advanced VLAN management capabilities
+- **Database**: PostgreSQL for storing switch configurations, trace history, and VLAN management audit logs
+- **Authentication**: Windows Active Directory integration with role-based access control
 - **Infrastructure**: Docker containerized deployment with nginx reverse proxy
-- **Network Integration**: SNMP-based switch discovery and port tracing
+- **Network Integration**: SSH-based switch communication with comprehensive Dell switch model support
+- **VLAN Manager**: Enterprise-grade VLAN configuration and port management system
+- **Security Framework**: Multi-layer input validation and command injection prevention
 
 ## Getting Started
 

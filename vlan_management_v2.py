@@ -15,7 +15,7 @@ CORE FEATURES:
 - Force change and skip options with proper confirmations
 - Comprehensive audit logging for all operations
 
-NEW ENHANCED FEATURES (v2.1.3):
+NEW ENHANCED FEATURES (v2.1.4):
 - Interface Range Optimization: Groups consecutive ports for efficient batch operations
 - Intelligent Fallback System: Automatically switches from range to individual port config
 - Enhanced Success Response: Detailed feedback with ranges used and descriptions applied
@@ -82,7 +82,7 @@ SUPPORTED SWITCH MODELS:
 - Dell N3200 Series - Full feature support
 
 AUTHORS: Network Operations Team
-VERSION: 2.1.3 (Enhanced VLAN Management with Interface Range Optimization)
+VERSION: 2.1.4 (Enhanced VLAN Management with Interface Range Optimization)
 LAST UPDATED: 2025-08-07
 COMPATIBILITY: Python 3.7+, Dell PowerConnect N-Series Switches
 """
@@ -977,73 +977,224 @@ class VLANManager:
                 except Exception:
                     continue
             
-            # Parse status from Dell 'show interface status' output
-            # Format: "Gi1/0/24                  N/A    Unknown Auto Down    On    A  123"
+            logger.debug(f"Port {port_name} status command '{status_cmd_used}' output:\n{status_output[:500]}...")
+            logger.debug(f"Port {port_name} config output:\n{config_output[:300]}...")
+            
+            # Parse status from Dell switch output - Enhanced parsing logic
             port_up = False
             port_mode = "access"  # Default assumption
             current_vlan = "1"    # Default VLAN
             
-            # Parse the status output table format
+            # Enhanced parsing for Dell switch status output
+            # Multiple possible formats:
+            # Format 1: "Gi1/0/24    N/A    Unknown    Auto    Down    On    A    123"
+            # Format 2: "gi1/0/24    connected    1000    full    a-1000    123"
+            # Format 3: "Port    Type    Duplex    Speed    Neg    Link    State    VLAN"
+            
             lines = status_output.split('\n')
-            for line in lines:
+            for line_idx, line in enumerate(lines):
+                original_line = line
                 line = line.strip()
-                if not line or line.startswith('-') or 'Port' in line:
+                if not line:
                     continue
                     
-                # Look for the port data line
-                if port_name in line:
-                    # Split by whitespace and parse columns
-                    columns = line.split()
-                    if len(columns) >= 8:  # Expected number of columns
-                        # Column indices: 0=Port, 1=Description, 2=Duplex, 3=Speed, 4=Neg, 5=Link State, 6=Flow Ctrl, 7=M, 8=VLAN
+                # Skip command echoes (lines that start with "show" commands)
+                if line.lower().startswith(('show ', 'console', 'enable', 'configure')):
+                    logger.debug(f"Skipping command echo line {line_idx}: {line}")
+                    continue
+                    
+                # Skip header lines and separators
+                if any(header in line.lower() for header in ['port', 'name', 'type', 'duplex', 'speed', 'link', 'state', 'vlan']) and line_idx < 10:
+                    logger.debug(f"Skipping header line {line_idx}: {line}")
+                    continue
+                if line.startswith('-') or line.startswith('='):
+                    logger.debug(f"Skipping separator line {line_idx}: {line}")
+                    continue
+                    
+                # Look for the port data line - be more flexible with port name matching
+                port_name_variations = [
+                    port_name,
+                    port_name.lower(),
+                    port_name.upper()
+                ]
+                
+                line_contains_port = False
+                # Only check for port name if this doesn't look like a command or header
+                if not any(cmd in line.lower() for cmd in ['show', 'interface', 'status', 'configure', 'enable']):
+                    for port_variation in port_name_variations:
+                        if port_variation in line.lower():
+                            line_contains_port = True
+                            break
+                
+                if line_contains_port:
+                    logger.info(f"Found port data line for {port_name} at line {line_idx}: '{original_line}'")
+                    
+                    # Split by multiple whitespace to handle variable spacing
+                    import re
+                    columns = re.split(r'\s{2,}|\t', line)  # Split on 2+ spaces or tabs
+                    if len(columns) < 3:  # If that doesn't work, try single space
+                        columns = line.split()
+                    
+                    logger.debug(f"Parsed {len(columns)} columns from line: {columns}")
+                    
+                    if len(columns) >= 3:  # Minimum expected columns
+                        # Enhanced link state detection for Dell switch format:
+                        # Expected format: "Gi3/0/25  JP PC           Full   1000    Auto Up      On    A  1"
+                        # Columns: Port, Description, Duplex, Speed, Neg, Link_State, Flow_Ctrl, Mode, VLAN
+                        
+                        link_state_found = False
+                        
+                        # Method 1: Look for explicit "Up" or "Down" in Link State column
+                        for i, col in enumerate(columns):
+                            col_stripped = col.strip()
+                            col_lower = col_stripped.lower()
+                            
+                            # Direct link state indicators (most reliable)
+                            if col_lower in ['up', 'connected']:
+                                port_up = True
+                                link_state_found = True
+                                logger.info(f"Port {port_name} is UP - found explicit '{col_stripped}' at column {i}")
+                                break
+                            elif col_lower in ['down', 'notconnect', 'nolink', 'disabled']:
+                                port_up = False
+                                link_state_found = True
+                                logger.info(f"Port {port_name} is DOWN - found explicit '{col_stripped}' at column {i}")
+                                break
+                        
+                        # Method 2: If no explicit state found, look for speed + duplex combination
+                        if not link_state_found:
+                            has_speed = False
+                            has_duplex = False
+                            has_down_indicator = False
+                            
+                            for i, col in enumerate(columns):
+                                col_stripped = col.strip()
+                                col_lower = col_stripped.lower()
+                                
+                                # Check for speed indicators
+                                if re.match(r'^(10|100|1000|10000)$', col_stripped):
+                                    has_speed = True
+                                    logger.debug(f"Found speed indicator '{col_stripped}' at column {i}")
+                                
+                                # Check for duplex indicators
+                                elif col_lower in ['full', 'half']:
+                                    has_duplex = True
+                                    logger.debug(f"Found duplex indicator '{col_stripped}' at column {i}")
+                                
+                                # Check for down indicators
+                                elif col_lower in ['down', 'notconnect', 'disabled', 'err-disabled']:
+                                    has_down_indicator = True
+                                    logger.debug(f"Found down indicator '{col_stripped}' at column {i}")
+                            
+                            # If we have both speed and duplex without down indicators, assume UP
+                            if (has_speed or has_duplex) and not has_down_indicator:
+                                port_up = True
+                                link_state_found = True
+                                logger.info(f"Port {port_name} is UP - inferred from speed/duplex presence (speed: {has_speed}, duplex: {has_duplex})")
+                            elif has_down_indicator:
+                                port_up = False
+                                link_state_found = True
+                                logger.info(f"Port {port_name} is DOWN - found down indicator")
+                        
+                        # Method 3: Parse the exact Dell format if we can identify column positions
+                        if not link_state_found:
+                            # Try to parse based on known Dell switch output format
+                            # "Gi3/0/25  JP PC           Full   1000    Auto Up      On    A  1"
+                            # Look for "Up" or "Down" that appears after speed/duplex info
+                            
+                            line_words = original_line.split()
+                            logger.debug(f"Trying word-based parsing: {line_words}")
+                            
+                            # Look for Up/Down in the word list
+                            for i, word in enumerate(line_words):
+                                word_lower = word.lower().strip()
+                                if word_lower == 'up':
+                                    port_up = True
+                                    link_state_found = True
+                                    logger.info(f"Port {port_name} is UP - found 'Up' in word position {i}")
+                                    break
+                                elif word_lower in ['down', 'notconnect']:
+                                    port_up = False
+                                    link_state_found = True
+                                    logger.info(f"Port {port_name} is DOWN - found '{word}' in word position {i}")
+                                    break
+                        
+                        # Method 4: Final fallback - heuristic analysis
+                        if not link_state_found:
+                            line_content = original_line.lower()
+                            if 'up' in line_content and 'down' not in line_content:
+                                port_up = True
+                                logger.info(f"Port {port_name} assumed UP based on 'up' keyword in line")
+                            elif 'down' in line_content or 'notconnect' in line_content:
+                                port_up = False
+                                logger.info(f"Port {port_name} assumed DOWN based on 'down' keyword in line")
+                            else:
+                                # Default to DOWN if we can't determine
+                                port_up = False
+                                logger.warning(f"Port {port_name} status unclear, defaulting to DOWN. Full line: '{original_line}'")
+                        
+                        # Look for mode indicator (A=Access, T=Trunk, G=General)
+                        for i, col in enumerate(columns):
+                            col_upper = col.upper().strip()
+                            if col_upper in ['A', 'T', 'G']:
+                                mode_char = col_upper
+                                if mode_char == 'A':
+                                    port_mode = 'access'
+                                elif mode_char == 'T':
+                                    port_mode = 'trunk'
+                                elif mode_char == 'G':
+                                    port_mode = 'general'
+                                logger.debug(f"Found mode indicator '{col}' at column {i}, port_mode={port_mode}")
+                                break
+                        
+                        # Look for VLAN ID (numeric values at end of line usually)
+                        for i in range(len(columns) - 1, -1, -1):  # Search backwards from end
+                            col = columns[i].strip()
+                            if col.isdigit():
+                                vlan_candidate = int(col)
+                                if 1 <= vlan_candidate <= 4094:
+                                    current_vlan = col
+                                    logger.debug(f"Found VLAN ID '{col}' at column {i}")
+                                    break
+                    else:
+                        logger.warning(f"Insufficient columns ({len(columns)}) in status line: {line}")
+                    
+                    break  # Found the port line, stop searching
+            
+            # Also parse mode and VLAN from configuration as backup/verification
+            if config_output:
+                for line in config_output.split('\n'):
+                    line = line.strip().lower()
+                    if "switchport mode" in line:
+                        if "trunk" in line:
+                            port_mode = "trunk"
+                        elif "general" in line:
+                            port_mode = "general"
+                        elif "access" in line:
+                            port_mode = "access"
+                        logger.debug(f"Config: Found switchport mode: {port_mode}")
+                    elif "switchport access vlan" in line:
                         try:
-                            link_state = columns[5].lower()
-                            port_up = link_state == 'up'
-                            
-                            # Get mode from column 7 (M)
-                            mode_char = columns[7].upper()
-                            if mode_char == 'A':
-                                port_mode = 'access'
-                            elif mode_char == 'T':
-                                port_mode = 'trunk'
-                            elif mode_char == 'G':
-                                port_mode = 'general'
-                            
-                            # Get VLAN from column 8
-                            if len(columns) >= 9:
-                                current_vlan = columns[8]
-                        except (IndexError, ValueError) as e:
-                            logger.debug(f"Error parsing port status line '{line}': {str(e)}")
-                            # Fall back to config parsing
+                            config_vlan = line.split()[-1]
+                            # Use config VLAN if status parsing didn't find one
+                            if current_vlan == "1" and config_vlan != "1" and config_vlan.isdigit():
+                                current_vlan = config_vlan
+                                logger.debug(f"Config: Found access VLAN: {current_vlan}")
+                        except:
                             pass
-                    break
             
-            # Also parse mode and VLAN from configuration as backup
-            for line in config_output.split('\n'):
-                line = line.strip().lower()
-                if "switchport mode" in line:
-                    if "trunk" in line:
-                        port_mode = "trunk"
-                    elif "general" in line:
-                        port_mode = "general"
-                    elif "access" in line:
-                        port_mode = "access"
-                elif "switchport access vlan" in line:
-                    try:
-                        config_vlan = line.split()[-1]
-                        # Use config VLAN if status parsing didn't work
-                        if current_vlan == "1" and config_vlan != "1":
-                            current_vlan = config_vlan
-                    except:
-                        pass
-            
-            return {
+            result = {
                 'port': port_name,
                 'status': 'up' if port_up else 'down',
                 'mode': port_mode,
                 'current_vlan': current_vlan,
-                'config_output': config_output
+                'config_output': config_output[:300] + '...' if len(config_output) > 300 else config_output,
+                'raw_status_output': status_output[:500] + '...' if len(status_output) > 500 else status_output  # Include for debugging
             }
+            
+            logger.info(f"Port {port_name} final status: {result['status']}, mode: {result['mode']}, VLAN: {result['current_vlan']}")
+            return result
+            
         except Exception as e:
             logger.error(f"Failed to get port status for {port_name}: {str(e)}")
             return {
@@ -1051,7 +1202,8 @@ class VLANManager:
                 'status': 'unknown',
                 'mode': 'unknown',
                 'current_vlan': 'unknown',
-                'config_output': ''
+                'config_output': '',
+                'error': str(e)
             }
     
     def change_port_vlan(self, port_name, vlan_id, description=None):
@@ -1222,25 +1374,57 @@ class VLANManager:
                         range_output += output
                         results['commands_executed'].append(command)
                     
-                    # Check if range command worked (look for errors)
+                    # Enhanced success/failure detection for range commands
+                    range_failed = False
                     if "Invalid" in range_output or "ERROR" in range_output or "error" in range_output:
-                        logger.warning(f"Interface range command may have failed for {range_str}, output: {range_output[:200]}")
-                        # Fallback: try individual ports
-                        range_ports = self._extract_ports_from_range(range_str)
+                        logger.warning(f"Interface range command failed for {range_str}, output: {range_output[:200]}")
+                        range_failed = True
+                    
+                    # Extract ports from range for individual verification
+                    range_ports = self._extract_ports_from_range(range_str)
+                    
+                    if range_failed:
+                        # Fallback: try individual ports and verify each one
                         logger.info(f"Falling back to individual port configuration for: {range_ports}")
                         
                         for port in range_ports:
+                            # Try to configure individual port
                             individual_success = self.change_port_vlan(port, vlan_id, description)
                             if individual_success:
-                                results['ports_changed'].append(port)
+                                # Double-check: verify the port was actually changed
+                                verification_status = self.get_port_status(port)
+                                if verification_status['current_vlan'] == str(vlan_id):
+                                    results['ports_changed'].append(port)
+                                    logger.info(f"Successfully changed and verified port {port} to VLAN {vlan_id}")
+                                else:
+                                    results['ports_failed'].append(port)
+                                    logger.error(f"Port {port} configuration appeared successful but verification failed - expected VLAN {vlan_id}, got {verification_status['current_vlan']}")
                             else:
                                 results['ports_failed'].append(port)
+                                logger.error(f"Failed to configure individual port {port}")
                     else:
-                        # Range command appeared successful
-                        range_ports = self._extract_ports_from_range(range_str)
-                        results['ports_changed'].extend(range_ports)
+                        # Range command appeared successful - verify each port in the range
+                        logger.info(f"Range command succeeded for {range_str}, verifying individual ports: {range_ports}")
                         range_success = True
-                        logger.info(f"Successfully configured range {range_str} to VLAN {vlan_id} on {self.switch_ip}")
+                        
+                        # Verify each port in the range was actually changed
+                        for port in range_ports:
+                            try:
+                                # Give the switch a moment to process the change
+                                time.sleep(0.1)
+                                verification_status = self.get_port_status(port)
+                                if verification_status['current_vlan'] == str(vlan_id):
+                                    results['ports_changed'].append(port)
+                                    logger.debug(f"Verified port {port} successfully changed to VLAN {vlan_id}")
+                                else:
+                                    results['ports_failed'].append(port)
+                                    logger.error(f"Port {port} range configuration failed - expected VLAN {vlan_id}, got {verification_status['current_vlan']}")
+                            except Exception as verify_e:
+                                logger.warning(f"Could not verify port {port} status after range config: {str(verify_e)}")
+                                # If we can't verify, assume it worked since the range command succeeded
+                                results['ports_changed'].append(port)
+                        
+                        logger.info(f"Range {range_str} verification complete: {len([p for p in range_ports if p in results['ports_changed']])} changed, {len([p for p in range_ports if p in results['ports_failed']])} failed")
                     
                 except Exception as e:
                     logger.error(f"Failed to configure range {range_str}: {str(e)}")
@@ -1252,7 +1436,12 @@ class VLANManager:
                         try:
                             individual_success = self.change_port_vlan(port, vlan_id, description)
                             if individual_success:
-                                results['ports_changed'].append(port)
+                                # Verify the change
+                                verification_status = self.get_port_status(port)
+                                if verification_status['current_vlan'] == str(vlan_id):
+                                    results['ports_changed'].append(port)
+                                else:
+                                    results['ports_failed'].append(port)
                             else:
                                 results['ports_failed'].append(port)
                         except Exception as port_e:
@@ -1268,12 +1457,23 @@ class VLANManager:
                     try:
                         individual_success = self.change_port_vlan(port, vlan_id, description)
                         if individual_success:
-                            results['ports_changed'].append(port)
+                            # Verify the change
+                            verification_status = self.get_port_status(port)
+                            if verification_status['current_vlan'] == str(vlan_id):
+                                results['ports_changed'].append(port)
+                                logger.info(f"Individual port {port} successfully changed and verified to VLAN {vlan_id}")
+                            else:
+                                results['ports_failed'].append(port)
+                                logger.error(f"Individual port {port} configuration appeared successful but verification failed")
                         else:
                             results['ports_failed'].append(port)
                     except Exception as port_e:
                         logger.error(f"Failed to configure individual port {port}: {str(port_e)}")
                         results['ports_failed'].append(port)
+            
+            # Remove duplicates (in case a port was processed multiple times)
+            results['ports_changed'] = list(set(results['ports_changed']))
+            results['ports_failed'] = list(set(results['ports_failed']))
             
             # Update success status based on results
             results['success'] = len(results['ports_failed']) == 0 and len(results['ports_changed']) > 0
@@ -1325,7 +1525,7 @@ class VLANManager:
 
 # Flask API Routes for VLAN Management
 
-def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name, force_change=False, skip_non_access=False):
+def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name=None, force_change=False, skip_non_access=False, keep_existing_vlan_name=False, preview_only=False):
     """
     Main VLAN change workflow with comprehensive safety checks.
     
@@ -1334,9 +1534,11 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         ports_input: String containing ports (comma-separated, ranges supported)
         description: Description to set on interfaces
         vlan_id: Target VLAN ID
-        vlan_name: VLAN name (for creation or update)
+        vlan_name: VLAN name (for creation or update) - optional if keep_existing_vlan_name is True
         force_change: If True, change all ports except uplinks (with confirmation)
         skip_non_access: If True, skip ports that are up or not in access mode
+        keep_existing_vlan_name: If True, don't change existing VLAN name
+        preview_only: If True, only preview the changes without executing them
     
     Returns:
         dict: Workflow results with confirmations needed, changes made, and errors
@@ -1406,9 +1608,14 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         vlan_operation = None
         
         if vlan_info['exists']:
-            if vlan_info['name'] != vlan_name:
+            if not keep_existing_vlan_name and vlan_name and vlan_info['name'] != vlan_name:
                 vlan_operation = 'update_name'
+            # If keeping existing name, use the current VLAN name from the switch
+            elif keep_existing_vlan_name:
+                vlan_name = vlan_info['name']
         else:
+            if not vlan_name:
+                return {'error': 'VLAN name is required when creating a new VLAN', 'status': 'error'}
             vlan_operation = 'create'
         
         # Check port statuses
@@ -1459,7 +1666,14 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
                 safe_ports.append(port)
         
         # Handle active or non-access ports based on options
+        logger.info(f"VLAN workflow debug: Port status analysis complete")
+        logger.info(f"VLAN workflow debug: active_or_non_access_ports count: {len(active_or_non_access_ports)}")
+        logger.info(f"VLAN workflow debug: safe_ports count: {len(safe_ports)}")
+        logger.info(f"VLAN workflow debug: ports_already_correct count: {len(ports_already_correct)}")
+        logger.info(f"VLAN workflow debug: force_change: {force_change}, skip_non_access: {skip_non_access}")
+        
         if active_or_non_access_ports and not force_change and not skip_non_access:
+            logger.info(f"VLAN workflow debug: Returning confirmation needed for active ports")
             return {
                 'status': 'confirmation_needed',
                 'type': 'active_or_non_access_ports',
@@ -1504,41 +1718,62 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             'commands_executed': []  # Initialize commands_executed
         }
         
-        # Handle VLAN creation/update
-        if vlan_operation == 'create':
-            if vlan_manager.create_vlan(vlan_id, vlan_name):
-                results['vlan_operation_result'] = f'Created VLAN {vlan_id} with name "{vlan_name}"'
-            else:
-                results['vlan_operation_result'] = f'Failed to create VLAN {vlan_id}'
-        elif vlan_operation == 'update_name':
-            if vlan_manager.update_vlan_name(vlan_id, vlan_name):
-                results['vlan_operation_result'] = f'Updated VLAN {vlan_id} name to "{vlan_name}"'
-            else:
-                results['vlan_operation_result'] = f'Failed to update VLAN {vlan_id} name'
-        
-        # Change port VLANs using batch processing with interface ranges
-        if final_ports:
-            try:
-                batch_result = vlan_manager.change_ports_vlan_batch(final_ports, vlan_id, description)
+        # If preview_only mode, skip actual changes and just return what would happen
+        if preview_only:
+            logger.info(f"Preview mode: Simulating changes for VLAN {vlan_id} on ports: {final_ports}")
+            # Simulate what would happen
+            results['ports_changed'] = final_ports  # Would change these ports
+            results['ports_failed'] = []  # Assume success for preview
+            
+            # Generate what ranges would be used
+            if final_ports:
+                results['ranges_used'] = vlan_manager.generate_interface_ranges(final_ports)
                 
-                if batch_result['success']:
-                    results['ports_changed'] = batch_result['ports_changed']
-                    results['ports_failed'] = batch_result['ports_failed']
-                    results['ranges_used'] = batch_result['ranges_used']
-                    results['commands_executed'] = batch_result['commands_executed']
-                    
-                    # Log successful batch operation
-                    ranges_str = ', '.join(batch_result['ranges_used'])
-                    logger.info(f"Successfully configured {len(results['ports_changed'])} ports using ranges: {ranges_str}")
+            # Set VLAN operation result for preview
+            if vlan_operation == 'create':
+                results['vlan_operation_result'] = f'Would create VLAN {vlan_id} with name "{vlan_name}"'
+            elif vlan_operation == 'update_name':
+                results['vlan_operation_result'] = f'Would update VLAN {vlan_id} name to "{vlan_name}"'
+            elif vlan_info['exists']:
+                results['vlan_operation_result'] = f'VLAN {vlan_id} already exists with name "{vlan_info["name"]}"'
+            
+        else:
+            # Execute actual changes
+            # Handle VLAN creation/update
+            if vlan_operation == 'create':
+                if vlan_manager.create_vlan(vlan_id, vlan_name):
+                    results['vlan_operation_result'] = f'Created VLAN {vlan_id} with name "{vlan_name}"'
                 else:
-                    # Batch failed, add all to failed list
-                    results['ports_failed'].extend(final_ports)
-                    logger.error(f"Batch VLAN change failed: {batch_result.get('message', 'Unknown error')}")
+                    results['vlan_operation_result'] = f'Failed to create VLAN {vlan_id}'
+            elif vlan_operation == 'update_name':
+                if vlan_manager.update_vlan_name(vlan_id, vlan_name):
+                    results['vlan_operation_result'] = f'Updated VLAN {vlan_id} name to "{vlan_name}"'
+                else:
+                    results['vlan_operation_result'] = f'Failed to update VLAN {vlan_id} name'
+            
+            # Change port VLANs using batch processing with interface ranges
+            if final_ports:
+                try:
+                    batch_result = vlan_manager.change_ports_vlan_batch(final_ports, vlan_id, description)
                     
-            except Exception as e:
-                # Exception in batch processing, add all to failed list
-                results['ports_failed'].extend(final_ports)
-                logger.error(f"Exception in batch VLAN processing: {str(e)}")
+                    if batch_result['success']:
+                        results['ports_changed'] = batch_result['ports_changed']
+                        results['ports_failed'] = batch_result['ports_failed']
+                        results['ranges_used'] = batch_result['ranges_used']
+                        results['commands_executed'] = batch_result['commands_executed']
+                        
+                        # Log successful batch operation
+                        ranges_str = ', '.join(batch_result['ranges_used'])
+                        logger.info(f"Successfully configured {len(results['ports_changed'])} ports using ranges: {ranges_str}")
+                    else:
+                        # Batch failed, add all to failed list
+                        results['ports_failed'].extend(final_ports)
+                        logger.error(f"Batch VLAN change failed: {batch_result.get('message', 'Unknown error')}")
+                        
+                except Exception as e:
+                    # Exception in batch processing, add all to failed list
+                    results['ports_failed'].extend(final_ports)
+                    logger.error(f"Exception in batch VLAN processing: {str(e)}")
         
         # Summary
         results['summary'] = {
@@ -1585,8 +1820,20 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         
         return results
         
+    except Exception as e:
+        # Catch any exception that occurs during workflow execution
+        logger.error(f"VLAN workflow exception: {str(e)}")
+        return {
+            'error': f'VLAN workflow failed: {str(e)}',
+            'status': 'error',
+            'switch_info': switch_info if 'switch_info' in locals() else {'name': f'Switch ID {switch_id}'},
+            'vlan_id': vlan_id,
+            'exception_details': str(e)
+        }
+        
     finally:
-        vlan_manager.disconnect()
+        if 'vlan_manager' in locals():
+            vlan_manager.disconnect()
 
 # New API endpoint - this would be added to port_tracer_web.py
 
@@ -1608,15 +1855,47 @@ def add_vlan_management_routes(app):
             username = session['username']
             
             # Required fields
-            required_fields = ['switch_id', 'ports', 'vlan_id', 'vlan_name']
+            required_fields = ['switch_id', 'ports', 'vlan_id']
             for field in required_fields:
                 if field not in data:
                     return jsonify({'error': f'Missing required field: {field}'}), 400
             
             # Optional fields
             description = data.get('description', '')
+            vlan_name = data.get('vlan_name')  # Now optional
+            keep_existing_vlan_name = data.get('keep_existing_vlan_name', False)
+            
+            # Safety options - ensure they're mutually exclusive
             force_change = data.get('force_change', False)
-            skip_problematic = data.get('skip_problematic', False)
+            skip_non_access = data.get('skip_non_access', False)
+            
+            # Convert string 'true'/'false' to boolean if needed
+            if isinstance(force_change, str):
+                force_change = force_change.lower() == 'true'
+            if isinstance(skip_non_access, str):
+                skip_non_access = skip_non_access.lower() == 'true'
+            if isinstance(data.get('keep_existing_vlan_name'), str):
+                keep_existing_vlan_name = data.get('keep_existing_vlan_name', 'false').lower() == 'true'
+            
+            # Ensure only one safety option is selected at a time
+            safety_options_count = sum([force_change, skip_non_access])
+            if safety_options_count > 1:
+                return jsonify({
+                    'error': 'Multiple safety options selected', 
+                    'details': 'Please select only one safety option: either "Force change" or "Skip non-access" but not both.'
+                }), 400
+            
+            # Validate VLAN name requirement
+            if not keep_existing_vlan_name and not vlan_name:
+                return jsonify({
+                    'error': 'VLAN name required',
+                    'details': 'VLAN name is required unless "Keep existing VLAN name" option is selected.'
+                }), 400
+            
+            # Handle preview_only parameter
+            preview_only = data.get('preview_only', False)
+            if isinstance(preview_only, str):
+                preview_only = preview_only.lower() == 'true'
             
             # Execute workflow
             result = vlan_change_workflow(
@@ -1624,9 +1903,11 @@ def add_vlan_management_routes(app):
                 ports_input=data['ports'],
                 description=description,
                 vlan_id=data['vlan_id'],
-                vlan_name=data['vlan_name'],
+                vlan_name=vlan_name,
                 force_change=force_change,
-                skip_problematic=skip_problematic
+                skip_non_access=skip_non_access,
+                keep_existing_vlan_name=keep_existing_vlan_name,
+                preview_only=preview_only
             )
             
             # Log the operation

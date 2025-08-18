@@ -2,7 +2,7 @@
 
 ## 📊 Network Team Overview
 
-This documentation focuses on the network aspects of the Dell Port Tracer application, including network topology, switch management, SSH-based operations, and port tracing workflows for the v2.1.3 Docker-deployed architecture.
+This documentation focuses on the network aspects of the Dell Port Tracer application, including network topology, switch management, SSH-based operations, port tracing workflows, and advanced VLAN management capabilities for the v2.1.3 Docker-deployed architecture.
 
 ## Network Architecture Diagram (v2.1.3)
 
@@ -215,6 +215,10 @@ CREATE TABLE audit_logs (
 | `show interface description` | Show interface descriptions | Get port descriptions and labels |
 | `show interface ethernet X/X/X` | Show detailed interface information | Get specific port details |
 | `show vlan` | Display VLAN configuration | Get VLAN membership information |
+| `show running-config interface X/X/X` | Show interface configuration | Get port mode and VLAN assignments |
+| `interface range X/X/X-X` | Configure multiple interfaces | Batch VLAN configuration |
+| `switchport access vlan X` | Set access VLAN | VLAN assignment command |
+| `vlan X` | Create/configure VLAN | VLAN management command |
 
 ## Port Tracing Algorithm
 
@@ -354,6 +358,200 @@ Input: Target MAC Address or IP Address
    - Track container resource usage
    - Check inter-container communication
    - Database connectivity monitoring
+
+## VLAN Management Capabilities (v2.1.3)
+
+### Advanced VLAN Management Features
+
+The Dell Port Tracer v2.1.3 includes comprehensive VLAN management capabilities designed for network administrators to safely configure and manage VLAN assignments across Dell switches.
+
+### VLAN Management Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  VLAN MANAGEMENT WORKFLOW                       │
+└─────────────────────────────────────────────────────────────────┘
+
+1. VLAN Assignment Request
+   ┌──────────────┐      HTTP POST     ┌─────────────────┐
+   │              ├───────────────────►│                 │
+   │ Web Browser  │   /api/vlan_config │ Flask App       │
+   │              │◄───────────────────┤ (Docker)        │
+   └──────────────┘   Preview Response  └─────────┬───────┘
+                                                 │
+2. Switch Configuration via SSH                   │
+   ┌─────────────────────────────────────────────▼─────────────────┐
+   │ Safety checks & validation:                                   │
+   │                                                               │
+   │ ┌─────────────┐    SSH Commands   ┌──────────────────────────┐  │
+   │ │             ├────────────────►│                          │  │
+   │ │ VLAN Config │ show vlan         │ Dell Switch (OS10/EOS)  │  │
+   │ │ Module      │ show running-     │ SSH Server               │  │
+   │ │             │ config interface  │                          │  │
+   │ │             │◄────────────────┤                          │  │
+   │ └─────────────┘ Validation Data   └──────────────────────────┘  │
+   │                                                               │
+   │ ┌─────────────┐    SSH Config     ┌──────────────────────────┐  │
+   │ │             ├────────────────►│                          │  │
+   │ │ VLAN Config │ interface range   │ Dell Switch (OS10/EOS)  │  │
+   │ │ Module      │ switchport access │ SSH Server               │  │
+   │ │             │ vlan X            │                          │  │
+   │ │             │◄────────────────┤                          │  │
+   │ └─────────────┘ Config Results    └──────────────────────────┘  │
+   │                                                               │
+   └───────────────────────────────────────────────────────────────┘
+
+3. Configuration Validation & Audit
+   ┌───────────────────────────────────────────────────────────────┐
+   │ • Verify VLAN exists before assignment                       │
+   │ • Check port status and current configuration                │
+   │ • Validate uplink port protection (prevent misconfigurations)│
+   │ • Execute configuration commands with error handling          │
+   │ • Store complete audit trail in PostgreSQL database          │
+   │ • Return success/failure status with detailed feedback       │
+   └───────────────────────────────────────────────────────────────┘
+```
+
+### VLAN Configuration Features
+
+#### 1. **Safe VLAN Assignment**
+- **Pre-validation**: Checks if target VLAN exists on switch before assignment
+- **Port status verification**: Ensures ports are accessible and configurable
+- **Uplink protection**: Prevents accidental configuration of uplink/trunk ports
+- **Rollback capability**: Ability to undo configurations if needed
+
+#### 2. **Switch Model Awareness**
+- **Dell OS10 Support**: Full compatibility with Dell OS10/EOS command syntax
+- **Legacy PowerConnect**: Support for older Dell PowerConnect switches
+- **Dynamic command adaptation**: Adjusts commands based on switch model/version
+- **Error handling**: Switch-specific error detection and reporting
+
+#### 3. **Real-time Port Management**
+- **Live port status**: Real-time checking of port operational status
+- **Interface descriptions**: Automatic retrieval of port descriptions/labels
+- **VLAN membership**: Current VLAN assignment verification
+- **Configuration preview**: Shows proposed changes before execution
+
+#### 4. **Security Framework**
+- **Input validation**: Comprehensive validation of all user inputs
+- **Command injection prevention**: Parameterized commands to prevent injection attacks
+- **Authentication integration**: LDAP/AD authentication for access control
+- **Audit logging**: Complete audit trail of all configuration changes
+
+### VLAN Management Commands
+
+#### Dell OS10 VLAN Commands Used
+
+| Command | Purpose | Safety Level |
+|---------|---------|-------------|
+| `show vlan` | Verify VLAN existence | **Safe** - Read-only |
+| `show running-config interface X/X/X` | Check current configuration | **Safe** - Read-only |
+| `show interface status` | Verify port status | **Safe** - Read-only |
+| `interface range X/X/X-X` | Select multiple interfaces | **Config** - Configuration mode |
+| `switchport access vlan X` | Assign access VLAN | **Config** - Modifies switch |
+| `end` | Exit configuration mode | **Safe** - Exit config |
+| `write memory` | Save configuration | **Config** - Saves changes |
+
+#### VLAN Assignment Workflow
+
+```bash
+# 1. Validation Phase (Read-only commands)
+show vlan brief                               # Verify VLAN exists
+show interface status                         # Check port status
+show running-config interface ethernet 1/1/1 # Get current config
+
+# 2. Configuration Phase (Modify commands)
+configure terminal                            # Enter config mode
+interface range ethernet 1/1/1-1/1/5        # Select port range
+switchport access vlan 100                   # Assign VLAN
+end                                          # Exit config mode
+write memory                                 # Save configuration
+```
+
+### VLAN Management Safety Features
+
+#### 1. **Uplink Port Protection**
+- **Automatic detection**: Identifies potential uplink/trunk ports
+- **Configuration blocking**: Prevents VLAN changes on critical uplinks
+- **Manual override**: Admin override capability with additional confirmation
+- **Port role validation**: Checks if port is configured as trunk/access
+
+#### 2. **Input Validation**
+- **VLAN ID range**: Validates VLAN IDs (1-4094) are within acceptable range
+- **Port format**: Ensures proper Ethernet port format (e.g., 1/1/1)
+- **Switch connectivity**: Verifies switch is reachable before configuration
+- **User permissions**: Validates user has required privileges for VLAN management
+
+#### 3. **Error Handling & Recovery**
+- **Command validation**: Pre-validates all commands before execution
+- **Partial failure handling**: Handles scenarios where some ports succeed/fail
+- **Configuration rollback**: Ability to restore previous configuration
+- **Detailed error reporting**: Provides specific error messages for troubleshooting
+
+### VLAN Management Database Integration
+
+#### Enhanced Audit Trail
+
+```sql
+-- VLAN Configuration Audit Table
+CREATE TABLE vlan_configuration_logs (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(100) NOT NULL,
+    switch_id INTEGER REFERENCES switches(id),
+    action VARCHAR(50) NOT NULL, -- 'assign', 'remove', 'preview'
+    ports TEXT NOT NULL,         -- JSON array of ports
+    vlan_id INTEGER NOT NULL,
+    previous_config TEXT,        -- Previous VLAN assignments
+    new_config TEXT,             -- New VLAN assignments
+    success BOOLEAN NOT NULL,
+    error_message TEXT,
+    commands_executed TEXT,      -- Actual commands sent to switch
+    execution_time FLOAT,        -- Time taken for configuration
+    ip_address INET,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- VLAN Inventory Table (Optional)
+CREATE TABLE vlan_inventory (
+    id SERIAL PRIMARY KEY,
+    switch_id INTEGER REFERENCES switches(id),
+    vlan_id INTEGER NOT NULL,
+    vlan_name VARCHAR(100),
+    description TEXT,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(switch_id, vlan_id)
+);
+```
+
+### Network Team VLAN Management Procedures
+
+#### 1. **Daily VLAN Operations**
+- **Port assignment requests**: Process user requests for VLAN changes
+- **Configuration validation**: Verify VLAN assignments are correct
+- **Audit log review**: Monitor VLAN configuration changes
+- **Error investigation**: Troubleshoot failed VLAN assignments
+
+#### 2. **VLAN Planning & Management**
+- **VLAN inventory maintenance**: Keep VLAN database current
+- **New VLAN creation**: Add VLANs to switches before assignment
+- **VLAN cleanup**: Remove unused VLANs to maintain clean configuration
+- **Documentation updates**: Maintain VLAN assignment documentation
+
+#### 3. **Security & Compliance**
+- **Access control**: Ensure only authorized users can modify VLANs
+- **Change approval**: Implement change management for VLAN modifications
+- **Configuration backup**: Regular backup of switch configurations
+- **Compliance reporting**: Generate reports for security audits
+
+#### 4. **Troubleshooting VLAN Issues**
+
+| Issue | Symptoms | Resolution |
+|-------|----------|------------|
+| **VLAN Not Found** | "VLAN does not exist" error | Create VLAN on switch first, then retry assignment |
+| **Port Access Denied** | SSH permission errors | Verify switch credentials and user privileges |
+| **Uplink Protection Block** | "Uplink port detected" warning | Use admin override or verify port is not uplink |
+| **Partial Configuration** | Some ports succeed, others fail | Check individual port status and rerun failed ports |
+| **Configuration Not Saved** | Changes lost after reboot | Ensure "write memory" command executed successfully |
 
 ## Network Team Responsibilities (v2.1.3)
 

@@ -47,7 +47,7 @@ MAC address tracing and advanced VLAN management capabilities.
 - Progress tracking for large batches
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 2.1.3
+Version: 2.1.4
 Author: Network Operations Team
 Last Updated: August 2025 - Login Page Scrolling Fix & UI Improvements
 License: MIT
@@ -4077,7 +4077,7 @@ def api_change_port_vlan_advanced():
         username = session['username']
         
         # Validate required fields are present
-        required_fields = ['switch_id', 'ports', 'vlan_id', 'vlan_name']
+        required_fields = ['switch_id', 'ports', 'vlan_id']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
@@ -4105,14 +4105,28 @@ def api_change_port_vlan_advanced():
             detailed_error = get_vlan_format_error_message('vlan_id', str(vlan_id))
             return jsonify(detailed_error), 400
         
-        # SECURITY CHECKPOINT 3: Validate VLAN name for business standards
+        # SECURITY CHECKPOINT 3: Validate VLAN name for business standards (optional if keeping existing)
         # Prevents command injection and enforces enterprise naming conventions
         vlan_name = data.get('vlan_name', '').strip()
-        if not is_valid_vlan_name(vlan_name):
+        keep_existing_vlan_name = data.get('keep_existing_vlan_name', False)
+        
+        # Convert string 'true'/'false' to boolean if needed
+        if isinstance(keep_existing_vlan_name, str):
+            keep_existing_vlan_name = keep_existing_vlan_name.lower() == 'true'
+        
+        # Only validate VLAN name if not keeping existing name
+        if not keep_existing_vlan_name and vlan_name and not is_valid_vlan_name(vlan_name):
             # Log security violation for audit trail
             audit_logger.warning(f"User: {username} - SECURITY VIOLATION - INVALID VLAN NAME - Attempted: {vlan_name}")
             detailed_error = get_vlan_format_error_message('vlan_name', vlan_name)
             return jsonify(detailed_error), 400
+        
+        # Check VLAN name requirement (only if not keeping existing name)
+        if not keep_existing_vlan_name and not vlan_name:
+            return jsonify({
+                'error': 'VLAN name required',
+                'details': 'VLAN name is required unless "Keep existing VLAN name" option is selected.'
+            }), 400
         
         # SECURITY CHECKPOINT 4: Validate port description (optional but critical)
         # Sanitizes description to prevent CLI command injection attacks
@@ -4127,6 +4141,17 @@ def api_change_port_vlan_advanced():
         force_change = data.get('force_change', False)
         skip_non_access = data.get('skip_non_access', False)
         
+        # Convert string 'true'/'false' to boolean if needed for workflow control flags
+        if isinstance(force_change, str):
+            force_change = force_change.lower() == 'true'
+        if isinstance(skip_non_access, str):
+            skip_non_access = skip_non_access.lower() == 'true'
+        
+        # Handle preview_only parameter
+        preview_only = data.get('preview_only', False)
+        if isinstance(preview_only, str):
+            preview_only = preview_only.lower() == 'true'
+        
         # Execute VLAN change workflow with validated and sanitized inputs
         # All inputs have passed security validation at this point
         result = vlan_change_workflow(
@@ -4136,14 +4161,21 @@ def api_change_port_vlan_advanced():
             vlan_id=vlan_id,                # Validated VLAN ID
             vlan_name=vlan_name,            # Validated VLAN name
             force_change=force_change,
-            skip_non_access=skip_non_access
+            skip_non_access=skip_non_access,
+            keep_existing_vlan_name=keep_existing_vlan_name,
+            preview_only=preview_only       # Preview mode flag
         )
         
         # Comprehensive audit logging for security compliance
         if result['status'] == 'success':
             audit_logger.info(f"User: {username} - VLAN CHANGE SUCCESS - Switch: {result.get('switch_info', {}).get('name', 'unknown')}, VLAN: {vlan_id} ({vlan_name}), Ports: {ports_input}, Changed: {len(result.get('ports_changed', []))}")
+        elif result['status'] == 'confirmation_needed':
+            # Confirmation needed is not a failure - it's a normal workflow state
+            confirmation_type = result.get('type', 'unknown')
+            audit_logger.info(f"User: {username} - VLAN CHANGE CONFIRMATION NEEDED - Switch ID: {data['switch_id']}, VLAN: {vlan_id}, Type: {confirmation_type}")
         else:
-            audit_logger.warning(f"User: {username} - VLAN CHANGE FAILED - Switch ID: {data['switch_id']}, VLAN: {vlan_id}, Error: {result.get('error', 'unknown')}")
+            # Only log actual errors/failures
+            audit_logger.warning(f"User: {username} - VLAN CHANGE FAILED - Switch ID: {data['switch_id']}, VLAN: {vlan_id}, Error: {result.get('error', result.get('status', 'unknown'))}")
         
         return jsonify(result)
         

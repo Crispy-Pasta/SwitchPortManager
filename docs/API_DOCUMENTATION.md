@@ -185,10 +185,10 @@ Delete a switch from inventory.
 
 ---
 
-### 🔧 VLAN Management (v2.1.2)
+### 🔧 VLAN Management (v2.1.3)
 
-#### POST `/api/vlan/change`
-Advanced VLAN change with enterprise-grade validation.
+#### POST `/api/vlan_config`
+Enterprise VLAN configuration with preview-execute workflow and enhanced safety features.
 
 **Required Role:** NetAdmin, SuperAdmin
 
@@ -196,32 +196,124 @@ Advanced VLAN change with enterprise-grade validation.
 ```json
 {
   "switch_id": 1,
-  "ports": "gi1/0/1-24",
+  "ports": "ethernet 1/1/1-1/1/24",
   "vlan_id": 100,
-  "vlan_name": "Zone_Client_Workstations",
-  "description": "User Workstation Ports",
-  "force_change": false,
-  "skip_non_access": false
+  "action": "preview|execute",
+  "include_vlan_name": true,
+  "override_uplink_protection": false,
+  "skip_non_access_ports": true
 }
 ```
 
-**Security Features:**
-- Port format validation (prevents command injection)
-- VLAN ID validation (IEEE 802.1Q standards: 1-4094)
-- VLAN name validation (enterprise naming conventions)
-- Description sanitization (prevents CLI injection)
+**Enhanced Security Features (v2.1.3):**
+- Advanced port format validation with Dell OS10/EOS syntax
+- VLAN existence verification before assignment
+- Uplink port protection with override capability
+- Real-time port status validation
+- Command injection prevention with parameterized queries
+- Comprehensive audit logging with execution time tracking
 
-**Response:**
+**Preview Response:**
 ```json
 {
-  "status": "success",
-  "ports_changed": ["gi1/0/1", "gi1/0/2"],
-  "ports_skipped": [],
+  "action": "preview",
+  "status": "ready_for_execution",
   "switch_info": {
     "name": "NYC-F11-R1-VAS-01",
-    "model": "Dell N3248"
+    "ip_address": "10.50.11.10",
+    "model": "Dell N3248TE-ON"
   },
-  "summary": "Changed 2 ports to VLAN 100"
+  "vlan_info": {
+    "vlan_id": 100,
+    "vlan_name": "Production_Workstations",
+    "exists": true
+  },
+  "port_analysis": {
+    "total_ports_requested": 24,
+    "valid_ports": 22,
+    "uplink_ports_detected": 2,
+    "ports_to_configure": [
+      {
+        "port": "ethernet 1/1/1",
+        "current_vlan": "1",
+        "target_vlan": "100",
+        "status": "up",
+        "description": "User Workstation",
+        "mode": "access",
+        "action": "change_vlan"
+      }
+    ],
+    "ports_to_skip": [
+      {
+        "port": "ethernet 1/1/23",
+        "reason": "uplink_port",
+        "current_config": "trunk",
+        "override_available": true
+      }
+    ]
+  },
+  "configuration_preview": {
+    "commands_to_execute": [
+      "configure terminal",
+      "interface range ethernet 1/1/1-1/1/22",
+      "switchport access vlan 100",
+      "end",
+      "write memory"
+    ],
+    "estimated_execution_time": "15-30 seconds",
+    "rollback_available": true
+  },
+  "safety_checks": {
+    "vlan_exists": true,
+    "switch_reachable": true,
+    "uplink_protection_active": true,
+    "all_validations_passed": true
+  }
+}
+```
+
+**Execute Response:**
+```json
+{
+  "action": "execute",
+  "status": "success",
+  "execution_summary": {
+    "ports_configured": 22,
+    "ports_skipped": 2,
+    "execution_time": 18.5,
+    "commands_executed": 5,
+    "configuration_saved": true
+  },
+  "switch_info": {
+    "name": "NYC-F11-R1-VAS-01",
+    "ip_address": "10.50.11.10",
+    "model": "Dell N3248TE-ON"
+  },
+  "vlan_info": {
+    "vlan_id": 100,
+    "vlan_name": "Production_Workstations"
+  },
+  "configured_ports": [
+    {
+      "port": "ethernet 1/1/1",
+      "previous_vlan": "1",
+      "new_vlan": "100",
+      "status": "success"
+    }
+  ],
+  "skipped_ports": [
+    {
+      "port": "ethernet 1/1/23",
+      "reason": "uplink_protection",
+      "status": "skipped"
+    }
+  ],
+  "audit_log_id": "vlan-config-20250814-095832",
+  "rollback_info": {
+    "available": true,
+    "rollback_id": "rb-20250814-095832",
+    "expires_at": "2025-08-15T09:58:32Z"
+  }
 }
 ```
 

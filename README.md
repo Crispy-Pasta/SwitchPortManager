@@ -1,4 +1,4 @@
-# Switch Port Manager v2.1.3
+# Switch Port Manager v2.1.4
 
 > **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
@@ -6,7 +6,7 @@
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.1.3-blue)
+![Version](https://img.shields.io/badge/version-2.1.4-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -365,13 +365,32 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 2.1.3  
+**Version**: 2.1.4  
 **Last Updated**: August 2025
 **Maintainer**: Network Operations Team
 
-## 🔄 Changelog (v2.1.2)
+## 🔄 Changelog (v2.1.3)
 
-### 🛡️ VLAN Manager Security Enhancements
+### 🎨 Enhanced VLAN Manager User Experience
+- ✅ **Optional VLAN Name Toggle**: Added "Keep Existing VLAN Name" option for flexibility
+  - Users can now preserve existing VLAN names on switches without requiring name input
+  - Conditional form validation - VLAN name field becomes optional when toggle is enabled
+  - Backend validation respects the toggle state for improved workflow efficiency
+- ✅ **Combined Preview+Execute Workflow**: Streamlined VLAN change process
+  - Single "Review and Execute Changes" button replaces separate preview and execute actions
+  - Always shows preview/review before execution for enhanced safety
+  - Execute button integrated directly into preview modal for smoother workflow
+- ✅ **Enhanced UI Styling and Consistency**: Professional, standardized interface design
+  - Fixed double warning emoji issue in confirmation dialogs
+  - Consistent styling across all VLAN management prompts and modals
+  - Color-coded status indicators with proper visual hierarchy
+  - Improved modal layouts with better spacing and typography
+- ✅ **Mutually Exclusive Safety Options**: Enhanced form validation
+  - "Force Change" and "Skip Non-Access" options are now mutually exclusive
+  - Frontend and backend validation prevents conflicting safety configurations
+  - Clear user guidance on option functionality and implications
+
+### 🛡️ VLAN Manager Security Enhancements (v2.1.2)
 - ✅ **Comprehensive Input Validation**: Added enterprise-grade input validation for all VLAN management operations
   - Port format validation with strict regex patterns (e.g., Gi1/0/1-48, Te1/0/1-2)
   - VLAN ID validation ensuring IEEE 802.1Q compliance (1-4094)
@@ -381,7 +400,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ **Audit Trail Enhancement**: All invalid input attempts logged with user identification
 - ✅ **Command Injection Prevention**: Multi-layer protection against malicious network configuration attempts
 
-### 🔧 Frontend Data Processing Fixes
+### 🔧 Frontend Data Processing Fixes (v2.1.2)
 - ✅ **Switch Form Checkbox Handling**: Fixed client-side form processing to properly convert HTML checkbox values
   - Converts checkbox 'on'/undefined values to boolean true/false before API submission
   - Prevents backend validation errors for the 'enabled' field in switch management
