@@ -47,7 +47,7 @@ MAC address tracing and advanced VLAN management capabilities.
 - Progress tracking for large batches
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 2.1.4
+Version: 2.1.5
 Author: Network Operations Team
 Last Updated: August 2025 - Login Page Scrolling Fix & UI Improvements
 License: MIT
@@ -67,7 +67,7 @@ import time
 import psutil
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, render_template, render_template_string, request, jsonify, session, redirect, url_for
 from flask_httpauth import HTTPBasicAuth
 from flask_sqlalchemy import SQLAlchemy
@@ -105,6 +105,13 @@ load_dotenv()
 
 # Flask app
 app = Flask(__name__)
+
+# Session timeout configuration
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.secret_key = secrets.token_hex(16)
 auth = HTTPBasicAuth()
 
@@ -3281,6 +3288,18 @@ LOGIN_TEMPLATE = r"""
 # MAIN_TEMPLATE was moved to external file templates/main.html
 
 @app.before_request
+def before_request():
+    session.permanent = True
+    session.modified = True
+    if 'username' in session:
+        if 'last_activity' in session:
+            last_activity = session['last_activity']
+            if (datetime.now(timezone.utc) - last_activity).total_seconds() > app.config['PERMANENT_SESSION_LIFETIME'].total_seconds():
+                session.clear()
+                return redirect(url_for('login'))
+        session['last_activity'] = datetime.now(timezone.utc)
+
+@app.before_request
 def check_cpu_before_request():
     """Monitor CPU load before processing compute-intensive requests.
     
@@ -4283,6 +4302,95 @@ def api_check_vlan():
         logger.error(f"VLAN check API unexpected error: {str(e)}")
         audit_logger.error(f"User: {session.get('username', 'unknown')} - VLAN CHECK API ERROR - Switch ID: {switch_id}, VLAN: {vlan_id}, Error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/session/keepalive', methods=['POST'])
+def api_session_keepalive():
+    """
+    Session Keep-Alive API Endpoint
+    ===============================
+    
+    Allows authenticated users to extend their session before timeout.
+    This endpoint resets the session's last activity timestamp, effectively
+    extending the session for another full timeout period.
+    
+    Returns:
+        dict: Success status or error message
+    """
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        # Update the session's last activity timestamp
+        session['last_activity'] = datetime.now(timezone.utc)
+        session.permanent = True
+        session.modified = True
+        
+        username = session['username']
+        audit_logger.info(f"User: {username} - SESSION EXTENDED - Keep-alive request")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Session extended successfully',
+            'timeout_minutes': int(app.config['PERMANENT_SESSION_LIFETIME'].total_seconds() / 60)
+        })
+        
+    except Exception as e:
+        logger.error(f"Session keep-alive error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+@app.route('/api/session/check', methods=['POST'])
+def api_session_check():
+    """
+    Session Validity Check API Endpoint
+    ==================================
+    
+    Validates current session status and returns validity information.
+    Used by frontend to detect stale sessions and ensure consistent
+    session state management across browser tabs and navigation.
+    
+    This endpoint helps prevent users from operating with expired sessions
+    by providing a way to check session validity without extending it.
+    
+    Returns:
+        dict: Session validity status and information
+    """
+    try:
+        # Check if user is authenticated
+        if 'username' not in session:
+            return jsonify({'valid': False, 'reason': 'No active session'}), 401
+        
+        # Check if session has expired based on last activity
+        if 'last_activity' in session:
+            last_activity = session['last_activity']
+            time_elapsed = (datetime.now(timezone.utc) - last_activity).total_seconds()
+            session_timeout = app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
+            
+            if time_elapsed > session_timeout:
+                # Session has expired, clear it
+                session.clear()
+                audit_logger.info(f"Session expired during validity check - Time elapsed: {time_elapsed}s")
+                return jsonify({'valid': False, 'reason': 'Session expired'}), 401
+        
+        # Session is valid
+        username = session['username']
+        user_role = session.get('role', 'oss')
+        time_remaining = app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
+        
+        if 'last_activity' in session:
+            time_elapsed = (datetime.now(timezone.utc) - session['last_activity']).total_seconds()
+            time_remaining = max(0, app.config['PERMANENT_SESSION_LIFETIME'].total_seconds() - time_elapsed)
+        
+        return jsonify({
+            'valid': True,
+            'username': username,
+            'role': user_role,
+            'time_remaining_minutes': int(time_remaining / 60),
+            'session_timeout_minutes': int(app.config['PERMANENT_SESSION_LIFETIME'].total_seconds() / 60)
+        })
+        
+    except Exception as e:
+        logger.error(f"Session check error: {str(e)}")
+        return jsonify({'valid': False, 'reason': 'Internal server error'}), 500
 
 @app.route('/api/port/status', methods=['POST'])
 def api_check_port_status():

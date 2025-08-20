@@ -853,6 +853,374 @@
             
             resultsDiv.innerHTML = html;
         }
+
+        // Session timeout management
+        let sessionTimeoutWarning;
+        let sessionTimeoutTimer;
+        let sessionTimeRemaining = 300; // 5 minutes in seconds
+        let warningShown = false;
+        
+        // Function to start session timeout tracking
+        function startSessionTimeout() {
+            // Clear any existing timers
+            if (sessionTimeoutWarning) clearTimeout(sessionTimeoutWarning);
+            if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
+            
+            sessionTimeRemaining = 300; // 5 minutes
+            warningShown = false;
+            
+            // Show warning at 1 minute before timeout
+            sessionTimeoutWarning = setTimeout(showSessionWarning, (sessionTimeRemaining - 60) * 1000);
+            
+            // Auto-logout at timeout
+            sessionTimeoutTimer = setTimeout(logoutDueToTimeout, sessionTimeRemaining * 1000);
+        }
+        
+        // Show session timeout warning modal
+        function showSessionWarning() {
+            if (warningShown) return;
+            warningShown = true;
+            
+            const modal = document.createElement('div');
+            modal.id = 'session-timeout-modal';
+            modal.className = 'modal-overlay';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(5px);
+            `;
+            
+            const content = document.createElement('div');
+            content.className = 'modal-content';
+            content.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                max-width: 450px;
+                width: 90%;
+                padding: 0;
+                animation: fadeIn 0.3s ease;
+            `;
+            
+            let countdown = 60;
+            
+            function updateCountdown() {
+                const minutes = Math.floor(countdown / 60);
+                const seconds = countdown % 60;
+                const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                content.innerHTML = `
+                    <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 20px; border-radius: 12px 12px 0 0;">
+                        <h3 style="margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px; font-size: 18px;">
+                            <span>⏰</span> Session Timeout Warning
+                        </h3>
+                        <p style="margin: 0; font-size: 14px; opacity: 0.9;">Your session will expire soon due to inactivity</p>
+                    </div>
+                    <div style="padding: 24px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 48px; font-weight: 700; color: #dc2626; margin-bottom: 8px;">${timeString}</div>
+                            <p style="margin: 0; color: #6b7280; font-size: 14px;">Time remaining before automatic logout</p>
+                        </div>
+                        <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                            <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;">
+                                <strong>⚠️ Action Required:</strong> To continue working, click "Stay Logged In" to extend your session.
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                            <button id="logout-now-btn" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Logout Now</button>
+                            <button id="extend-session-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                                <span>🔄</span> Stay Logged In
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Update button event listeners
+                const logoutBtn = content.querySelector('#logout-now-btn');
+                const extendBtn = content.querySelector('#extend-session-btn');
+                
+                if (logoutBtn && extendBtn) {
+                    logoutBtn.onclick = logoutDueToTimeout;
+                    extendBtn.onclick = extendSession;
+                }
+                
+                countdown--;
+                
+                if (countdown < 0) {
+                    logoutDueToTimeout();
+                }
+            }
+            
+            // Update countdown immediately and then every second
+            updateCountdown();
+            const countdownInterval = setInterval(updateCountdown, 1000);
+            
+            // Clean up interval when modal is removed
+            modal.countdownInterval = countdownInterval;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Add CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: scale(0.9); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Extend session via AJAX keep-alive
+        function extendSession() {
+            fetch('/api/session/keepalive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeSessionModal();
+                    startSessionTimeout(); // Restart the timeout timer
+                    showToast('Session extended successfully', 'success');
+                } else {
+                    showToast('Failed to extend session', 'error');
+                    logoutDueToTimeout();
+                }
+            })
+            .catch(error => {
+                console.error('Session extension error:', error);
+                showToast('Session extension failed', 'error');
+                logoutDueToTimeout();
+            });
+        }
+        
+        // Logout due to timeout with enhanced user experience
+        function logoutDueToTimeout() {
+            closeSessionModal();
+            
+            // Create a full-screen logout overlay for better UX
+            const logoutOverlay = document.createElement('div');
+            logoutOverlay.id = 'session-logout-overlay';
+            logoutOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.85);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(8px);
+                opacity: 0;
+                transition: opacity 0.5s ease;
+            `;
+            
+            const logoutContent = document.createElement('div');
+            logoutContent.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                padding: 40px 30px;
+                transform: translateY(20px);
+                transition: transform 0.5s ease;
+            `;
+            
+            logoutContent.innerHTML = `
+                <div style="width: 80px; height: 80px; margin: 0 auto 24px; background: #fef2f2; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </div>
+                <h2 style="color: #1e293b; font-size: 24px; margin: 0 0 16px 0;">Session Expired</h2>
+                <p style="color: #6b7280; font-size: 16px; margin: 0 0 24px 0; line-height: 1.6;">
+                    Your session has expired due to inactivity.<br>You will be redirected to the login page in a moment.
+                </p>
+                <div class="logout-progress" style="height: 4px; background: #e5e7eb; border-radius: 2px; margin-bottom: 24px; overflow: hidden;">
+                    <div class="logout-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(135deg, #f59e0b, #dc2626); transition: width 2s linear;"></div>
+                </div>
+                <a href="/login" style="display: inline-block; text-decoration: none; background: #1e293b; color: white; font-weight: 600; padding: 12px 24px; border-radius: 8px; transition: background 0.3s ease;">Return to Login</a>
+            `;
+            
+            logoutOverlay.appendChild(logoutContent);
+            document.body.appendChild(logoutOverlay);
+            
+            // Show toast notification
+            showToast('Session expired due to inactivity', 'warning');
+            
+            // Animate the overlay appearance
+            setTimeout(() => {
+                logoutOverlay.style.opacity = '1';
+                logoutContent.style.transform = 'translateY(0)';
+                
+                // Start progress bar
+                const progressBar = logoutContent.querySelector('.logout-progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = '100%';
+                }
+                
+                // Redirect after timeout
+                setTimeout(() => {
+                    window.location.href = '/logout';
+                }, 2000);
+            }, 100);
+        }
+        
+        // Close session timeout modal
+        function closeSessionModal() {
+            const modal = document.getElementById('session-timeout-modal');
+            if (modal) {
+                if (modal.countdownInterval) {
+                    clearInterval(modal.countdownInterval);
+                }
+                modal.remove();
+            }
+            warningShown = false;
+        }
+        
+        // Reset session timeout on user activity
+        function resetSessionTimeout() {
+            if (!warningShown) {
+                startSessionTimeout();
+            }
+        }
+        
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 16px 24px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 10001;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+                transition: all 0.3s ease;
+                transform: translateX(100%);
+                opacity: 0;
+            `;
+            
+            switch (type) {
+                case 'success':
+                    toast.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    break;
+                case 'error':
+                    toast.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    break;
+                case 'warning':
+                    toast.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    break;
+                default:
+                    toast.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+            }
+            
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+                toast.style.opacity = '1';
+            }, 100);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+        
+        // Session state management functions
+        function checkSessionValidity() {
+            fetch('/api/session/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include' // Include cookies
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    // Session is invalid, redirect to login
+                    showToast('Session has expired. Please log in again.', 'warning');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1500);
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && !data.valid) {
+                    // Session is invalid according to server
+                    showToast('Session has expired. Please log in again.', 'warning');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Session check error:', error);
+                // Don't redirect on network errors, let the user continue
+            });
+        }
+        
+        // Detect when user switches tabs/windows and check session validity
+        function handleVisibilityChange() {
+            if (!document.hidden && !warningShown) {
+                // User returned to the page, check if session is still valid
+                checkSessionValidity();
+            }
+        }
+        
+        // Handle navigation away and back to prevent stale sessions
+        function handlePageShow(event) {
+            if (event.persisted) {
+                // Page was loaded from cache (back/forward navigation)
+                checkSessionValidity();
+            }
+        }
+        
+        // Initialize session timeout on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            startSessionTimeout();
+            
+            // Reset timeout on user activity
+            const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+            activityEvents.forEach(event => {
+                document.addEventListener(event, resetSessionTimeout, true);
+            });
+            
+            // Add session state management event listeners
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('pageshow', handlePageShow);
+            
+            // Periodically check session validity (every 2 minutes)
+            setInterval(checkSessionValidity, 120000);
+        });
     </script>
 </body>
 </html>

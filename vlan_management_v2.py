@@ -15,7 +15,7 @@ CORE FEATURES:
 - Force change and skip options with proper confirmations
 - Comprehensive audit logging for all operations
 
-NEW ENHANCED FEATURES (v2.1.4):
+NEW ENHANCED FEATURES (v2.1.5):
 - Interface Range Optimization: Groups consecutive ports for efficient batch operations
 - Intelligent Fallback System: Automatically switches from range to individual port config
 - Enhanced Success Response: Detailed feedback with ranges used and descriptions applied
@@ -82,7 +82,7 @@ SUPPORTED SWITCH MODELS:
 - Dell N3200 Series - Full feature support
 
 AUTHORS: Network Operations Team
-VERSION: 2.1.4 (Enhanced VLAN Management with Interface Range Optimization)
+VERSION: 2.1.5 (Enhanced VLAN Management with Session Timeout Improvements)
 LAST UPDATED: 2025-08-07
 COMPATIBILITY: Python 3.7+, Dell PowerConnect N-Series Switches
 """

@@ -31,9 +31,10 @@ This directory contains architecture documentation and diagrams for the Dell Por
 
 The Dell Port Tracer is a comprehensive web-based application that helps network administrators trace network connections and manage VLANs across Dell switches using SSH-based secure communication. The system consists of:
 
-- **Web Application**: Flask-based Python application with advanced VLAN management capabilities
+- **Web Application**: Flask-based Python application with advanced VLAN management capabilities and enhanced session timeout handling
 - **Database**: PostgreSQL for storing switch configurations, trace history, and VLAN management audit logs
 - **Authentication**: Windows Active Directory integration with role-based access control
+- **Session Management**: Proactive session timeout warnings, cross-tab state management, and graceful session expiration handling
 - **Infrastructure**: Docker containerized deployment with nginx reverse proxy
 - **Network Integration**: SSH-based switch communication with comprehensive Dell switch model support
 - **VLAN Manager**: Enterprise-grade VLAN configuration and port management system
@@ -48,11 +49,13 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 
 ## Version Information
 
-- **Application Version**: 2.1.3
+- **Application Version**: 2.1.5
 - **Architecture**: 3-Container Production Setup (app, nginx, postgres)
 - **Database**: PostgreSQL with persistent named volumes
 - **Deployment**: Docker Compose with SSL/HTTPS support
 - **Authentication**: Windows AD/LDAP + Local accounts
 - **Security**: SSL/HTTPS enabled, automated certificate generation
 - **Backup**: Automated backup and rollback with deploy-safe.sh
-- **Last Updated**: August 15, 2025
+- **Session Timeout**: 5-minute configurable timeout with user-friendly warning system
+- **Frontend Enhancements**: JavaScript-based session state management and keep-alive functionality
+- **Last Updated**: August 20, 2025

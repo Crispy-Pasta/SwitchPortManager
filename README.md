@@ -1,4 +1,4 @@
-# Switch Port Manager v2.1.4
+# Switch Port Manager v2.1.5
 
 > **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
@@ -6,7 +6,7 @@
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.1.4-blue)
+![Version](https://img.shields.io/badge/version-2.1.5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -365,9 +365,39 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 2.1.4  
+**Version**: 2.1.5  
 **Last Updated**: August 2025
 **Maintainer**: Network Operations Team
+
+## 🔄 Changelog (v2.1.5)
+
+### 🔐 Session Timeout & Security Enhancements
+- ✅ **Enhanced Session Management**: Improved user experience with proactive session timeout handling
+  - Fixed timezone-aware datetime handling to prevent session expiration errors
+  - Configurable 5-minute session timeout with proper inactivity tracking
+  - Session state consistency across multiple browser tabs and page navigation
+  - Graceful session expiration with clear user notification and redirect
+- ✅ **Session Timeout Warning System**: JavaScript-based user-friendly timeout notifications
+  - Proactive 1-minute warning before session expires with countdown timer
+  - "Stay Logged In" functionality to extend sessions without losing work
+  - Full-screen logout overlay with progress bar for clear user feedback
+  - Toast notifications for session state changes and keep-alive confirmations
+- ✅ **New Session Management API Endpoints**: Backend support for enhanced session handling
+  - `/api/session/keepalive` - Extends session timeout when user chooses to stay logged in
+  - `/api/session/check` - Validates session status for consistent state management
+  - Comprehensive audit logging for all session management activities
+  - Enhanced error handling and graceful fallback for session-related operations
+- ✅ **Cross-Tab Session State Management**: Consistent session handling across browser instances
+  - Periodic session validation (every 2 minutes) to detect stale sessions
+  - Browser tab visibility detection for smart session checking
+  - Automatic session cleanup and user notification on expiration
+  - Prevention of stale session operations that could cause confusion
+
+### 🛡️ Security & Stability Improvements
+- ✅ **Robust Session State Validation**: Enhanced security through consistent session checking
+- ✅ **Improved Error Handling**: Better user experience during session timeouts and network issues
+- ✅ **Audit Trail Enhancement**: Complete logging of session management events for compliance
+- ✅ **Frontend State Management**: Smart JavaScript session tracking with graceful degradation
 
 ## 🔄 Changelog (v2.1.3)
 
