@@ -1,30 +1,21 @@
-# Dell Port Tracer CI/CD Pipeline
-# Automated build, test, and deployment using GitHub Actions and Docker Registry
+# Dell Port Tracer CI Pipeline
+# Simplified CI workflow following DevOps best practices
 
-name: 🚀 Build and Deploy Port Tracer
+name: 🔍 CI - Test and Build
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    tags:
-      - 'v*'
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/port-tracer
 
 jobs:
-  # ==========================================
-  # 🧪 Test and Validation Job
-  # ==========================================
   test:
-    name: 🧪 Run Tests and Validation
+    name: 🧪 Test and Lint
     runs-on: ubuntu-latest
     
     services:
@@ -34,242 +25,69 @@ jobs:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_pass
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
 
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
-      - name: 📦 Install Dependencies
+          cache: 'pip'
+      
+      - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-
-      - name: 🧪 Run Unit Tests
+          pip install --upgrade pip
+          pip install -r requirements.txt pytest pytest-cov flake8
+      
+      - name: Run Tests
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
         run: |
-          echo "🔍 Checking test directory:"
-          ls -la tests/ || echo "Tests directory not found"
-          echo "🔍 Running simple tests first:"
-          python -m pytest tests/test_simple.py -v || echo "Simple tests failed"
-          echo "🔍 Running all tests:"
-          python -m pytest tests/ -v --tb=short || echo "Some tests failed but continuing"
-
-      - name: 📊 Upload Coverage Reports
-        uses: codecov/codecov-action@v3
+          pytest tests/ -v --tb=short --cov=. --cov-report=xml
+      
+      - name: Lint Code
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      
+      - uses: codecov/codecov-action@v3
         with:
-          file: ./coverage.xml
           fail_ci_if_error: false
 
-      - name: 🔍 Lint Code
-        run: |
-          pip install flake8
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-
-  # ==========================================
-  # 🐳 Build Docker Images Job
-  # ==========================================
   build:
-    name: 🐳 Build Docker Images
+    name: 🐳 Build Docker Image
     runs-on: ubuntu-latest
     needs: test
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
 
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      image-tags: ${{ steps.meta.outputs.tags }}
-
     steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🔧 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🔑 Login to Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      
+      - uses: docker/setup-buildx-action@v3
+      
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🏷️ Extract Metadata
+      
+      - uses: docker/metadata-action@v5
         id: meta
-        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: 🔨 Build and Push Docker Image
-        id: build
-        uses: docker/build-push-action@v5
+      
+      - uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            GIT_COMMIT=${{ github.sha }}
-
-  # ==========================================
-  # 🚀 Deploy to Production Job
-  # ==========================================
-  deploy-production:
-    name: 🚀 Deploy to Production
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    environment: production
-
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🔧 Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: 📋 Create Deployment Script
-        run: |
-          cat > deploy.sh << 'EOF'
-          #!/bin/bash
-          set -e
-          
-          echo "🚀 Starting Port Tracer Deployment..."
-          
-          # Configuration
-          CONTAINER_NAME="dell-port-tracer-app-dev"
-          IMAGE_TAG="${{ needs.build.outputs.image-tags }}"
-          BACKUP_DIR="/opt/dell-port-tracer/backups/$(date +%Y%m%d-%H%M%S)"
-          
-          # Create backup directory
-          sudo mkdir -p "$BACKUP_DIR"
-          
-          # 1. Database Backup
-          echo "📊 Creating database backup..."
-          docker exec dell-port-tracer-postgres-dev pg_dump -U dell_tracer_user -d port_tracer_db > "$BACKUP_DIR/database_backup.sql"
-          
-          # 2. Stop existing services
-          echo "🛑 Stopping existing services..."
-          cd /opt/dell-port-tracer
-          docker compose down --remove-orphans
-          
-          # 3. Pull latest image
-          echo "📥 Pulling latest Docker image..."
-          docker pull $IMAGE_TAG
-          
-          # 4. Update docker-compose to use registry image
-          echo "🔧 Updating docker-compose configuration..."
-          sed -i "s|build: \.|image: $IMAGE_TAG|g" docker-compose.yml
-          
-          # 5. Start services
-          echo "▶️ Starting updated services..."
-          docker compose up -d
-          
-          # 6. Wait for services to be ready
-          echo "⏳ Waiting for services to be ready..."
-          sleep 30
-          
-          # 7. Health check
-          echo "🏥 Running health checks..."
-          if curl -f http://localhost:5000/health; then
-            echo "✅ Application health check passed!"
-          else
-            echo "❌ Application health check failed!"
-            echo "🔄 Rolling back..."
-            docker compose down
-            sed -i "s|image: $IMAGE_TAG|build: .|g" docker-compose.yml
-            docker compose up -d
-            exit 1
-          fi
-          
-          # 8. Cleanup old images
-          echo "🧹 Cleaning up old Docker images..."
-          docker image prune -f
-          
-          echo "🎉 Deployment completed successfully!"
-          EOF
-          
-          chmod +x deploy.sh
-
-      - name: 🚀 Execute Deployment
-        run: |
-          ssh -o StrictHostKeyChecking=no janzen@10.50.0.225 'bash -s' < deploy.sh
-
-      - name: 🔔 Notify Deployment Success
-        if: success()
-        run: |
-          echo "✅ Production deployment successful!"
-          echo "🐳 Image: ${{ needs.build.outputs.image-tags }}"
-          echo "📊 Commit: ${{ github.sha }}"
-
-  # ==========================================
-  # 🧪 Deploy to Staging Job
-  # ==========================================
-  deploy-staging:
-    name: 🧪 Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/develop'
-    environment: staging
-
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🧪 Deploy to Staging Environment
-        run: |
-          echo "🧪 Deploying to staging environment..."
-          echo "🐳 Image: ${{ needs.build.outputs.image-tags }}"
-          # Add staging deployment logic here
-
-  # ==========================================
-  # 📄 Generate Release Notes Job
-  # ==========================================
-  release-notes:
-    name: 📄 Generate Release Notes
-    runs-on: ubuntu-latest
-    needs: [build, deploy-production]
-    if: startsWith(github.ref, 'refs/tags/')
-
-    steps:
-      - name: 📥 Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 📄 Generate Release Notes
-        uses: release-drafter/release-drafter@v5
-        with:
-          config-name: release-drafter.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

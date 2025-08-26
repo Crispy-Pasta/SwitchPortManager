@@ -1,0 +1,57 @@
+# Dell Port Tracer Production Environment Variables
+# Merged configuration combining all settings
+
+# Application Settings
+SECRET_KEY=xNC5ur5a7132tEOP4UrpjIIiwzWVst6Z
+FLASK_ENV=production
+
+# PostgreSQL Database Configuration  
+DATABASE_URL=postgresql://porttracer_user:porttracer_pass@postgres:5432/port_tracer_db
+POSTGRES_DB=port_tracer_db
+POSTGRES_USER=porttracer_user
+POSTGRES_PASSWORD=porttracer_pass
+
+# Dell Switch SSH Credentials
+SWITCH_USERNAME=swinds
+SWITCH_PASSWORD=JRI2kyhICA1HSVo
+
+# Windows Authentication Settings
+USE_WINDOWS_AUTH=true
+AD_SERVER=10.20.100.15
+AD_DOMAIN=kmc.int
+AD_BASE_DN=DC=kmc,DC=int
+
+# Web User Passwords
+OSS_PASSWORD=oss123
+NETADMIN_PASSWORD=Love2Network
+SUPERADMIN_PASSWORD=password
+ADMIN_USER=admin
+ADMIN_PASSWORD=admin123
+
+# CPU Safety Thresholds
+CPU_GREEN_THRESHOLD=20
+CPU_YELLOW_THRESHOLD=40
+CPU_RED_THRESHOLD=60
+
+# Switch Protection Monitor Configuration
+MAX_CONNECTIONS_PER_SWITCH=8
+MAX_TOTAL_CONNECTIONS=64
+MAX_CONCURRENT_CONNECTIONS=10
+COMMANDS_PER_SECOND_LIMIT=10
+
+# Syslog Configuration
+SYSLOG_ENABLED=true
+SYSLOG_SERVER=10.10.250.18
+SYSLOG_PORT=514
+
+# Application Settings
+SESSION_TIMEOUT=3600
+LOG_LEVEL=INFO
+
+# Security Settings
+FORCE_HTTPS=true
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_HTTPONLY=true
+
+# Optional: Slack notifications
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
