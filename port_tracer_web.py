@@ -3429,26 +3429,20 @@ def index():
 def health_check():
     """Health check endpoint for Kubernetes liveness and readiness probes."""
     try:
-# Use PostgreSQL to check if switches configuration is available
-        try:
-            site_count = Site.query.count()
-            if site_count == 0:
-                return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
-            return jsonify({
-                'status': 'healthy',
-            })
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return jsonify({'status': 'unhealthy', 'reason': 'Database connection failed'}), 503
+        # Use PostgreSQL to check if switches configuration is available
+        site_count = Site.query.count()
+        if site_count == 0:
+            return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
         
         return jsonify({
             'status': 'healthy',
-            'version': '1.0.0',
+            'version': '2.1.5',
             'timestamp': datetime.now().isoformat(),
-            'sites_count': len(switches_config.get('sites', {})),
+            'sites_count': site_count,
             'windows_auth': WINDOWS_AUTH_AVAILABLE
         }), 200
     except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
         return jsonify({
             'status': 'unhealthy',
             'reason': str(e),
