@@ -50,7 +50,8 @@ def test_docker_files():
     """Test that Docker-related files exist for CI/CD"""
     docker_files = [
         "Dockerfile.production",
-        "docker-compose.registry.yml",
+        "docker-compose.prod.yml",
+        "docker-compose.simple.yml",
         ".dockerignore"
     ]
     
