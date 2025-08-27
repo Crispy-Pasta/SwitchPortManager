@@ -1,7 +1,8 @@
-# Dell Port Tracer CD Pipeline
+# Dell Port Tracer CD Pipeline - DISABLED
 # Production deployment workflow (managed by DevOps)
+# TODO: Re-enable when ready to use automated deployment
 
-name: 🚀 CD - Deploy to Production
+# DISABLED - name: 🚀 CD - Deploy to Production
 
 on:
   workflow_run:
