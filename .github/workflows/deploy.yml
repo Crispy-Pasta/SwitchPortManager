@@ -6,6 +6,8 @@ name: 🔍 CI - Test and Build
 on:
   push:
     branches: [main, develop]
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches: [main, develop]
 
@@ -79,9 +81,17 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            # Branch-based tags
             type=ref,event=branch
+            # SHA-based tags with branch prefix
             type=sha,prefix={{branch}}-
+            # Latest tag only for main branch
             type=raw,value=latest,enable={{is_default_branch}}
+            # Version tags from Git tags (when available)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # Develop branch gets 'develop-latest' tag
+            type=raw,value=develop-latest,enable=${{ github.ref == format('refs/heads/{0}', 'develop') }}
       
       - uses: docker/build-push-action@v5
         with:
