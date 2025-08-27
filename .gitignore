@@ -1,6 +1,13 @@
 # Environment variables (contains sensitive data)
-.env*
+.env
+.env.*
 *.env
+.environment
+.envrc
+env.local
+env.production
+env.staging
+env.development
 
 # Log files
 *.log
@@ -50,3 +57,46 @@ complete_migration.sql
 data/
 backups/
 exports/
+
+# Security and credential files (CRITICAL - never commit these)
+*secret*
+*SECRET*
+*password*
+*PASSWORD*
+*credential*
+*CREDENTIAL*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+
+# Configuration files that may contain sensitive data
+config.txt
+config.json
+config.yaml
+config.yml
+settings.txt
+settings.json
+settings.yaml
+settings.yml
+*_config.txt
+*_config.json
+*_settings.txt
+*_settings.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db3
+
+# Backup and export files
+*.backup
+*.bak
+*.dump
+*.export
+backup_*
+export_*
+dump_*
