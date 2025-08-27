@@ -1,5 +1,64 @@
 # Changelog
 
+## [2.1.6] - 2025-08-27
+
+### 🚀 Major Enhancements
+- **Automatic Database Initialization**: Zero-configuration database setup with retry logic for containerized deployments
+- **Enhanced Session Security**: Configurable session cookie settings for HTTP/HTTPS deployments (SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE)
+- **Production Health Checks**: Enhanced health monitoring with database connectivity validation and schema verification
+- **Fresh Server Deployment**: Comprehensive deployment strategies with automated scripts for multiple deployment scenarios
+- **Docker Package Management**: Enhanced tagging strategy with develop-latest, version-specific tags, and proper semantic versioning
+
+### 🔧 Technical Improvements
+- **Database Connection Retry**: Robust database initialization with containerized deployment support and automatic schema creation
+- **Docker Entrypoint**: Proper containerized startup sequence with database initialization via docker-entrypoint.sh
+- **Enhanced CI Pipeline**: Improved Docker tagging with branch-specific and SHA-based tags for better traceability
+- **Repository Cleanup**: Removed 15+ obsolete, duplicate, and sensitive files for cleaner, more professional codebase
+
+### 🛡️ Security Enhancements
+- **Environment-Based Configuration**: All session and security settings now configurable via environment variables
+- **Container Security**: Enhanced with proper user permissions, resource limits, and security policies
+- **Data Protection**: Removed sensitive files from repository and enhanced .gitignore patterns
+- **Session Cookie Security**: Configurable security settings for different deployment environments
+
+### 📚 Documentation Overhaul
+- **Fresh Server Deployment Guide**: Complete guide with 6 deployment approaches (Docker Compose, Ansible, Kubernetes, Cloud platforms)
+- **Docker Package Documentation**: Comprehensive Docker image management and tagging strategy guide
+- **Git Branching Strategy**: Proper Git Flow implementation with semantic versioning guidelines
+- **Repository Audit**: Complete cleanup of duplicate and outdated documentation
+
+### 🔄 CI/CD Pipeline Changes
+- **CD Pipeline**: Disabled automated deployment to allow flexible deployment tool choices
+- **CI Pipeline**: Enhanced with improved Docker builds, health checks, and tag-based triggers
+- **Package Registry**: Fresh builds with proper timestamps and version tags
+
+### 🐛 Fixes
+- **Session Login Loops**: Fixed HTTP/HTTPS cookie compatibility issues that caused login redirect loops
+- **Docker Package Timestamps**: Resolved 'published 20 hours ago' issue with fresh builds
+- **Health Check Validation**: Enhanced health checks now properly validate database connectivity and schema
+
+### 🗑️ Removed
+- **Obsolete Documentation**: Removed 8 duplicate/outdated documentation files
+- **Legacy Scripts**: Removed 4 obsolete deployment scripts
+- **Sensitive Files**: Removed files containing secrets and production configurations
+- **Unused Docker Compose**: Removed 2 obsolete docker-compose variants
+
+### ⚠️ Breaking Changes
+- **Session Configuration**: Session cookie security is now environment-configurable (update .env files)
+- **Database Initialization**: Now automatic (no manual schema setup required)
+- **CD Pipeline**: Automated deployments disabled (manual deployment required)
+
+### 🔄 Migration Guide
+- Update .env files with new session security variables:
+  ```env
+  SESSION_COOKIE_SECURE=false  # Set to true for HTTPS
+  SESSION_COOKIE_HTTPONLY=true
+  SESSION_COOKIE_SAMESITE=Lax
+  PERMANENT_SESSION_LIFETIME=5
+  ```
+- Use fresh server deployment tools for new installations
+- Database schema initializes automatically on first startup
+
 ## [2.1.3] - 2025-01-12
 
 ### Added
