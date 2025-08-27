@@ -108,10 +108,15 @@ app = Flask(__name__)
 
 # Session timeout configuration
 from datetime import timedelta
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Read session timeout from environment (default 5 minutes)
+session_timeout = int(os.getenv('PERMANENT_SESSION_LIFETIME', '5'))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_timeout)
+
+# Session security settings (read from environment variables)
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = os.getenv('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
+app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
 app.secret_key = secrets.token_hex(16)
 auth = HTTPBasicAuth()
 

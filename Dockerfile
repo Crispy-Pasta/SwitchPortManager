@@ -36,9 +36,11 @@ COPY --chown=app:app static/ ./static/
 COPY --chown=app:app templates/ ./templates/
 COPY --chown=app:app tools/ ./tools/
 COPY --chown=app:app docs/ ./docs/
+COPY --chown=app:app init_db.py .
+COPY --chown=app:app docker-entrypoint.sh .
 
-# Set ownership of all files to app user
-RUN chown -R app:app /app
+# Make entrypoint script executable and set ownership
+RUN chmod +x docker-entrypoint.sh && chown -R app:app /app
 
 # Switch to non-root user
 USER app
@@ -50,5 +52,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:5000/health || exit 1
 
-# Run the application
-CMD ["python", "port_tracer_web.py"]
+# Run the application with database initialization
+CMD ["./docker-entrypoint.sh"]

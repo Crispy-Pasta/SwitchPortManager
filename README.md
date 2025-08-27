@@ -1,4 +1,4 @@
-# Switch Port Manager v2.1.5
+# Switch Port Manager v2.1.3
 
 > **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
@@ -6,7 +6,7 @@
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.1.5-blue)
+![Version](https://img.shields.io/badge/version-2.1.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -18,12 +18,14 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 - **Sanitized Error Responses**: Error messages exclude potentially harmful examples or security-sensitive information
 - **Command Injection Prevention**: Robust input sanitization to prevent malicious command execution
 - **Role-Based Access Control**: Three security levels with least-privilege access patterns
+- **Session Security**: Configurable session cookie security settings for HTTP/HTTPS deployments
 
 ### 🏢 Enterprise Management
 - **Multi-Site Management**: Support for multiple sites and floors with centralized switch inventory
 - **Comprehensive Management Interface**: Tabbed interface for managing Sites, Floors, and Switches with full CRUD operations
 - **Site & Floor Administration**: Create, edit, and delete sites and floors with proper hierarchical relationships
 - **Database-Driven Architecture**: PostgreSQL database for enterprise-grade scalability and reliability
+- **Automatic Database Initialization**: Zero-configuration database setup on first deployment
 - **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
 - **Database Migration Support**: Seamless migration from SQLite to PostgreSQL with data integrity validation
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
@@ -35,7 +37,7 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 - **Comprehensive Audit Logging**: Full activity tracking for security and compliance with syslog support
 - **Responsive Web Interface**: Clean, modern UI with real-time MAC address tracing
 - **Port Configuration Details**: Detailed port mode, VLAN, and description information
-- **Container Ready**: Docker and Kubernetes deployment support
+- **Container Ready**: Docker and Kubernetes deployment support with enhanced health checks
 - **Production Ready**: Health checks, monitoring, and high availability
 - **CPU Protection**: Advanced CPU monitoring and request throttling
 - **Switch Protection**: Connection limits and rate limiting for switch protection
@@ -63,9 +65,57 @@ pip install -r requirements.txt
   - **N3200 Series**: N3248 and similar models (10GE access ports, 25GE uplinks)
 - Auto-detection of switch models for proper port categorization
 
-## 🔧 Installation
+## 🚀 Quick Start Deployment
 
-### Option 1: Standard Python Deployment
+### Option 1: Docker Deployment (Recommended)
+
+1. **Clone and Setup**
+   ```bash
+   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
+   cd SwitchPortManager
+   cp .env.example .env
+   ```
+
+2. **Configure Environment Variables**
+   Edit the `.env` file with your specific configuration:
+   ```env
+   # Required Database Configuration
+   POSTGRES_DB=port_tracer_db
+   POSTGRES_USER=dell_tracer_user
+   POSTGRES_PASSWORD=YOUR_SECURE_DATABASE_PASSWORD
+   DATABASE_URL=postgresql://dell_tracer_user:YOUR_SECURE_DATABASE_PASSWORD@postgres:5432/port_tracer_db
+
+   # Required Application Security
+   SECRET_KEY=YOUR_GENERATED_SECRET_KEY  # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+   SESSION_COOKIE_SECURE=false  # Set to 'true' for HTTPS in production
+
+   # Required Dell Switch SSH Credentials
+   SWITCH_USERNAME=your_switch_admin_username
+   SWITCH_PASSWORD=your_switch_admin_password
+
+   # Optional User Password Overrides (recommended for production)
+   WEB_PASSWORD=your_secure_admin_password
+   NETADMIN_PASSWORD=your_secure_netadmin_password
+   SUPERADMIN_PASSWORD=your_secure_superadmin_password
+   ```
+
+3. **Deploy with Docker Compose**
+   ```bash
+   # Development deployment
+   docker-compose up -d
+
+   # Production deployment with enhanced security and health checks
+   docker-compose -f docker-compose.prod.yml up -d
+
+   # Monitor the startup process
+   docker-compose logs -f app
+   ```
+
+4. **Access the Application**
+   - **Development**: http://localhost:5000
+   - **Default Login**: Username: `admin`, Password: `password` (or your configured `WEB_PASSWORD`)
+
+### Option 2: Standard Python Deployment
 
 1. **Clone the Repository**
    ```bash
@@ -92,39 +142,24 @@ pip install -r requirements.txt
    SWITCH_USERNAME=your_switch_username
    SWITCH_PASSWORD=your_switch_password
 
+   # Application Security
+   SECRET_KEY=your_generated_secret_key
+   SESSION_COOKIE_SECURE=false
+   SESSION_COOKIE_HTTPONLY=true
+   SESSION_COOKIE_SAMESITE=Lax
+   PERMANENT_SESSION_LIFETIME=5
+
    # Web Service Configuration
    OSS_PASSWORD=oss123
    NETADMIN_PASSWORD=netadmin123
    SUPERADMIN_PASSWORD=superadmin123
    WEB_PASSWORD=admin_password_here
-
-   # CPU Safety Thresholds
-   CPU_GREEN_THRESHOLD=20
-   CPU_YELLOW_THRESHOLD=40
-   CPU_RED_THRESHOLD=60
-
-   # Switch Protection Monitor Configuration
-   MAX_CONNECTIONS_PER_SWITCH=8
-   MAX_TOTAL_CONNECTIONS=64
-   COMMANDS_PER_SECOND_LIMIT=10
-
-   # Syslog Configuration (Optional)
-   SYSLOG_ENABLED=true
-   SYSLOG_SERVER=your-syslog-server
-   SYSLOG_PORT=514
-
-   # Windows Active Directory Configuration (Optional)
-   USE_WINDOWS_AUTH=false
-   AD_SERVER=ldap://your-domain.com
-   AD_DOMAIN=your-domain.com
-   AD_BASE_DN=DC=your-domain,DC=com
    ```
 
 4. **Setup PostgreSQL Database**
    
-   **Option A: Using Docker (Recommended)**
+   **Using Docker (Recommended)**
    ```bash
-   # Run PostgreSQL in Docker
    docker run -d --name port-tracer-postgres \
      -e POSTGRES_DB=port_tracer_db \
      -e POSTGRES_USER=dell_tracer_user \
@@ -132,61 +167,56 @@ pip install -r requirements.txt
      -p 5432:5432 postgres:15
    ```
    
-   **Option B: Using Existing PostgreSQL Server**
+   **Using Existing PostgreSQL Server**
    ```sql
-   -- Connect to your PostgreSQL server and run:
    CREATE DATABASE port_tracer_db;
    CREATE USER dell_tracer_user WITH PASSWORD 'secure_password_here';
    GRANT ALL PRIVILEGES ON DATABASE port_tracer_db TO dell_tracer_user;
    ```
 
-5. **Initialize Database Schema and Data**
+5. **Initialize Database Schema**
    ```bash
-   # Initialize database with schema and sample data
-   python init_database.py
-   
-   # If migrating from SQLite (existing installations)
-   python migrate_data.py
+   # The database schema is initialized automatically on first run
+   # Or initialize manually with:
+   python init_db.py
    ```
 
-5. **Start the Application**
+6. **Start the Application**
    ```bash
    python port_tracer_web.py
    ```
 
-### Option 2: Docker Deployment
+## 🆕 What's New in v2.1.3
 
-1. **Build and Run with Docker Compose**
-   ```bash
-   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
-   cd SwitchPortManager
-   docker-compose up -d
-   ```
+### ✅ **Automatic Database Initialization**
+- **Zero Configuration Setup**: Database schema creates automatically on first deployment
+- **Container-Ready**: Built-in database connection retry logic for Docker environments
+- **Production Safe**: Idempotent initialization prevents duplicate table creation
+- **Comprehensive Logging**: Detailed startup logs for troubleshooting
 
-2. **Access the Application**
-   - Open http://localhost:5000
+### ✅ **Enhanced Session Security**
+- **Configurable Cookie Settings**: Environment-based session cookie configuration
+- **HTTP/HTTPS Compatibility**: Proper cookie security for both HTTP and HTTPS deployments
+- **Session Timeout Control**: Configurable session lifetime (default: 5 minutes)
+- **Security Best Practices**: HttpOnly and SameSite cookie policies
 
-### Option 3: Kubernetes Deployment
+### ✅ **Production-Grade Health Checks**
+- **Database Connectivity**: Health checks verify actual database connections
+- **Schema Validation**: Ensures required database tables exist and are accessible
+- **Application Readiness**: Multi-layer health validation for container orchestration
+- **Enhanced Monitoring**: Detailed health check logging for operations teams
 
-1. **Deploy to Kubernetes**
-   ```bash
-   git clone https://github.com/Crispy-Pasta/SwitchPortManager.git
-   cd SwitchPortManager
-   
-   # For Windows
-   .\deploy.ps1 deploy
-   
-   # For Linux/Mac
-   chmod +x deploy.sh
-   ./deploy.sh deploy
-   ```
+### ✅ **Security Enhancements**
+- **Data Protection**: Automatic exclusion of sensitive files from version control
+- **Environment Security**: Comprehensive environment variable configuration
+- **Input Validation**: Enhanced validation for all user inputs
+- **Audit Trail**: Complete logging of security-related operations
 
-2. **Access Methods**
-   - **NodePort**: `http://<node-ip>:30080`
-   - **Port Forward**: `kubectl port-forward service/dell-port-tracer-service 8080:80`
-   - **Ingress**: Configure DNS for production access
-
-For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+### ✅ **Comprehensive Documentation**
+- **Deployment Guide**: Complete first-time deployment instructions
+- **Troubleshooting**: Common issues and solutions
+- **Security Checklist**: Production security recommendations
+- **Configuration Reference**: Complete environment variables guide
 
 ## 🔐 Authentication & Authorization
 
@@ -207,12 +237,6 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 | **OSS** | Limited | • View access ports only (Gi/Te based on model)<br>• Basic MAC/port information<br>• Auto-filtered uplinks (Te/Tw/Po ports)<br>• Limited VLAN details for trunk/general ports |
 | **NetAdmin** | Full | • View all ports including uplinks<br>• Complete VLAN information<br>• Port configuration details<br>• Full MAC trace capabilities across all switch series |
 | **SuperAdmin** | Full | • All NetAdmin capabilities<br>• Administrative functions<br>• Full audit log access<br>• Switch model management capabilities |
-
-### Active Directory Group Mapping
-- **Default Role**: OSS (least privilege)
-- **SOLARWINDS_OSS_SD_ACCESS** → OSS
-- **NOC TEAM** → NetAdmin  
-- **Groups containing ADMIN/SUPERADMIN** → SuperAdmin
 
 ## 🌐 Web Interface
 
@@ -245,53 +269,22 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 
 ### Health Endpoint
 - **URL**: `/health`
-- **Purpose**: Kubernetes liveness and readiness probes
+- **Purpose**: Container orchestration liveness and readiness probes
 - **Response**: JSON with application status, version, and configuration summary
+- **Enhanced Validation**: Database connectivity and schema verification
 
 ### System Logs
 - Application startup and shutdown events
 - Switch connection status and errors
 - Performance metrics and troubleshooting information
+- Database initialization and migration logs
 
 ### Audit Logs
 - User authentication events with role information
 - MAC trace requests with full details
 - Role-based access decisions
 - Session management activities
-
-### Log Format
-```
-2025-07-24 10:30:15,123 - AUDIT - User: jdoe (netadmin) - LOGIN SUCCESS via windows_ad
-2025-07-24 10:30:45,456 - AUDIT - User: jdoe - TRACE REQUEST - Site: MAIN, Floor: 2, MAC: 00:11:22:33:44:55
-2025-07-24 10:30:47,789 - AUDIT - User: jdoe - MAC FOUND - 00:11:22:33:44:55 on SW-02 port Gi1/0/24 [Mode: access]
-```
-
-## 🔍 MAC Address Tracing
-
-### Supported Formats
-- **Colon-separated**: `00:1B:63:84:45:E6`
-- **Hyphen-separated**: `00-1B-63-84-45-E6`
-- **Continuous format**: `001B638445E6`
-
-### Security Enhancements
-- **Input Validation**: Strict MAC address format validation using regex patterns
-- **Error Message Sanitization**: Security-focused error responses that provide helpful guidance without exposing sensitive information
-- **No Malicious Examples**: Error messages exclude potentially harmful input examples
-- **Audit Trail**: All invalid input attempts are logged for security monitoring
-
-### Process Flow
-1. **Site/Floor Selection**: User selects target location
-2. **Switch Loading**: Application loads relevant switches from inventory
-3. **MAC Lookup**: Parallel SSH connections to all switches in scope
-4. **Result Processing**: Parse MAC table output and gather port details
-5. **Role-Based Filtering**: Apply permissions and display results
-
-### Dell Switch Commands
-- **MAC Table Lookup**: `show mac address-table address XX:XX:XX:XX:XX:XX`
-- **Port Configuration**: Supports all Dell port types:
-  - **N2000/N3000 Series**: `show running-config interface GiX/X/X` (access), `TeX/X/X` (uplink)
-  - **N3200 Series**: `show running-config interface TeX/X/X` (access), `TwX/X/X` (uplink)
-- **Connection Management**: Automated SSH session handling with model-aware commands
+- Database operations and schema changes
 
 ## 🛡️ Security Features
 
@@ -304,8 +297,14 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 ### Authentication Security
 - LDAP Simple Authentication with secure credential validation
 - Multiple username formats support
-- Secure session management with timeout
+- Secure session management with configurable timeout
 - Comprehensive failed login protection
+
+### Session Security
+- **Environment-Based Configuration**: All session settings configurable via environment variables
+- **HTTP/HTTPS Compatibility**: Proper cookie security for different deployment scenarios
+- **Security Headers**: HttpOnly, Secure, and SameSite cookie policies
+- **Configurable Timeouts**: Adjustable session lifetime for security requirements
 
 ### Authorization Security
 - Least privilege principle (default OSS role)
@@ -325,19 +324,45 @@ For detailed Kubernetes deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.
 - **Paramiko SSH Client**: Encrypted switch communication
 - **LDAP3**: Active Directory integration
 - **Role-Based Access Control**: Multi-tier permission system
+- **SQLAlchemy ORM**: Database abstraction with automatic initialization
 
 ### Deployment Architecture
 - **Standalone**: Single Python application
-- **Containerized**: Docker with multi-stage builds
+- **Containerized**: Docker with multi-stage builds and health checks
 - **Kubernetes**: High availability with load balancing
 - **Scalable**: Horizontal scaling support
 
+### Database Architecture
+- **Automatic Initialization**: Zero-configuration database setup
+- **Schema Management**: Automated table creation and validation
+- **Migration Support**: Seamless database version upgrades
+- **Health Monitoring**: Built-in connectivity and schema validation
+
 ## 📚 Documentation
 
-- **[DEPLOYMENT.md](DEPLOYMENT.md)**: Complete Kubernetes deployment guide
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)**: Complete first-time deployment instructions
+- **[Architecture Documentation](architecture/README.md)**: System architecture for different teams
 - **Configuration Examples**: Sample environment and switch configurations
 - **Troubleshooting**: Common issues and solutions
 - **API Documentation**: Health check and monitoring endpoints
+
+## 🔄 Upgrade from Previous Versions
+
+### From v2.1.2 and Earlier
+1. **Backup your data**: Always backup your database before upgrading
+2. **Update environment variables**: Add new session security variables to your `.env` file
+3. **Database initialization**: The upgrade will automatically handle database schema updates
+4. **Test deployment**: Verify all functionality works in your environment
+
+### Session Configuration Updates
+Add these new variables to your `.env` file:
+```env
+# Session Security Configuration (v2.1.3+)
+SESSION_COOKIE_SECURE=false  # Set to 'true' for HTTPS deployments
+SESSION_COOKIE_HTTPONLY=true
+SESSION_COOKIE_SAMESITE=Lax
+PERMANENT_SESSION_LIFETIME=5
+```
 
 ## 🤝 Contributing
 
@@ -353,7 +378,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/Crispy-Pasta/DellPortTracer/issues)
+- **Issues**: [GitHub Issues](https://github.com/Crispy-Pasta/SwitchPortManager/issues)
 - **Documentation**: Check the docs folder for detailed guides
 - **Community**: Discussions and Q&A on GitHub
 
@@ -361,107 +386,39 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Dell Technologies for switch platform documentation
 - Flask and Python communities for excellent frameworks
-- Kubernetes community for container orchestration platform
+- Container and orchestration communities for deployment platforms
 
 ---
 
-**Version**: 2.1.5  
-**Last Updated**: August 2025
+**Version**: 2.1.3  
+**Last Updated**: August 2025  
 **Maintainer**: Network Operations Team
-
-## 🔄 Changelog (v2.1.5)
-
-### 🔐 Session Timeout & Security Enhancements
-- ✅ **Enhanced Session Management**: Improved user experience with proactive session timeout handling
-  - Fixed timezone-aware datetime handling to prevent session expiration errors
-  - Configurable 5-minute session timeout with proper inactivity tracking
-  - Session state consistency across multiple browser tabs and page navigation
-  - Graceful session expiration with clear user notification and redirect
-- ✅ **Session Timeout Warning System**: JavaScript-based user-friendly timeout notifications
-  - Proactive 1-minute warning before session expires with countdown timer
-  - "Stay Logged In" functionality to extend sessions without losing work
-  - Full-screen logout overlay with progress bar for clear user feedback
-  - Toast notifications for session state changes and keep-alive confirmations
-- ✅ **New Session Management API Endpoints**: Backend support for enhanced session handling
-  - `/api/session/keepalive` - Extends session timeout when user chooses to stay logged in
-  - `/api/session/check` - Validates session status for consistent state management
-  - Comprehensive audit logging for all session management activities
-  - Enhanced error handling and graceful fallback for session-related operations
-- ✅ **Cross-Tab Session State Management**: Consistent session handling across browser instances
-  - Periodic session validation (every 2 minutes) to detect stale sessions
-  - Browser tab visibility detection for smart session checking
-  - Automatic session cleanup and user notification on expiration
-  - Prevention of stale session operations that could cause confusion
-
-### 🛡️ Security & Stability Improvements
-- ✅ **Robust Session State Validation**: Enhanced security through consistent session checking
-- ✅ **Improved Error Handling**: Better user experience during session timeouts and network issues
-- ✅ **Audit Trail Enhancement**: Complete logging of session management events for compliance
-- ✅ **Frontend State Management**: Smart JavaScript session tracking with graceful degradation
 
 ## 🔄 Changelog (v2.1.3)
 
-### 🎨 Enhanced VLAN Manager User Experience
-- ✅ **Optional VLAN Name Toggle**: Added "Keep Existing VLAN Name" option for flexibility
-  - Users can now preserve existing VLAN names on switches without requiring name input
-  - Conditional form validation - VLAN name field becomes optional when toggle is enabled
-  - Backend validation respects the toggle state for improved workflow efficiency
-- ✅ **Combined Preview+Execute Workflow**: Streamlined VLAN change process
-  - Single "Review and Execute Changes" button replaces separate preview and execute actions
-  - Always shows preview/review before execution for enhanced safety
-  - Execute button integrated directly into preview modal for smoother workflow
-- ✅ **Enhanced UI Styling and Consistency**: Professional, standardized interface design
-  - Fixed double warning emoji issue in confirmation dialogs
-  - Consistent styling across all VLAN management prompts and modals
-  - Color-coded status indicators with proper visual hierarchy
-  - Improved modal layouts with better spacing and typography
-- ✅ **Mutually Exclusive Safety Options**: Enhanced form validation
-  - "Force Change" and "Skip Non-Access" options are now mutually exclusive
-  - Frontend and backend validation prevents conflicting safety configurations
-  - Clear user guidance on option functionality and implications
+### 🔐 **Deployment & Security Enhancements**
+- ✅ **Automatic Database Initialization**: Zero-configuration database setup with automatic schema creation
+- ✅ **Enhanced Session Security**: Configurable session cookie settings for HTTP/HTTPS deployments  
+- ✅ **Production Health Checks**: Enhanced health monitoring with database connectivity validation
+- ✅ **Container Security**: Improved Docker deployment with proper health checks and resource limits
+- ✅ **Security Hardening**: Data protection with automatic exclusion of sensitive files
+- ✅ **Comprehensive Documentation**: Complete deployment guide with troubleshooting and security best practices
 
-### 🛡️ VLAN Manager Security Enhancements (v2.1.2)
-- ✅ **Comprehensive Input Validation**: Added enterprise-grade input validation for all VLAN management operations
-  - Port format validation with strict regex patterns (e.g., Gi1/0/1-48, Te1/0/1-2)
-  - VLAN ID validation ensuring IEEE 802.1Q compliance (1-4094)
-  - VLAN name validation with Dell switch naming convention compliance
-  - Port description validation preventing command injection attacks
-- ✅ **Security-Focused Error Messages**: Structured error responses with detailed format requirements
-- ✅ **Audit Trail Enhancement**: All invalid input attempts logged with user identification
+### 🔧 **Technical Improvements**
+- ✅ **Database Connection Retry**: Robust database initialization with containerized deployment support
+- ✅ **Environment-Based Configuration**: All session and security settings configurable via environment variables
+- ✅ **Enhanced Logging**: Detailed startup, initialization, and operation logging
+- ✅ **Docker Entrypoint**: Proper containerized startup sequence with database initialization
+- ✅ **Production Docker Compose**: Enhanced production deployment configuration with security defaults
+
+### 🛡️ **Security Features (Previous Versions)**
+- ✅ **Enhanced Input Validation**: Comprehensive MAC address format validation with security-focused error messages
 - ✅ **Command Injection Prevention**: Multi-layer protection against malicious network configuration attempts
+- ✅ **VLAN Management Security**: Enterprise-grade input validation for all VLAN management operations
+- ✅ **Audit Trail Enhancement**: Complete logging of user actions and security events
 
-### 🔧 Frontend Data Processing Fixes (v2.1.2)
-- ✅ **Switch Form Checkbox Handling**: Fixed client-side form processing to properly convert HTML checkbox values
-  - Converts checkbox 'on'/undefined values to boolean true/false before API submission
-  - Prevents backend validation errors for the 'enabled' field in switch management
-  - Ensures proper API compatibility for switch update operations
-  - Added comprehensive code comments documenting the fix for maintainability
-
-### 🔧 VLAN Management Features
-- ✅ **Advanced VLAN Manager Interface**: Complete VLAN configuration and port management system
-- ✅ **Port Range Support**: Handles complex port specifications (ranges, lists, mixed formats)
-- ✅ **Uplink Protection**: Automatic detection and protection of critical uplink ports
-- ✅ **Switch Model Awareness**: Dell N2000/N3000/N3200 series-specific port handling
-- ✅ **Real-time Port Status**: Live port configuration and status checking
-- ✅ **VLAN Existence Verification**: Pre-deployment VLAN validation
-
-### 🔐 MAC Address Tracing Security
-- ✅ Enhanced MAC address input validation with comprehensive format checking
-- ✅ Sanitized error messages that exclude potentially malicious examples
-- ✅ Security-focused error responses that provide guidance without exposing sensitive information
-- ✅ Improved audit logging for invalid input attempts
-
-### 🎨 Frontend Enhancements
-- ✅ Updated JavaScript error handling to align with secure backend responses
-- ✅ Removed display of incorrect examples in MAC format error messages
-- ✅ Enhanced user experience with clean, helpful error guidance
-- ✅ Modern VLAN Manager UI with real-time validation feedback
-
-### 📊 Code Quality & Architecture
-- ✅ Modular VLAN management architecture with dedicated security layer
-- ✅ Updated documentation and code comments for security components
-- ✅ Improved function documentation for all validation functions
-- ✅ Enhanced error handling consistency across the application
-- ✅ Comprehensive unit test coverage for validation functions
-#   =؀�  P r o d u c t i o n   C I / C D   P i p e l i n e   A c t i v e   -   A u t o m a t e d   D e p l o y m e n t   S y s t e m  
- 
+### 🎨 **User Experience Improvements (Previous Versions)**
+- ✅ **Enhanced VLAN Manager**: Optional VLAN name toggle and combined preview+execute workflow
+- ✅ **Improved UI Consistency**: Professional, standardized interface design across all components
+- ✅ **Session Management**: Advanced session timeout handling with proactive warnings
+- ✅ **Frontend Validation**: Enhanced client-side validation and error handling
