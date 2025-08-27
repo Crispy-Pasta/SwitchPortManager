@@ -1,4 +1,4 @@
-# Switch Port Manager v2.1.3
+# Switch Port Manager v2.1.6
 
 > **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
@@ -6,7 +6,7 @@
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
 
-![Version](https://img.shields.io/badge/version-2.1.3-blue)
+![Version](https://img.shields.io/badge/version-2.1.6-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -186,7 +186,7 @@ pip install -r requirements.txt
    python port_tracer_web.py
    ```
 
-## 🆕 What's New in v2.1.3
+## 🆕 What's New in v2.1.6
 
 ### ✅ **Automatic Database Initialization**
 - **Zero Configuration Setup**: Database schema creates automatically on first deployment
@@ -357,7 +357,7 @@ pip install -r requirements.txt
 ### Session Configuration Updates
 Add these new variables to your `.env` file:
 ```env
-# Session Security Configuration (v2.1.3+)
+# Session Security Configuration (v2.1.6+)
 SESSION_COOKIE_SECURE=false  # Set to 'true' for HTTPS deployments
 SESSION_COOKIE_HTTPONLY=true
 SESSION_COOKIE_SAMESITE=Lax
@@ -390,11 +390,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 2.1.3  
+**Version**: 2.1.6
 **Last Updated**: August 2025  
 **Maintainer**: Network Operations Team
 
-## 🔄 Changelog (v2.1.3)
+## 🔄 Changelog (v2.1.6)
 
 ### 🔐 **Deployment & Security Enhancements**
 - ✅ **Automatic Database Initialization**: Zero-configuration database setup with automatic schema creation

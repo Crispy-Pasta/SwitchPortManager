@@ -2,9 +2,9 @@
 
 ## Overview
 
-This guide provides comprehensive instructions for deploying the Dell Switch Port Tracer application in a production environment. The application has been enhanced with automatic database initialization, improved security settings, and streamlined deployment processes.
+This guide provides comprehensive instructions for deploying the Dell Switch Port Tracer application in a production environment. The application has been enhanced with automatic database initialization, improved security settings, streamlined deployment processes, and production-grade health checks.
 
-**Version**: 2.1.3  
+**Version**: 2.1.6
 **Target Environment**: Production/Staging  
 **Prerequisites**: Docker, Docker Compose, PostgreSQL  
 
@@ -401,5 +401,5 @@ docker-compose up -d
 ---
 
 **Last Updated**: August 2025  
-**Version**: 2.1.3  
+**Version**: 2.1.6  
 **Maintainer**: Network Operations Team
