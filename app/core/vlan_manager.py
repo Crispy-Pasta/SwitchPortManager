@@ -93,7 +93,7 @@ import re
 import time
 from datetime import datetime
 from flask import Flask, jsonify, request, session
-from database import db, Switch, Site, Floor
+from app.core.database import db, Switch, Site, Floor
 import json
 
 # Configure logging
@@ -1566,7 +1566,7 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         return {'error': 'Database error', 'status': 'error'}
     
     # Initialize VLAN manager
-    from port_tracer_web import SWITCH_USERNAME, SWITCH_PASSWORD
+    from app.main import SWITCH_USERNAME, SWITCH_PASSWORD
     vlan_manager = VLANManager(
         switch_info['ip_address'],
         SWITCH_USERNAME,

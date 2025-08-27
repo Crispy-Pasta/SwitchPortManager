@@ -79,23 +79,23 @@ from collections import defaultdict
 import re
 
 # Import refactored modules
-from auth import verify_user, get_user_permissions, WINDOWS_AUTH_AVAILABLE
-from switch_manager import (
+from app.auth.auth import verify_user, get_user_permissions, WINDOWS_AUTH_AVAILABLE
+from app.core.switch_manager import (
     DellSwitchSSH, detect_switch_model_from_config, is_uplink_port, 
     get_port_caution_info, parse_mac_table_output, trace_single_switch
 )
-from utils import (
+from app.core.utils import (
     is_valid_mac, get_mac_format_error_message, format_switches_for_frontend,
     get_site_floor_switches, apply_role_based_filtering, load_switches_from_database
 )
-from api_routes import api_bp
+from app.api.routes import api_bp
 
 # Load CPU Safety Monitor
-from cpu_safety_monitor import initialize_cpu_monitor, get_cpu_monitor
+from app.monitoring.cpu_monitor import initialize_cpu_monitor, get_cpu_monitor
 
 # Load Switch Protection Monitor
 try:
-    from switch_protection_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
+    from app.monitoring.switch_monitor import initialize_switch_protection_monitor, get_switch_protection_monitor
     SWITCH_PROTECTION_AVAILABLE = True
 except ImportError:
     SWITCH_PROTECTION_AVAILABLE = False
@@ -103,8 +103,11 @@ except ImportError:
 # Load environment variables first
 load_dotenv()
 
-# Flask app
-app = Flask(__name__)
+# Flask app (fix template and static folder paths)
+import os
+app = Flask(__name__, 
+            template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'templates'),
+            static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static'))
 
 # Session timeout configuration
 from datetime import timedelta
@@ -139,7 +142,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 # Initialize database
-from database import db, Site, Floor, Switch
+from app.core.database import db, Site, Floor, Switch
 db.init_app(app)
 
 # Configuration
@@ -3103,7 +3106,7 @@ LOGIN_TEMPLATE = r"""
             margin-bottom: 40px;
         }
         .logo-section img {
-            height: 80px;
+            height: 60px;
             margin-bottom: 20px;
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
         }
@@ -3247,18 +3250,10 @@ LOGIN_TEMPLATE = r"""
                 display: inline-block;
             }
         }
-        /* Floating elements animation */
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        .logo-section img {
-            animation: float 6s ease-in-out infinite;
-        }
     </style>
 </head>
 <body class="login-page">
-    <div class="version-badge">v2.1.2</div>
+    <div class="version-badge">v2.1.6</div>
     
     <div class="login-container">
         <div class="logo-section">
@@ -3405,9 +3400,9 @@ def login():
             return redirect(url_for('index'))
         else:
             audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template('auth/login.html', error="Invalid credentials")
+            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
     
-    return render_template('auth/login.html')
+    return render_template_string(LOGIN_TEMPLATE)
 
 @app.route('/logout')
 def logout():
@@ -4048,7 +4043,7 @@ def vlan_management():
     return render_template('vlan.html', username=session['username'], user_role=user_role)
 
 # Import and add advanced VLAN management routes
-from vlan_management_v2 import vlan_change_workflow, add_vlan_management_routes
+from app.core.vlan_manager import vlan_change_workflow, add_vlan_management_routes
 
 @app.route('/api/vlan/change', methods=['POST'])
 def api_change_port_vlan_advanced():
@@ -4101,7 +4096,7 @@ def api_change_port_vlan_advanced():
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
         # Import enterprise-grade validation functions from VLAN Manager v2
-        from vlan_management_v2 import (is_valid_port_input, is_valid_port_description, 
+        from app.core.vlan_manager import (is_valid_port_input, is_valid_port_description, 
                                         is_valid_vlan_id, is_valid_vlan_name,
                                         get_port_format_error_message, get_vlan_format_error_message)
         
@@ -4246,7 +4241,7 @@ def api_check_vlan():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     try:
-        from vlan_management_v2 import VLANManager, is_valid_vlan_id, get_vlan_format_error_message
+        from app.core.vlan_manager import VLANManager, is_valid_vlan_id, get_vlan_format_error_message
         data = request.json
         username = session['username']
         switch_id = data.get('switch_id')
@@ -4443,7 +4438,7 @@ def api_check_port_status():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     try:
-        from vlan_management_v2 import VLANManager, is_valid_port_input, get_port_format_error_message
+        from app.core.vlan_manager import VLANManager, is_valid_port_input, get_port_format_error_message
         data = request.json
         username = session['username']
         switch_id = data.get('switch_id')

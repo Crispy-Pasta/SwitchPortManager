@@ -23,3 +23,13 @@ class Switch(db.Model):
     enabled = db.Column(db.Boolean, default=True)
     floor_id = db.Column(db.Integer, db.ForeignKey('floor.id'), nullable=False)
 
+def init_db(app):
+    """Initialize database with app context."""
+    with app.app_context():
+        db.create_all()
+        print("Database tables created successfully!")
+
+def get_db_connection():
+    """Get database connection (for compatibility)."""
+    return db
+

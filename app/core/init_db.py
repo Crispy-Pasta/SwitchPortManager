@@ -133,7 +133,7 @@ def initialize_database(force_recreate=False):
         # Import Flask app and database models
         logger.info("🔧 Importing application modules...")
         from port_tracer_web import app
-        from database import db, Site, Floor, Switch
+        from app.core.database import db, Site, Floor, Switch
         
         # Create application context for database operations
         with app.app_context():

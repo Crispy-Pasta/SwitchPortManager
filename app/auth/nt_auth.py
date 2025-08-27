@@ -21,10 +21,17 @@ License: MIT
 """
 
 import os
-import ldap3
+import logging
 from flask import Flask, request, session, redirect, url_for, render_template_string
 from werkzeug.security import check_password_hash
-import logging
+
+# Optional ldap3 import
+try:
+    import ldap3
+    LDAP3_AVAILABLE = True
+except ImportError:
+    ldap3 = None
+    LDAP3_AVAILABLE = False
 
 # Example configuration for Windows Active Directory
 AD_CONFIG = {
