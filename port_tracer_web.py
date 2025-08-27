@@ -47,9 +47,9 @@ MAC address tracing and advanced VLAN management capabilities.
 - Progress tracking for large batches
 
 Repository: https://github.com/Crispy-Pasta/DellPortTracer
-Version: 2.1.5
+Version: 2.1.3
 Author: Network Operations Team
-Last Updated: August 2025 - Login Page Scrolling Fix & UI Improvements
+Last Updated: August 2025 - Enhanced VLAN Management with Interface Range Optimization
 License: MIT
 
 🔧 TROUBLESHOOTING:
@@ -108,10 +108,15 @@ app = Flask(__name__)
 
 # Session timeout configuration
 from datetime import timedelta
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Read session timeout from environment (default 5 minutes)
+session_timeout = int(os.getenv('PERMANENT_SESSION_LIFETIME', '5'))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=session_timeout)
+
+# Session security settings (read from environment variables)
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = os.getenv('SESSION_COOKIE_HTTPONLY', 'true').lower() == 'true'
+app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
 app.secret_key = secrets.token_hex(16)
 auth = HTTPBasicAuth()
 
@@ -3429,26 +3434,20 @@ def index():
 def health_check():
     """Health check endpoint for Kubernetes liveness and readiness probes."""
     try:
-# Use PostgreSQL to check if switches configuration is available
-        try:
-            site_count = Site.query.count()
-            if site_count == 0:
-                return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
-            return jsonify({
-                'status': 'healthy',
-            })
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return jsonify({'status': 'unhealthy', 'reason': 'Database connection failed'}), 503
+        # Use PostgreSQL to check if switches configuration is available
+        site_count = Site.query.count()
+        if site_count == 0:
+            return jsonify({'status': 'unhealthy', 'reason': 'No sites configured'}), 503
         
         return jsonify({
             'status': 'healthy',
-            'version': '1.0.0',
+            'version': '2.1.5',
             'timestamp': datetime.now().isoformat(),
-            'sites_count': len(switches_config.get('sites', {})),
+            'sites_count': site_count,
             'windows_auth': WINDOWS_AUTH_AVAILABLE
         }), 200
     except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
         return jsonify({
             'status': 'unhealthy',
             'reason': str(e),

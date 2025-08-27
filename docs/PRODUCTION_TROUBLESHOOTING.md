@@ -35,7 +35,7 @@ This document covers common issues encountered during production deployment and 
 1. Ensure all AD variables are in `.env` file:
    ```bash
    USE_WINDOWS_AUTH=true
-   AD_SERVER=ldap://10.20.100.15
+   AD_SERVER=ldap://192.168.1.100
    AD_DOMAIN=kmc.int
    AD_BASE_DN=DC=kmc,DC=int
    AD_USER_SEARCH_BASE=DC=kmc,DC=int

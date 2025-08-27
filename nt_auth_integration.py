@@ -22,7 +22,7 @@ License: MIT
 
 import os
 import ldap3
-from flask import Flask, request, session, redirect, url_for
+from flask import Flask, request, session, redirect, url_for, render_template_string
 from werkzeug.security import check_password_hash
 import logging
 
@@ -209,7 +209,7 @@ class WindowsAuthenticator:
         except:
             return None
 
-def integrate_windows_auth_with_port_tracer():
+def integrate_windows_auth_with_port_tracer(audit_logger, login_template):
     """
     Example integration with the existing port tracer web service.
     
@@ -217,6 +217,10 @@ def integrate_windows_auth_with_port_tracer():
     1. Replace the current login route
     2. Update session management
     3. Add proper error handling
+    
+    Args:
+        audit_logger: Audit logger instance from main application
+        login_template: Login template string from main application
     """
     
     # Initialize Windows authenticator
@@ -245,9 +249,9 @@ def integrate_windows_auth_with_port_tracer():
             else:
                 # Authentication failed
                 audit_logger.warning(f"User: {username} - WINDOWS AUTH FAILED")
-                return render_template_string(LOGIN_TEMPLATE, error="Invalid Windows credentials")
+                return render_template_string(login_template, error="Invalid Windows credentials")
         
-        return render_template_string(LOGIN_TEMPLATE)
+        return render_template_string(login_template)
     
     return windows_login_route
 

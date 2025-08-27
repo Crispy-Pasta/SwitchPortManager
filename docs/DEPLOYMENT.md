@@ -64,7 +64,7 @@ SUPERADMIN_PASSWORD=your_superadmin_password
 
 # Optional: Active Directory
 USE_WINDOWS_AUTH=true
-AD_SERVER=10.20.100.15
+AD_SERVER=192.168.1.100
 AD_DOMAIN=your-domain.com
 AD_BASE_DN=DC=your-domain,DC=com
 ```

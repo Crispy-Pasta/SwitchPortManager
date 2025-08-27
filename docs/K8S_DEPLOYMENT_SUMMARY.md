@@ -131,7 +131,7 @@
 - **Password**: Configured in k8s-secret.yaml (base64 encoded)
 
 ### Active Directory Settings:
-- **Server**: 10.20.100.15 (configured in production)
+- **Server**: 192.168.1.100 (configured in production)
 - **Domain**: kmc.int
 - **Base DN**: DC=kmc,DC=int
 - **Windows Auth**: Enabled by default
