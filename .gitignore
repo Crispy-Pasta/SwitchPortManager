@@ -41,3 +41,12 @@ tests/
 *_demo.py
 *_debug.py
 *_backup.py
+
+# Production data files (SECURITY RISK - contains real network topology)
+complete_migration.sql
+*_migration*.sql
+*_data_export*.sql
+*_production*.sql
+data/
+backups/
+exports/
