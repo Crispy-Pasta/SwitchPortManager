@@ -21,8 +21,8 @@ Last Updated: August 2025
 import re
 import logging
 from typing import Dict, List, Any, Optional
-from database import Site, Floor, Switch
-from auth import get_user_permissions
+from app.core.database import Site, Floor, Switch
+from app.auth.auth import get_user_permissions
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def apply_role_based_filtering(results: List[Dict[str, Any]], user_role: str) ->
     Returns:
         list: Filtered results based on user permissions
     """
-    from switch_manager import is_uplink_port, detect_switch_model_from_config
+    from app.core.switch_manager import is_uplink_port, detect_switch_model_from_config
     
     permissions = get_user_permissions(user_role)
     filtered_results = []
@@ -282,3 +282,12 @@ def load_switches_from_database() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to load switches from the database: {str(e)}")
         return {"sites": []}
+
+
+def get_version() -> str:
+    """Get application version.
+    
+    Returns:
+        str: Application version string
+    """
+    return "2.1.3"

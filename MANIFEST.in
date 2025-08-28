@@ -1,0 +1,42 @@
+# Include documentation and configuration files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include .env.example
+include pyproject.toml
+include run.py
+
+# Include Docker and deployment files
+include Dockerfile*
+include docker-compose*.yml
+include deploy-*.sh
+include docker-entrypoint.sh
+include nginx.conf
+
+# Include configuration files
+recursive-include config *.conf *.example
+
+# Include static web assets
+recursive-include app/templates *
+recursive-include static *
+
+# Include documentation
+recursive-include docs *.md
+
+# Include scripts
+recursive-include scripts *.sh *.ps1
+
+# Include Kubernetes manifests
+recursive-include k8s *.yaml *.yml
+
+# Include architecture documentation
+recursive-include architecture *.md
+
+# Exclude development and cache files
+exclude .env
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.log
+exclude .git*
+exclude .pytest_cache
+exclude *.egg-info

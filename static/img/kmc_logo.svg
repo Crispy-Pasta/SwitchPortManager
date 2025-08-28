@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="60" viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg">
+  <rect width="80" height="60" fill="#1e3a8a" rx="8"/>
+  <text x="40" y="25" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="white">KMC</text>
+  <text x="40" y="40" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#ff7200">Network</text>
+  <text x="40" y="50" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#ff7200">Solutions</text>
+</svg>

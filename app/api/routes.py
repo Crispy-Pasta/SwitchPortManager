@@ -20,8 +20,8 @@ Last Updated: August 2025
 
 import logging
 from flask import Blueprint, request, jsonify, session
-from database import db, Site, Floor, Switch
-from auth import require_role
+from app.core.database import db, Site, Floor, Switch
+from app.auth.auth import require_role
 
 # Configure logger
 logger = logging.getLogger(__name__)
