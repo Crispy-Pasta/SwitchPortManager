@@ -42,7 +42,6 @@ logs/*.log
 # Test files (now in scripts folder)
 scripts/test_*.py
 scripts/*_test.py
-tests/
 
 # Development files
 *_demo.py
