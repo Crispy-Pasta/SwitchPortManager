@@ -29,7 +29,7 @@ if ! command_exists python; then
 fi
 
 # Verify required files exist
-if [ ! -f "/app/init_db.py" ]; then
+if [ ! -f "/app/app/core/init_db.py" ]; then
     log "❌ Database initialization script not found"
     exit 1
 fi

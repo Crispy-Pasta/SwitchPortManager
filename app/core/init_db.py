@@ -132,8 +132,11 @@ def initialize_database(force_recreate=False):
     try:
         # Import Flask app and database models
         logger.info("🔧 Importing application modules...")
-        from port_tracer_web import app
+        from app.main import create_app
         from app.core.database import db, Site, Floor, Switch
+        
+        # Create application instance
+        app = create_app()
         
         # Create application context for database operations
         with app.app_context():
