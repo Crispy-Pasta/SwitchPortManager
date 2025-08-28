@@ -30,7 +30,7 @@ def main():
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', '5000'))
     
-    print(f"🚀 Starting Dell Switch Port Tracer v2.1.6")
+print(f"🚀 Starting Dell Switch Port Tracer v2.2.0")
     print(f"   Host: {host}:{port}")
     print(f"   Debug: {debug}")
     print(f"   Environment: {os.getenv('FLASK_ENV', 'production')}")
