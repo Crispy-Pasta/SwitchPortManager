@@ -4511,6 +4511,15 @@ def api_check_port_status():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+def create_app():
+    """Flask application factory function.
+    
+    Returns:
+        Flask: Configured Flask application instance
+    """
+    return app
+
+
 if __name__ == '__main__':
     print("🔌 Starting Dell Switch Port Tracer Web Service...")
     print(f"📊 Web Interface: http://localhost:5000")

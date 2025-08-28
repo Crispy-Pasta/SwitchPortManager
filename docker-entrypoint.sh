@@ -34,8 +34,8 @@ if [ ! -f "/app/init_db.py" ]; then
     exit 1
 fi
 
-if [ ! -f "/app/port_tracer_web.py" ]; then
-    log "❌ Main application file not found"
+if [ ! -f "/app/wsgi.py" ] && [ ! -f "/app/run.py" ]; then
+    log "❌ Main application file not found (wsgi.py or run.py)"
     exit 1
 fi
 
@@ -73,4 +73,11 @@ log "   • superadmin / superadmin123 (SuperAdmin)"
 log "=================================================="
 
 # Execute the main application
-exec python port_tracer_web.py
+# Use Gunicorn for production deployment
+if [ "${ENVIRONMENT:-production}" = "development" ]; then
+    log "🔧 Starting in DEVELOPMENT mode with Flask dev server"
+    exec python run.py
+else
+    log "🚀 Starting in PRODUCTION mode with Gunicorn"
+    exec gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile - --error-logfile - wsgi:application
+fi
