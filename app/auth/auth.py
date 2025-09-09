@@ -25,7 +25,7 @@ from typing import Optional, Dict, Any
 # Import Windows Authentication
 try:
     import ldap3
-    from nt_auth_integration import WindowsAuthenticator, AD_CONFIG
+    from .nt_auth import WindowsAuthenticator, AD_CONFIG
     WINDOWS_AUTH_AVAILABLE = True
 except ImportError:
     WINDOWS_AUTH_AVAILABLE = False
