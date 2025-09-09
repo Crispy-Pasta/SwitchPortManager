@@ -1,0 +1,95 @@
+# =================================================================
+# Dell Switch Port Tracer v2.1.8 - Minimal Production Deployment
+# =================================================================
+# Use this when you have existing nginx and PostgreSQL 
+# This deploys only the app container to work with your existing services
+
+version: '3.8'
+
+services:
+  # Only the Dell Port Tracer application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dell-port-tracer-app-prod
+    restart: unless-stopped
+    ports:
+      # Internal port for nginx proxy_pass
+      - "5000:5000"
+    environment:
+      - ENVIRONMENT=production
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+      
+      # External database connection (your existing PostgreSQL)
+      - POSTGRES_HOST=${POSTGRES_HOST:-localhost}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-port_tracer_db}
+      - POSTGRES_USER=${POSTGRES_USER:-dell_tracer_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      
+      # Security settings
+      - SECRET_KEY=${SECRET_KEY}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      - SESSION_COOKIE_HTTPONLY=${SESSION_COOKIE_HTTPONLY:-true}
+      - SESSION_COOKIE_SAMESITE=${SESSION_COOKIE_SAMESITE:-Strict}
+      - PERMANENT_SESSION_LIFETIME=${PERMANENT_SESSION_LIFETIME:-5}
+      
+      # Switch credentials
+      - SWITCH_USERNAME=${SWITCH_USERNAME}
+      - SWITCH_PASSWORD=${SWITCH_PASSWORD}
+      
+      # Application passwords
+      - OSS_PASSWORD=${OSS_PASSWORD:-oss123}
+      - NETADMIN_PASSWORD=${NETADMIN_PASSWORD:-netadmin123}
+      - SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD:-superadmin123}
+      - WEB_PASSWORD=${WEB_PASSWORD:-password}
+      
+      # Performance settings
+      - CPU_GREEN_THRESHOLD=${CPU_GREEN_THRESHOLD:-40}
+      - CPU_YELLOW_THRESHOLD=${CPU_YELLOW_THRESHOLD:-60}
+      - CPU_RED_THRESHOLD=${CPU_RED_THRESHOLD:-80}
+      - MAX_CONCURRENT_SWITCHES=${MAX_CONCURRENT_SWITCHES:-8}
+      - GLOBAL_MAX_CONCURRENT=${GLOBAL_MAX_CONCURRENT:-64}
+
+    volumes:
+      # Application logs
+      - ./logs:/app/logs:rw
+      # Backup directory  
+      - ./backups:/app/backups:rw
+      # Configuration files
+      - ./config:/app/config:ro
+      
+    # Connect to host network to reach existing services
+    network_mode: "host"
+      
+    # Simple health check
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s  
+      retries: 3
+      start_period: 60s
+
+    # Production resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Production logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
