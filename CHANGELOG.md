@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.1.7] - 2025-01-09
+## [2.1.8] - 2025-01-09
 
 ### 🛠️ Performance & Logging Improvements
 - **Debug Logging Cleanup**: Significantly reduced excessive debug logging in VLAN Manager for improved production performance
