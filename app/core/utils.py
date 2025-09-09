@@ -290,4 +290,4 @@ def get_version() -> str:
     Returns:
         str: Application version string
     """
-    return "2.1.3"
+    return "2.1.8"
