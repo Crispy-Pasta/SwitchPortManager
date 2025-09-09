@@ -151,10 +151,14 @@ def is_valid_port_input(port_input):
             
             # Validate both parts of the range
             if not _is_valid_single_port(start_port):
+                logger.debug(f"Port validation failed: Invalid start port '{start_port}' in range '{part}'")
                 return False
             
-            # End port can be just a number for shorthand notation (Gi1/0/1-5)
+            # End port can be:
+            # 1. Just a number for shorthand notation (Gi1/0/1-5)
+            # 2. Full port specification (Gi1/0/1-Gi1/0/5 or gi1/0/1-gi1/0/5)
             if not _is_valid_single_port(end_port) and not _is_valid_port_number(end_port):
+                logger.debug(f"Port validation failed: Invalid end port '{end_port}' in range '{part}'")
                 return False
         else:
             # Single port validation
@@ -166,8 +170,8 @@ def is_valid_port_input(port_input):
 def _is_valid_single_port(port):
     """Validate a single port specification."""
     # Dell switch port format: Interface[stack]/[module]/[port]
-    # Examples: Gi1/0/24, Te1/0/1, Tw1/0/1
-    pattern = re.compile(r'^(Gi|gi|Te|te|Tw|tw)(\d{1,2})/(\d{1,2})/(\d{1,3})$')
+    # Examples: Gi1/0/24, Te1/0/1, Tw1/0/1, gi1/0/24, te1/0/1, tw1/0/1
+    pattern = re.compile(r'^(Gi|gi|Te|te|Tw|tw)(\d{1,2})/(\d{1,2})/(\d{1,3})$', re.IGNORECASE)
     match = pattern.match(port.strip())
     
     if not match:
