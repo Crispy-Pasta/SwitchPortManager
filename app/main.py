@@ -4478,17 +4478,32 @@ def api_check_port_status():
         try:
             # Parse and validate port specifications
             ports = vlan_manager.parse_port_range(ports_input)
-            port_statuses = []
             
-            # Query each port for detailed status information
-            for port in ports:
-                # Get comprehensive port status including mode, VLAN, and description
-                status = vlan_manager.get_port_status(port)
+            # Use bulk port status for better performance
+            if len(ports) > 3:
+                # For multiple ports, use bulk method (much faster)
+                logger.info(f"Using bulk port status for {len(ports)} ports")
+                bulk_statuses = vlan_manager.get_bulk_port_status(ports)
+                port_statuses = []
                 
-                # Add uplink detection based on switch model and port characteristics
-                status['is_uplink'] = vlan_manager.is_uplink_port(port)
-                
-                port_statuses.append(status)
+                for port in ports:
+                    if port in bulk_statuses:
+                        status = bulk_statuses[port]
+                        status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                        port_statuses.append(status)
+                    else:
+                        # Fallback for missing ports
+                        status = vlan_manager.get_port_status(port)
+                        status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                        port_statuses.append(status)
+            else:
+                # For few ports, individual calls are fine
+                logger.info(f"Using individual port status for {len(ports)} ports")
+                port_statuses = []
+                for port in ports:
+                    status = vlan_manager.get_port_status(port)
+                    status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                    port_statuses.append(status)
             
             # Log successful port status check for audit trail
             audit_logger.info(f"User: {username} - PORT STATUS SUCCESS - Switch: {switch.name} ({switch.ip_address}), Ports: {ports_input}, Count: {len(port_statuses)}")
@@ -4497,7 +4512,8 @@ def api_check_port_status():
                 'ports': port_statuses,
                 'switch_model': switch.model,
                 'switch_name': switch.name,
-                'switch_ip': switch.ip_address
+                'switch_ip': switch.ip_address,
+                'optimization_used': 'bulk' if len(ports) > 3 else 'individual'
             })
             
         finally:

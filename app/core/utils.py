@@ -233,7 +233,7 @@ def apply_role_based_filtering(results: List[Dict[str, Any]], user_role: str) ->
                     # Use database switch model directly
                     switch_model = detect_switch_model_from_config(switch_obj.name, {'model': switch_obj.model})
             except Exception as e:
-                logger.debug(f"Could not detect switch model for {result['switch_ip']}: {str(e)}")
+                logger.warning(f"Could not detect switch model for {result['switch_ip']}: {str(e)}")
             
             if is_uplink_port(result['port'], switch_model, result.get('port_description', '')):
                 # Skip uplink ports for OSS users

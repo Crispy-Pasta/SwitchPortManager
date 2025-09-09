@@ -152,13 +152,11 @@ class DellSwitchSSH:
             last_error = None
             for i, strategy in enumerate(auth_strategies, 1):
                 try:
-                    logger.debug(f"Attempting connection strategy {i}/3 to {self.ip_address}")
                     self.ssh_client.connect(**strategy)
                     logger.info(f"Successfully connected to {self.ip_address} using strategy {i}")
                     break
                 except Exception as e:
                     last_error = e
-                    logger.debug(f"Strategy {i} failed for {self.ip_address}: {str(e)}")
                     if i < len(auth_strategies):
                         # Close and recreate client for next attempt
                         try:
@@ -199,7 +197,7 @@ class DellSwitchSSH:
             
             logger.info(f"Disconnected from {self.ip_address}")
         except Exception as e:
-            logger.debug(f"Error during disconnect from {self.ip_address}: {str(e)}")
+            logger.warning(f"Error during disconnect from {self.ip_address}: {str(e)}")
     
     def _send_command(self, command: str, wait_time: float = 1.0) -> str:
         """Send command to switch and return output."""
@@ -572,8 +570,7 @@ def trace_single_switch(switch_info: Dict[str, Any], mac_address: str, username:
             pass
     
     try:
-        # Log connection attempt for monitoring
-        logger.debug(f"Attempting connection to switch {switch_ip}")
+        # Attempting connection to switch
         
         # Import credentials from environment variables
         import os

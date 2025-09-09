@@ -557,6 +557,29 @@ class VLANManager:
             if self.shell.recv_ready():
                 self.shell.recv(4096)
             
+            # Try to disable terminal pagination and widen width to avoid wrapping
+            # Different Dell NOS variants accept different commands; we try several safely.
+            try:
+                init_cmds = [
+                    "terminal length 0",   # Common on many NOS
+                    "console length 0",    # Dell N-Series OS 6.x
+                    "terminal width 511",  # Max width to reduce line wraps
+                ]
+                for c in init_cmds:
+                    try:
+                        self.shell.send(c + '\n')
+                        time.sleep(0.2)
+                        # Drain any response without logging noise
+                        while self.shell.recv_ready():
+                            _ = self.shell.recv(4096)
+                    except Exception:
+                        # Ignore if a particular init command is not supported
+                        pass
+                logger.info("Terminal pagination disabled (length 0) and width set (where supported)")
+            except Exception:
+                # Non-fatal: if this fails, adaptive reading below will still try to cope
+                logger.warning("Failed to run terminal init commands; proceeding with adaptive reads")
+            
             logger.info(f"Successfully connected to switch {self.switch_ip}")
             return True
         except Exception as e:
@@ -569,8 +592,14 @@ class VLANManager:
             self.ssh_client.close()
             self.ssh_client = None
     
-    def execute_command(self, command, wait_time=1.0):
-        """Execute command on switch via interactive shell and return output."""
+    def execute_command(self, command, wait_time=1.0, expect_large_output=False):
+        """Execute command on switch via interactive shell and return output.
+        
+        Args:
+            command: Command to execute
+            wait_time: Initial wait time after sending command
+            expect_large_output: If True, use extended collection for commands that might have paginated output
+        """
         try:
             if not self.ssh_client or not hasattr(self, 'shell') or not self.shell:
                 raise Exception("Not connected to switch or shell not initialized")
@@ -586,15 +615,46 @@ class VLANManager:
             self.shell.send(command + '\n')
             time.sleep(wait_time)
             
-            # Collect output
+            # Adaptive output collection loop
             output = ""
-            while self.shell.recv_ready():
-                output += self.shell.recv(4096).decode('utf-8')
+            start_time = time.time()
+            last_data_time = start_time
+            idle_timeout = 1.2 if expect_large_output else 0.5   # time with no new data before we stop
+            max_duration = 10.0 if expect_large_output else 3.0  # absolute cap
+            pagination_prompts = ["--More--", "Press any key to continue", "<space> to continue"]
             
-            # Try to get additional output with a bit more wait time
-            time.sleep(0.5)
+            while True:
+                read_any = False
+                while self.shell.recv_ready():
+                    chunk = self.shell.recv(65535).decode('utf-8', errors='ignore')
+                    if not chunk:
+                        break
+                    output += chunk
+                    read_any = True
+                    last_data_time = time.time()
+                    
+                    # Handle pagination prompts if terminal length wasn't honored
+                    if any(p in chunk for p in pagination_prompts):
+                        try:
+                            self.shell.send(' ')
+                        except Exception:
+                            pass
+                    
+                if not read_any:
+                    # No data available at the moment; brief sleep
+                    time.sleep(0.1)
+                
+                now = time.time()
+                if (now - last_data_time) > idle_timeout:
+                    break
+                if (now - start_time) > max_duration:
+                    logger.debug("Max duration reached for command output collection")
+                    break
+            
+            # Final small drain
+            time.sleep(0.2)
             while self.shell.recv_ready():
-                output += self.shell.recv(4096).decode('utf-8')
+                output += self.shell.recv(65535).decode('utf-8', errors='ignore')
             
             return output
             
@@ -981,8 +1041,7 @@ class VLANManager:
                 except Exception:
                     continue
             
-            logger.debug(f"Port {port_name} status command '{status_cmd_used}' output:\n{status_output[:500]}...")
-            logger.debug(f"Port {port_name} config output:\n{config_output[:300]}...")
+                    # Retrieved port status and configuration data
             
             # Parse status from Dell switch output - Enhanced parsing logic
             port_up = False
@@ -1004,15 +1063,12 @@ class VLANManager:
                     
                 # Skip command echoes (lines that start with "show" commands)
                 if line.lower().startswith(('show ', 'console', 'enable', 'configure')):
-                    logger.debug(f"Skipping command echo line {line_idx}: {line}")
                     continue
                     
                 # Skip header lines and separators
                 if any(header in line.lower() for header in ['port', 'name', 'type', 'duplex', 'speed', 'link', 'state', 'vlan']) and line_idx < 10:
-                    logger.debug(f"Skipping header line {line_idx}: {line}")
                     continue
                 if line.startswith('-') or line.startswith('='):
-                    logger.debug(f"Skipping separator line {line_idx}: {line}")
                     continue
                     
                 # Look for the port data line - be more flexible with port name matching
@@ -1039,7 +1095,7 @@ class VLANManager:
                     if len(columns) < 3:  # If that doesn't work, try single space
                         columns = line.split()
                     
-                    logger.debug(f"Parsed {len(columns)} columns from line: {columns}")
+                    # Parse status output columns
                     
                     if len(columns) >= 3:  # Minimum expected columns
                         # Enhanced link state detection for Dell switch format:
@@ -1057,12 +1113,10 @@ class VLANManager:
                             if col_lower in ['up', 'connected']:
                                 port_up = True
                                 link_state_found = True
-                                logger.info(f"Port {port_name} is UP - found explicit '{col_stripped}' at column {i}")
                                 break
                             elif col_lower in ['down', 'notconnect', 'nolink', 'disabled']:
                                 port_up = False
                                 link_state_found = True
-                                logger.info(f"Port {port_name} is DOWN - found explicit '{col_stripped}' at column {i}")
                                 break
                         
                         # Method 2: If no explicit state found, look for speed + duplex combination
@@ -1078,27 +1132,22 @@ class VLANManager:
                                 # Check for speed indicators
                                 if re.match(r'^(10|100|1000|10000)$', col_stripped):
                                     has_speed = True
-                                    logger.debug(f"Found speed indicator '{col_stripped}' at column {i}")
                                 
                                 # Check for duplex indicators
                                 elif col_lower in ['full', 'half']:
                                     has_duplex = True
-                                    logger.debug(f"Found duplex indicator '{col_stripped}' at column {i}")
                                 
                                 # Check for down indicators
                                 elif col_lower in ['down', 'notconnect', 'disabled', 'err-disabled']:
                                     has_down_indicator = True
-                                    logger.debug(f"Found down indicator '{col_stripped}' at column {i}")
                             
                             # If we have both speed and duplex without down indicators, assume UP
                             if (has_speed or has_duplex) and not has_down_indicator:
                                 port_up = True
                                 link_state_found = True
-                                logger.info(f"Port {port_name} is UP - inferred from speed/duplex presence (speed: {has_speed}, duplex: {has_duplex})")
                             elif has_down_indicator:
                                 port_up = False
                                 link_state_found = True
-                                logger.info(f"Port {port_name} is DOWN - found down indicator")
                         
                         # Method 3: Parse the exact Dell format if we can identify column positions
                         if not link_state_found:
@@ -1107,7 +1156,6 @@ class VLANManager:
                             # Look for "Up" or "Down" that appears after speed/duplex info
                             
                             line_words = original_line.split()
-                            logger.debug(f"Trying word-based parsing: {line_words}")
                             
                             # Look for Up/Down in the word list
                             for i, word in enumerate(line_words):
@@ -1115,12 +1163,10 @@ class VLANManager:
                                 if word_lower == 'up':
                                     port_up = True
                                     link_state_found = True
-                                    logger.info(f"Port {port_name} is UP - found 'Up' in word position {i}")
                                     break
                                 elif word_lower in ['down', 'notconnect']:
                                     port_up = False
                                     link_state_found = True
-                                    logger.info(f"Port {port_name} is DOWN - found '{word}' in word position {i}")
                                     break
                         
                         # Method 4: Final fallback - heuristic analysis
@@ -1128,14 +1174,12 @@ class VLANManager:
                             line_content = original_line.lower()
                             if 'up' in line_content and 'down' not in line_content:
                                 port_up = True
-                                logger.info(f"Port {port_name} assumed UP based on 'up' keyword in line")
                             elif 'down' in line_content or 'notconnect' in line_content:
                                 port_up = False
-                                logger.info(f"Port {port_name} assumed DOWN based on 'down' keyword in line")
                             else:
                                 # Default to DOWN if we can't determine
                                 port_up = False
-                                logger.warning(f"Port {port_name} status unclear, defaulting to DOWN. Full line: '{original_line}'")
+                                logger.warning(f"Port {port_name} status unclear, defaulting to DOWN")
                         
                         # Look for mode indicator (A=Access, T=Trunk, G=General)
                         for i, col in enumerate(columns):
@@ -1148,18 +1192,34 @@ class VLANManager:
                                     port_mode = 'trunk'
                                 elif mode_char == 'G':
                                     port_mode = 'general'
-                                logger.debug(f"Found mode indicator '{col}' at column {i}, port_mode={port_mode}")
                                 break
                         
-                        # Look for VLAN ID (numeric values at end of line usually)
-                        for i in range(len(columns) - 1, -1, -1):  # Search backwards from end
-                            col = columns[i].strip()
-                            if col.isdigit():
-                                vlan_candidate = int(col)
-                                if 1 <= vlan_candidate <= 4094:
-                                    current_vlan = col
-                                    logger.debug(f"Found VLAN ID '{col}' at column {i}")
+                        # Look for VLAN ID - handle General mode format first
+                        vlan_found = False
+                        
+                        # First pass: Look for General mode VLAN format "(1),20,203,1120,1124,1131"
+                        for i, col in enumerate(columns):
+                            col_stripped = col.strip()
+                            if '(' in col_stripped:
+                                # Extract native VLAN ID from general mode format (native VLAN is in parentheses)
+                                vlan_match = re.search(r'\((\d+)\)', col_stripped)
+                                if vlan_match:
+                                    current_vlan = vlan_match.group(1)
+                                    vlan_found = True
+                                    # If we find general mode format, set the mode to general
+                                    port_mode = 'general'
+                                    logger.info(f"Found General mode native VLAN '{current_vlan}' from '{col_stripped}'")
                                     break
+                        
+                        # Second pass: If no General mode format found, look for simple numeric VLAN
+                        if not vlan_found:
+                            for i in range(len(columns) - 1, -1, -1):  # Search backwards from end
+                                col = columns[i].strip()
+                                if col.isdigit():
+                                    vlan_candidate = int(col)
+                                    if 1 <= vlan_candidate <= 4094:
+                                        current_vlan = col
+                                        break
                     else:
                         logger.warning(f"Insufficient columns ({len(columns)}) in status line: {line}")
                     
@@ -1176,14 +1236,13 @@ class VLANManager:
                             port_mode = "general"
                         elif "access" in line:
                             port_mode = "access"
-                        logger.debug(f"Config: Found switchport mode: {port_mode}")
                     elif "switchport access vlan" in line:
                         try:
                             config_vlan = line.split()[-1]
-                            # Use config VLAN if status parsing didn't find one
-                            if current_vlan == "1" and config_vlan != "1" and config_vlan.isdigit():
+                            # Only use config VLAN if status parsing didn't find one AND port is not in general mode
+                            # For general mode ports, the status shows the native VLAN correctly in parentheses
+                            if current_vlan == "1" and config_vlan != "1" and config_vlan.isdigit() and port_mode != "general":
                                 current_vlan = config_vlan
-                                logger.debug(f"Config: Found access VLAN: {current_vlan}")
                         except:
                             pass
             
@@ -1209,6 +1268,253 @@ class VLANManager:
                 'config_output': '',
                 'error': str(e)
             }
+    
+    def get_bulk_port_status(self, ports):
+        """
+        Get status for multiple ports using a single 'show interfaces status' command.
+        This is much more efficient than calling get_port_status() for each port individually.
+        
+        Args:
+            ports: List of port names to check
+            
+        Returns:
+            dict: Dictionary with port names as keys and status info as values
+        """
+        if not ports:
+            return {}
+        
+        port_statuses = {}
+        
+        try:
+            # Get all interface statuses with a single command
+            status_commands = [
+                "show interfaces status | no-more",  # If supported, prevents paging
+                "show interfaces status",            # Dell standard
+                "show interface status",             # Alternative
+                "show ports status",                 # Some Dell models
+            ]
+            
+            status_output = ""
+            status_cmd_used = None
+            
+            for cmd in status_commands:
+                try:
+                    # Use enhanced collection for bulk status commands that may have large output
+                    status_output = self.execute_command(cmd, wait_time=1.5, expect_large_output=True)
+                    status_cmd_used = cmd
+                    if status_output and status_output.strip() and "Invalid input" not in status_output:
+                        break
+                except Exception:
+                    continue
+            
+            if not status_output:
+                logger.error("No valid status output obtained from bulk status commands")
+                return {port: {'error': 'No status output available'} for port in ports}
+            
+            logger.info(f"Bulk status command '{status_cmd_used}' collected {len(status_output)} chars from switch")
+            
+            # Parse the bulk status output
+            lines = status_output.split('\n')
+            header_found = False
+            
+            # Create a set of requested ports for quick lookup (case-insensitive)
+            requested_ports = set()
+            for port in ports:
+                requested_ports.add(port.lower())
+            
+            logger.info(f"Parsing {len(lines)} lines of bulk status output for {len(ports)} requested ports")
+            
+            for line_idx, line in enumerate(lines):
+                original_line = line
+                line = line.strip()
+                
+                if not line:
+                    continue
+                
+                # Skip command echoes
+                if line.lower().startswith(('show ', 'console', 'enable', 'configure')):
+                    continue
+                
+                # Look for header line to confirm we have the right format
+                if any(header in line.lower() for header in ['port', 'duplex', 'speed', 'link', 'state', 'vlan']) and not header_found:
+                    header_found = True
+                    logger.info(f"Found status output header at line {line_idx}")
+                    continue
+                
+                # Skip separator lines
+                if line.startswith('-') or line.startswith('='):
+                    continue
+                
+                # Parse port data lines
+                if header_found and line and not line.lower().startswith(('port', 'show')):
+                    port_info = self._parse_bulk_status_line(original_line)
+                    
+                    if port_info:
+                        if port_info['port'].lower() in requested_ports:
+                            port_statuses[port_info['port']] = port_info
+                            logger.info(f"Found {port_info['port']}: {port_info['status']}, {port_info['mode']}, VLAN {port_info['current_vlan']}")
+            
+            # For any requested ports not found in bulk output, use individual port status calls
+            logger.info(f"Found {len(port_statuses)} ports in bulk output, checking for missing ports...")
+            missing_ports = []
+            for port in ports:
+                port_found = False
+                for parsed_port in port_statuses.keys():
+                    if parsed_port.lower() == port.lower():
+                        port_found = True
+                        break
+                
+                if not port_found:
+                    missing_ports.append(port)
+                    logger.warning(f"× Port {port} not found in bulk status output")
+            
+            # Call individual port status for missing ports
+            if missing_ports:
+                logger.info(f"Calling individual port status for {len(missing_ports)} missing ports: {missing_ports}")
+                for port in missing_ports:
+                    try:
+                        individual_status = self.get_port_status(port)
+                        port_statuses[port] = individual_status
+                        logger.info(f"[FALLBACK] Individual port status for {port}: {individual_status['status']}, {individual_status['mode']}, VLAN {individual_status['current_vlan']}")
+                    except Exception as port_e:
+                        logger.error(f"Failed to get individual status for port {port}: {str(port_e)}")
+                        port_statuses[port] = {
+                            'port': port,
+                            'status': 'unknown',
+                            'mode': 'unknown',
+                            'current_vlan': 'unknown',
+                            'error': f'Individual port status failed: {str(port_e)}'
+                        }
+            
+            logger.info(f"Bulk port status retrieved for {len(port_statuses)} ports using single command")
+            return port_statuses
+            
+        except Exception as e:
+            logger.error(f"Failed to get bulk port status: {str(e)}")
+            # Fallback to individual port checks
+            logger.info("Falling back to individual port status checks")
+            for port in ports:
+                try:
+                    port_statuses[port] = self.get_port_status(port)
+                except Exception as port_e:
+                    logger.error(f"Failed to get status for port {port}: {str(port_e)}")
+                    port_statuses[port] = {
+                        'port': port,
+                        'status': 'unknown',
+                        'mode': 'unknown',
+                        'current_vlan': 'unknown',
+                        'error': str(port_e)
+                    }
+            
+            return port_statuses
+    
+    def _parse_bulk_status_line(self, line):
+        """
+        Parse a single line from 'show interfaces status' output.
+        
+        Expected format: "Gi1/0/1  Description  Full  1000  Auto  Up  On  A  123"
+        
+        Args:
+            line: Single line from status output
+            
+        Returns:
+            dict: Port information or None if line couldn't be parsed
+        """
+        try:
+            line = line.strip()
+            if not line:
+                return None
+            
+            # Split by multiple whitespace or tabs to handle variable spacing
+            import re
+            columns = re.split(r'\s{2,}|\t', line)
+            if len(columns) < 3:  # Fallback to single space
+                columns = line.split()
+            
+            if len(columns) < 3:
+                return None
+            
+            # Extract port name (first column)
+            port_name = columns[0].strip()
+            if not port_name or not re.match(r'^(Gi|gi|Te|te|Tw|tw|Po|po)\d', port_name):
+                return None
+            
+            # Initialize defaults
+            port_up = False
+            port_mode = "access"
+            current_vlan = "1"
+            description = ""
+            
+            # Extract description if present (second column, might be empty)
+            if len(columns) > 1:
+                description = columns[1].strip()
+            
+            # Parse status information from remaining columns
+            link_state_found = False
+            general_vlan_found = False  # Track if we found a General mode VLAN
+            
+            for i, col in enumerate(columns):
+                col_stripped = col.strip()
+                col_lower = col_stripped.lower()
+                
+                # Look for link state
+                if col_lower in ['up', 'connected'] and not link_state_found:
+                    port_up = True
+                    link_state_found = True
+                elif col_lower in ['down', 'notconnect', 'disabled', 'disable'] and not link_state_found:
+                    port_up = False
+                    link_state_found = True
+                
+                # Look for mode indicator (A=Access, T=Trunk, G=General)
+                elif col_stripped.upper() in ['A', 'T', 'G']:
+                    mode_char = col_stripped.upper()
+                    if mode_char == 'A':
+                        port_mode = 'access'
+                    elif mode_char == 'T':
+                        port_mode = 'trunk'
+                    elif mode_char == 'G':
+                        port_mode = 'general'
+                
+                # Handle General mode VLAN format first: "(1),20,203,1120,1124,1131"
+                elif '(' in col_stripped:
+                    # Extract native VLAN ID from general mode format (native VLAN is in parentheses)
+                    vlan_match = re.search(r'\((\d+)\)', col_stripped)
+                    if vlan_match:
+                        current_vlan = vlan_match.group(1)
+                        general_vlan_found = True  # Mark that we found a General mode VLAN
+                        # If we find general mode format, set the mode to general
+                        port_mode = 'general'
+                
+                # Look for VLAN ID (numeric values, usually at the end) - but only if not already found in general format
+                elif col_stripped.isdigit() and not general_vlan_found:
+                    vlan_candidate = int(col_stripped)
+                    if 1 <= vlan_candidate <= 4094:
+                        current_vlan = col_stripped
+            
+            # Heuristic fallback for link state if not explicitly found
+            if not link_state_found:
+                # Look for speed and duplex indicators
+                has_speed_duplex = any(
+                    re.match(r'^(10|100|1000|10000)$', col.strip()) or 
+                    col.strip().lower() in ['full', 'half']
+                    for col in columns
+                )
+                
+                # If we have speed/duplex info, assume UP; otherwise assume DOWN
+                port_up = has_speed_duplex
+            
+            return {
+                'port': port_name,
+                'status': 'up' if port_up else 'down',
+                'mode': port_mode,
+                'current_vlan': current_vlan,
+                'description': description,
+                'raw_line': line
+            }
+            
+        except Exception as e:
+            logger.debug(f"Failed to parse bulk status line '{line}': {str(e)}")
+            return None
     
     def change_port_vlan(self, port_name, vlan_id, description=None):
         """Change port VLAN assignment with description."""
@@ -1670,14 +1976,10 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
                 safe_ports.append(port)
         
         # Handle active or non-access ports based on options
-        logger.info(f"VLAN workflow debug: Port status analysis complete")
-        logger.info(f"VLAN workflow debug: active_or_non_access_ports count: {len(active_or_non_access_ports)}")
-        logger.info(f"VLAN workflow debug: safe_ports count: {len(safe_ports)}")
-        logger.info(f"VLAN workflow debug: ports_already_correct count: {len(ports_already_correct)}")
-        logger.info(f"VLAN workflow debug: force_change: {force_change}, skip_non_access: {skip_non_access}")
+        # Analyze port safety conditions
+        logger.info(f"Port analysis: {len(active_or_non_access_ports)} need confirmation, {len(safe_ports)} safe, {len(ports_already_correct)} already correct")
         
         if active_or_non_access_ports and not force_change and not skip_non_access:
-            logger.info(f"VLAN workflow debug: Returning confirmation needed for active ports")
             return {
                 'status': 'confirmation_needed',
                 'type': 'active_or_non_access_ports',
@@ -2010,16 +2312,37 @@ def add_vlan_management_routes(app):
             try:
                 # Parse ports
                 ports = vlan_manager.parse_port_range(ports_input)
-                port_statuses = []
                 
-                for port in ports:
-                    status = vlan_manager.get_port_status(port)
-                    status['is_uplink'] = vlan_manager.is_uplink_port(port)
-                    port_statuses.append(status)
+                # Use bulk port status for better performance
+                if len(ports) > 3:
+                    # For multiple ports, use bulk method (much faster)
+                    logger.info(f"Using bulk port status for {len(ports)} ports")
+                    bulk_statuses = vlan_manager.get_bulk_port_status(ports)
+                    port_statuses = []
+                    
+                    for port in ports:
+                        if port in bulk_statuses:
+                            status = bulk_statuses[port]
+                            status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                            port_statuses.append(status)
+                        else:
+                            # Fallback for missing ports
+                            status = vlan_manager.get_port_status(port)
+                            status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                            port_statuses.append(status)
+                else:
+                    # For few ports, individual calls are fine
+                    logger.info(f"Using individual port status for {len(ports)} ports")
+                    port_statuses = []
+                    for port in ports:
+                        status = vlan_manager.get_port_status(port)
+                        status['is_uplink'] = vlan_manager.is_uplink_port(port)
+                        port_statuses.append(status)
                 
                 return jsonify({
                     'ports': port_statuses,
-                    'switch_model': switch.model
+                    'switch_model': switch.model,
+                    'optimization_used': 'bulk' if len(ports) > 3 else 'individual'
                 })
             finally:
                 vlan_manager.disconnect()

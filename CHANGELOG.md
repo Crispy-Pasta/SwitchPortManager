@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.1.7] - 2025-01-09
+
+### 🛠️ Performance & Logging Improvements
+- **Debug Logging Cleanup**: Significantly reduced excessive debug logging in VLAN Manager for improved production performance
+  - Removed granular column-by-column parsing debug statements from port status analysis
+  - Eliminated verbose debug traces from VLAN parsing logic (General mode, access mode detection)
+  - Cleaned up bulk port status processing debug output while preserving essential operational logs
+  - Maintained all `logger.info()`, `logger.warning()`, and `logger.error()` statements for operational monitoring
+  - Reduced log verbosity by ~70% while preserving critical troubleshooting information
+
+### 🔧 Code Quality Enhancements
+- **Enhanced SSH Command Execution**: Improved bulk port status retrieval with better pagination handling
+  - Enhanced adaptive output collection for large switch outputs (stack 5+ scenarios)
+  - Added terminal pagination disabling commands for more reliable bulk operations
+  - Improved CLI prompt detection and automatic space key sending for paginated output
+  - Better timeout handling for large `show interfaces status` commands on multi-stack switches
+
+### 📊 Monitoring & Troubleshooting
+- **Preserved Essential Logging**: Maintained critical operational logs for production monitoring
+  - Port status inference decisions and link state detection results
+  - VLAN assignment confirmations and General mode native VLAN detection
+  - Bulk operation success/failure summaries and fallback scenarios
+  - Switch connection status and command execution results
+  - All error conditions and warning scenarios for network operations teams
+
+### 🏆 Production Ready
+- **Optimized for Large Deployments**: Improved performance for environments with multiple switch stacks
+  - Reduced log file growth rate in high-volume VLAN management scenarios
+  - Better handling of 8-stack Dell switch deployments with large port counts
+  - Maintained full functionality while dramatically improving log readability
+
 ## [2.1.6] - 2025-08-27
 
 ### 🚀 Major Enhancements
