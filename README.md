@@ -1,4 +1,4 @@
-# Switch Port Manager v2.1.6
+# Switch Port Manager 
 
 > **Note:** Repository migrated from `DellPortTracer` to `SwitchPortManager` for better organization and expanded functionality.
 
