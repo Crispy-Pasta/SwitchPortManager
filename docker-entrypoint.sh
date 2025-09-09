@@ -7,7 +7,7 @@ set -e
 # This script initializes the database and starts the application
 # in a containerized environment with proper error handling.
 
-echo "🚀 Starting Dell Switch Port Tracer v2.1.3..."
+echo "🚀 Starting Dell Switch Port Tracer v2.1.8..."
 echo "=================================================="
 
 # Function to log messages with timestamps
@@ -79,5 +79,5 @@ if [ "${ENVIRONMENT:-production}" = "development" ]; then
     exec python run.py
 else
     log "🚀 Starting in PRODUCTION mode with Gunicorn"
-    exec gunicorn --workers 4 --bind 0.0.0.0:5000 --timeout 120 --access-logfile - --error-logfile - wsgi:application
+    exec gunicorn --workers 1 --bind 0.0.0.0:5000 --timeout 120 --access-logfile - --error-logfile - wsgi:application
 fi

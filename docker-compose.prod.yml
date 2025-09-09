@@ -1,6 +1,6 @@
 version: '3.8'
 
-# Dell Switch Port Tracer v2.1.3 - Production Docker Compose Configuration
+# Dell Switch Port Tracer v2.1.8 - Production Docker Compose Configuration
 # Features: Enhanced health checks, data protection, consistent naming, safe deployment structure
 # Usage: Use with ./deploy-safe.sh for protected deployments
 # Data: Protected files in ./data/ directory, persistent named volumes
