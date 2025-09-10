@@ -49,9 +49,9 @@ def test_application_structure():
 def test_docker_files():
     """Test that Docker-related files exist for CI/CD"""
     docker_files = [
-        "Dockerfile.production",
-        "docker-compose.prod.yml",
-        "docker-compose.simple.yml",
+        "Dockerfile",
+        "docker-compose.yml",
+        "docker-entrypoint.sh",
         ".dockerignore"
     ]
     

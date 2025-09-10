@@ -31,8 +31,8 @@ jobs:
           echo "FROM alpine:latest" > Dockerfile.test
           echo "RUN echo 'GHCR test successful!'" >> Dockerfile.test
           
-          docker build -f Dockerfile.test -t ghcr.io/${{ github.repository_owner }}/test-image:latest .
-          docker push ghcr.io/${{ github.repository_owner }}/test-image:latest
+          docker build -f Dockerfile.test -t ghcr.io/kmcwebdev/test-image:latest .
+          docker push ghcr.io/kmcwebdev/test-image:latest
           
           echo "✅ Successfully pushed test image to GHCR!"
           
