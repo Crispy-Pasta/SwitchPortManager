@@ -47,11 +47,13 @@ COPY --chown=app:app docker-entrypoint.sh ./
 COPY --chown=app:app tools/ ./tools/
 COPY --chown=app:app docs/ ./docs/
 
-# Copy tests for development
-COPY --chown=app:app tests/ ./tests/ 2>/dev/null || echo "No tests directory found"
+# Copy tests for development (if they exist)
+COPY --chown=app:app tests/ ./tests/
 
-# Make entrypoint script executable and set ownership
-RUN chmod +x docker-entrypoint.sh && chown -R app:app /app
+# Fix line endings and make entrypoint script executable
+RUN sed -i 's/\r$//' docker-entrypoint.sh && \
+    chmod +x docker-entrypoint.sh && \
+    chown -R app:app /app
 
 # Switch to non-root user
 USER app
