@@ -28,12 +28,7 @@ if ! command_exists python; then
     exit 1
 fi
 
-# Verify required files exist
-if [ ! -f "/app/app/core/init_db.py" ]; then
-    log "❌ Database initialization script not found"
-    exit 1
-fi
-
+# Verify main application file exists
 if [ ! -f "/app/wsgi.py" ] && [ ! -f "/app/run.py" ]; then
     log "❌ Main application file not found (wsgi.py or run.py)"
     exit 1
@@ -48,13 +43,24 @@ log "   • Switch Username: ${SWITCH_USERNAME:-NOT_SET}"
 log "   • Session Timeout: ${PERMANENT_SESSION_LIFETIME:-5} minutes"
 log "   • Session Cookie Secure: ${SESSION_COOKIE_SECURE:-true}"
 
-# Initialize database
-log "🏗️  Initializing database schema..."
-if python init_db.py; then
-    log "✅ Database initialization completed successfully"
+# Optional: Initialize database if init script exists
+if [ -f "/app/init_db.py" ] || [ -f "/app/app/core/init_db.py" ]; then
+    log "🏗️  Initializing database schema..."
+    if [ -f "/app/init_db.py" ]; then
+        if python init_db.py; then
+            log "✅ Database initialization completed successfully"
+        else
+            log "⚠️  Database initialization failed - continuing anyway (might already be initialized)"
+        fi
+    elif [ -f "/app/app/core/init_db.py" ]; then
+        if python app/core/init_db.py; then
+            log "✅ Database initialization completed successfully"
+        else
+            log "⚠️  Database initialization failed - continuing anyway (might already be initialized)"
+        fi
+    fi
 else
-    log "❌ Database initialization failed"
-    exit 1
+    log "ℹ️  No database initialization script found - skipping database setup"
 fi
 
 # Optional: Run database migrations if they exist

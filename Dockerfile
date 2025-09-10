@@ -29,15 +29,18 @@ RUN useradd --create-home --shell /bin/bash app \
 RUN mkdir -p /app/logs /app/static/img /app/instance \
     && chown -R app:app /app/logs /app/static /app/instance
 
-# Copy application files
-COPY --chown=app:app *.py .
-COPY --chown=app:app *.html .
+# Copy essential application files
+COPY --chown=app:app *.py ./
 COPY --chown=app:app app/ ./app/
 COPY --chown=app:app static/ ./static/
 COPY --chown=app:app templates/ ./templates/
+COPY --chown=app:app docker-entrypoint.sh ./
+
+# Copy optional directories if they exist in the repository
+# Note: If these directories are missing during deployment,
+# remove these lines or use .dockerignore to exclude them
 COPY --chown=app:app tools/ ./tools/
 COPY --chown=app:app docs/ ./docs/
-COPY --chown=app:app docker-entrypoint.sh .
 
 # Make entrypoint script executable and set ownership
 RUN chmod +x docker-entrypoint.sh && chown -R app:app /app
