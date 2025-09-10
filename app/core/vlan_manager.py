@@ -615,12 +615,12 @@ class VLANManager:
             self.shell.send(command + '\n')
             time.sleep(wait_time)
             
-            # Adaptive output collection loop
+            # Adaptive output collection loop with increased timeouts for reliability
             output = ""
             start_time = time.time()
             last_data_time = start_time
-            idle_timeout = 1.2 if expect_large_output else 0.5   # time with no new data before we stop
-            max_duration = 10.0 if expect_large_output else 3.0  # absolute cap
+            idle_timeout = 2.5 if expect_large_output else 1.5   # Increased from 1.2/0.5 to 2.5/1.5
+            max_duration = 30.0 if expect_large_output else 15.0  # Increased from 10.0/3.0 to 30.0/15.0
             pagination_prompts = ["--More--", "Press any key to continue", "<space> to continue"]
             
             while True:
@@ -1359,10 +1359,18 @@ class VLANManager:
             missing_ports = []
             for port in ports:
                 port_found = False
-                for parsed_port in port_statuses.keys():
-                    if parsed_port.lower() == port.lower():
-                        port_found = True
-                        break
+                # Try exact match first
+                if port in port_statuses:
+                    port_found = True
+                # Try case-insensitive match
+                elif not port_found:
+                    for parsed_port in port_statuses.keys():
+                        if parsed_port.lower() == port.lower():
+                            port_found = True
+                            # Copy to exact requested port name for consistency
+                            if port != parsed_port:
+                                port_statuses[port] = port_statuses[parsed_port]
+                            break
                 
                 if not port_found:
                     missing_ports.append(port)

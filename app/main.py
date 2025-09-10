@@ -4389,11 +4389,17 @@ def api_session_check():
 @app.route('/api/port/status', methods=['POST'])
 def api_check_port_status():
     """
-    Port Status Check API Endpoint (v2.1.2)
-    =======================================
+    Port Status Check API Endpoint (v2.1.8 - Enhanced Timeout Handling)
+    ==================================================================
     
     Secure API endpoint for retrieving detailed port status information from
     Dell switches with comprehensive input validation and security features.
+    
+    ENHANCED FEATURES (v2.1.8):
+    - Improved timeout handling to prevent 504 Gateway Timeout errors
+    - Better bulk port parsing with reduced fallback to individual checks
+    - Enhanced SSH connection stability with longer timeouts
+    - Optimized port range processing for better performance
     
     SECURITY FEATURES:
     - Enterprise-grade port format validation (Dell switch compatibility)
@@ -4402,7 +4408,7 @@ def api_check_port_status():
     - Authentication and role-based authorization
     
     FUNCTIONALITY:
-    - Connects to specified switch via secure SSH
+    - Connects to specified switch via secure SSH with extended timeouts
     - Retrieves port operational status (up/down)
     - Queries port mode configuration (access/trunk/general)
     - Returns VLAN assignments and descriptions
@@ -4426,6 +4432,11 @@ def api_check_port_status():
     - Session-based authentication
     - All invalid attempts logged for security monitoring
     
+    TIMEOUT HANDLING:
+    - Extended SSH timeouts for large port range queries
+    - Improved bulk parsing to reduce individual port fallbacks
+    - Better error handling for connection timeouts
+    
     Returns:
         dict: Port status information or detailed validation error messages
     """
@@ -4437,7 +4448,21 @@ def api_check_port_status():
     if user_role not in ['netadmin', 'superadmin']:
         return jsonify({'error': 'Insufficient permissions'}), 403
     
+    # Set up request timeout handling to prevent 504 Gateway Timeout errors
+    import signal
+    import threading
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Port status request timed out")
+    
+    # Set a 45-second timeout for the entire request (before reaching gateway timeout)
+    request_timeout = 45
+    
     try:
+        # Start request timer
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(request_timeout)
+        
         from app.core.vlan_manager import VLANManager, is_valid_port_input, get_port_format_error_message
         data = request.json
         username = session['username']
@@ -4520,11 +4545,30 @@ def api_check_port_status():
             # Always ensure secure disconnection from switch
             vlan_manager.disconnect()
             
+    except TimeoutError:
+        # Handle request timeout to prevent 504 Gateway Timeout errors
+        logger.warning(f"Port status request timed out after {request_timeout}s - Switch ID: {switch_id}, Ports: {ports_input}")
+        audit_logger.warning(f"User: {username} - PORT STATUS TIMEOUT - Switch ID: {switch_id}, Ports: {ports_input}, Timeout: {request_timeout}s")
+        return jsonify({
+            'error': 'Request timeout',
+            'message': f'Port status check timed out after {request_timeout} seconds. This may be due to a large port range or slow switch response.',
+            'timeout_seconds': request_timeout,
+            'suggestion': 'Try checking fewer ports at once or contact system administrator if the switch is experiencing issues.'
+        }), 408  # Request Timeout
+        
     except Exception as e:
         # Log unexpected errors for security monitoring and debugging
         logger.error(f"Port status API unexpected error: {str(e)}")
         audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id}, Ports: {ports_input}, Error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+    finally:
+        # Always clean up the alarm signal
+        try:
+            signal.alarm(0)  # Cancel any pending alarm
+            if 'old_handler' in locals():
+                signal.signal(signal.SIGALRM, old_handler)  # Restore original signal handler
+        except Exception as cleanup_error:
+            logger.warning(f"Error cleaning up timeout handler: {cleanup_error}")
 
 
 def create_app():
