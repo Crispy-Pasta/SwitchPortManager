@@ -4449,19 +4449,15 @@ def api_check_port_status():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     # Set up request timeout handling to prevent 504 Gateway Timeout errors
-    import signal
+    # Note: Using threading-based timeout instead of signals for Windows compatibility
     import threading
-    
-    def timeout_handler(signum, frame):
-        raise TimeoutError("Port status request timed out")
+    import time
     
     # Set a 45-second timeout for the entire request (before reaching gateway timeout)
     request_timeout = 45
+    request_start_time = time.time()
     
     try:
-        # Start request timer
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(request_timeout)
         
         from app.core.vlan_manager import VLANManager, is_valid_port_input, get_port_format_error_message
         data = request.json
@@ -4545,30 +4541,27 @@ def api_check_port_status():
             # Always ensure secure disconnection from switch
             vlan_manager.disconnect()
             
-    except TimeoutError:
-        # Handle request timeout to prevent 504 Gateway Timeout errors
-        logger.warning(f"Port status request timed out after {request_timeout}s - Switch ID: {switch_id}, Ports: {ports_input}")
-        audit_logger.warning(f"User: {username} - PORT STATUS TIMEOUT - Switch ID: {switch_id}, Ports: {ports_input}, Timeout: {request_timeout}s")
-        return jsonify({
-            'error': 'Request timeout',
-            'message': f'Port status check timed out after {request_timeout} seconds. This may be due to a large port range or slow switch response.',
-            'timeout_seconds': request_timeout,
-            'suggestion': 'Try checking fewer ports at once or contact system administrator if the switch is experiencing issues.'
-        }), 408  # Request Timeout
-        
     except Exception as e:
-        # Log unexpected errors for security monitoring and debugging
-        logger.error(f"Port status API unexpected error: {str(e)}")
-        audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id}, Ports: {ports_input}, Error: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-    finally:
-        # Always clean up the alarm signal
-        try:
-            signal.alarm(0)  # Cancel any pending alarm
-            if 'old_handler' in locals():
-                signal.signal(signal.SIGALRM, old_handler)  # Restore original signal handler
-        except Exception as cleanup_error:
-            logger.warning(f"Error cleaning up timeout handler: {cleanup_error}")
+        # Check if we've exceeded the timeout
+        elapsed_time = time.time() - request_start_time
+        if elapsed_time > request_timeout:
+            # Handle request timeout to prevent 504 Gateway Timeout errors
+            logger.warning(f"Port status request timed out after {elapsed_time:.1f}s - Switch ID: {switch_id if 'switch_id' in locals() else 'unknown'}, Ports: {ports_input if 'ports_input' in locals() else 'unknown'}")
+            audit_logger.warning(f"User: {username} - PORT STATUS TIMEOUT - Switch ID: {switch_id if 'switch_id' in locals() else 'unknown'}, Ports: {ports_input if 'ports_input' in locals() else 'unknown'}, Timeout: {elapsed_time:.1f}s")
+            return jsonify({
+                'error': 'Request timeout',
+                'message': f'Port status check timed out after {elapsed_time:.1f} seconds. This may be due to a large port range or slow switch response.',
+                'timeout_seconds': elapsed_time,
+                'suggestion': 'Try checking fewer ports at once or contact system administrator if the switch is experiencing issues.'
+            }), 408  # Request Timeout
+        else:
+            # Log unexpected errors for security monitoring and debugging
+            logger.error(f"Port status API unexpected error: {str(e)}")
+            # Use safer variable access to avoid UnboundLocalError
+            switch_id_safe = switch_id if 'switch_id' in locals() else 'unknown'
+            ports_input_safe = ports_input if 'ports_input' in locals() else 'unknown'
+            audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id_safe}, Ports: {ports_input_safe}, Error: {str(e)}")
+            return jsonify({'error': 'Internal server error'}), 500
 
 
 def create_app():

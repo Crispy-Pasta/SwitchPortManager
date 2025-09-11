@@ -1105,6 +1105,7 @@ class VLANManager:
                         link_state_found = False
                         
                         # Method 1: Look for explicit "Up" or "Down" in Link State column
+                        # Also check for common Dell patterns like "Auto Up", "Auto Down", etc.
                         for i, col in enumerate(columns):
                             col_stripped = col.strip()
                             col_lower = col_stripped.lower()
@@ -1113,11 +1114,30 @@ class VLANManager:
                             if col_lower in ['up', 'connected']:
                                 port_up = True
                                 link_state_found = True
+                                logger.info(f"Found explicit UP state: '{col_stripped}'")
                                 break
                             elif col_lower in ['down', 'notconnect', 'nolink', 'disabled']:
                                 port_up = False
                                 link_state_found = True
+                                logger.info(f"Found explicit DOWN state: '{col_stripped}'")
                                 break
+                        
+                        # Method 1.5: Look for compound indicators like "Auto Up", "Auto Down"
+                        if not link_state_found:
+                            line_words = original_line.split()
+                            for i in range(len(line_words) - 1):
+                                if line_words[i].lower() == 'auto' and i + 1 < len(line_words):
+                                    next_word = line_words[i + 1].lower()
+                                    if next_word == 'up':
+                                        port_up = True
+                                        link_state_found = True
+                                        logger.info(f"Found compound UP state: '{line_words[i]} {line_words[i + 1]}'")
+                                        break
+                                    elif next_word in ['down', 'notconnect']:
+                                        port_up = False
+                                        link_state_found = True
+                                        logger.info(f"Found compound DOWN state: '{line_words[i]} {line_words[i + 1]}'")
+                                        break
                         
                         # Method 2: If no explicit state found, look for speed + duplex combination
                         if not link_state_found:
@@ -1169,17 +1189,22 @@ class VLANManager:
                                     link_state_found = True
                                     break
                         
-                        # Method 4: Final fallback - heuristic analysis
+                        # Method 4: Final fallback - safer heuristic analysis
                         if not link_state_found:
                             line_content = original_line.lower()
-                            if 'up' in line_content and 'down' not in line_content:
+                            
+                            # Be more precise: look for UP/DOWN in likely positions
+                            if ' up ' in line_content or line_content.endswith(' up'):
                                 port_up = True
-                            elif 'down' in line_content or 'notconnect' in line_content:
+                                logger.info(f"Found UP via text search in: '{original_line[:50]}...'")
+                            elif any(down_word in line_content for down_word in [' down ', ' notconnect', ' disabled']):
                                 port_up = False
+                                logger.info(f"Found DOWN via text search in: '{original_line[:50]}...'")
                             else:
-                                # Default to DOWN if we can't determine
+                                # CRITICAL FIX: Default to DOWN when status is unclear
+                                # This prevents false positives where ports appear UP when they're DOWN
                                 port_up = False
-                                logger.warning(f"Port {port_name} status unclear, defaulting to DOWN")
+                                logger.warning(f"Port {port_name} status unclear from: '{original_line[:50]}...', defaulting to DOWN for safety")
                         
                         # Look for mode indicator (A=Access, T=Trunk, G=General)
                         for i, col in enumerate(columns):
@@ -1501,15 +1526,22 @@ class VLANManager:
             
             # Heuristic fallback for link state if not explicitly found
             if not link_state_found:
-                # Look for speed and duplex indicators
-                has_speed_duplex = any(
-                    re.match(r'^(10|100|1000|10000)$', col.strip()) or 
-                    col.strip().lower() in ['full', 'half']
-                    for col in columns
-                )
+                # CRITICAL FIX: Look for "Down", "notconnect", etc. in the text first
+                line_content = line.lower()
                 
-                # If we have speed/duplex info, assume UP; otherwise assume DOWN
-                port_up = has_speed_duplex
+                # Check for UP indicators (be precise about positioning)
+                if ' up ' in line_content or line_content.endswith(' up'):
+                    port_up = True
+                # Check for DOWN indicators (broader search as these can appear in various forms)
+                elif any(down_indicator in line_content for down_indicator in 
+                        [' down ', ' notconnect', ' disabled', ' nolink', 'err-disabled']):
+                    port_up = False
+                else:
+                    # REMOVED THE BUGGY HEURISTIC: Don't assume UP based on speed/duplex
+                    # Dell switches show speed/duplex even for DOWN ports!
+                    # Always default to DOWN when status is unclear for safety
+                    port_up = False
+                    logger.warning(f"Port {port_name} status unclear from bulk parse, defaulting to DOWN for safety")
             
             return {
                 'port': port_name,
