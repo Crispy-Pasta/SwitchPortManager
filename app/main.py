@@ -3253,7 +3253,7 @@ LOGIN_TEMPLATE = r"""
     </style>
 </head>
 <body class="login-page">
-    <div class="version-badge">v2.1.8</div>
+    <div class="version-badge">v{{ get_version() }}</div>
     
     <div class="login-container">
         <div class="logo-section">
@@ -3436,7 +3436,7 @@ def health_check():
         
         return jsonify({
             'status': 'healthy',
-            'version': '2.1.8',
+            'version': get_version(),
             'timestamp': datetime.now().isoformat(),
             'sites_count': site_count,
             'windows_auth': WINDOWS_AUTH_AVAILABLE

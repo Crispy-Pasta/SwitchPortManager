@@ -7,7 +7,9 @@ set -e
 # This script initializes the database and starts the application
 # in a containerized environment with proper error handling.
 
-echo "🚀 Starting Dell Switch Port Tracer v2.1.8..."
+# Get version dynamically from the application
+APP_VERSION=$(python get_version.py 2>/dev/null || echo "Unknown")
+echo "🚀 Starting Dell Switch Port Tracer v${APP_VERSION}..."
 echo "=================================================="
 
 # Function to log messages with timestamps
