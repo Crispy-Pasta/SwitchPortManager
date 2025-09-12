@@ -4090,10 +4090,19 @@ def api_change_port_vlan_advanced():
         username = session['username']
         
         # Validate required fields are present
-        required_fields = ['switch_id', 'ports', 'vlan_id']
+        required_fields = ['switch_id', 'ports', 'vlan_id', 'workflow_type']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Validate workflow_type parameter
+        workflow_type = data.get('workflow_type')
+        if workflow_type not in ['onboarding', 'offboarding']:
+            return jsonify({
+                'error': 'Invalid workflow_type',
+                'details': 'workflow_type must be either "onboarding" or "offboarding"',
+                'valid_types': ['onboarding', 'offboarding']
+            }), 400
         
         # Import enterprise-grade validation functions from VLAN Manager v2
         from app.core.vlan_manager import (is_valid_port_input, is_valid_port_description, 
@@ -4172,6 +4181,7 @@ def api_change_port_vlan_advanced():
             ports_input=ports_input,        # Validated port format
             description=description,         # Sanitized description
             vlan_id=vlan_id,                # Validated VLAN ID
+            workflow_type=workflow_type,    # Validated workflow type
             vlan_name=vlan_name,            # Validated VLAN name
             force_change=force_change,
             skip_non_access=skip_non_access,

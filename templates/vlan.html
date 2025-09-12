@@ -556,6 +556,22 @@
                     </div>
                 </div>
 
+                <!-- Workflow Type Selection -->
+                <div class="form-row">
+                    <div class="form-group compact">
+                        <label for="workflow_type_select">🔄 Workflow Type *</label>
+                        <select id="workflow_type_select" name="workflow_type" required>
+                            <option value="">Select workflow type...</option>
+                            <option value="onboarding">🟢 Onboarding - Enable Ports</option>
+                            <option value="offboarding">🔴 Offboarding - Shutdown Ports</option>
+                        </select>
+                        <div class="help-text">
+                            <strong>Onboarding:</strong> After VLAN assignment, ports will be administratively enabled<br>
+                            <strong>Offboarding:</strong> After VLAN assignment, ports will be administratively shutdown
+                        </div>
+                    </div>
+                </div>
+
                 <!-- VLAN Configuration -->
                 <div style="display: flex; align-items: flex-start; gap: 24px; margin-bottom: 20px;">
                     <div style="flex: 0 0 110px;">
@@ -1142,6 +1158,7 @@
             const switchId = $('#switch_select').val();
             const ports = $('#ports_input').val().trim();
             const description = $('#description_input').val().trim();
+            const workflowType = $('#workflow_type_select').val();
             const vlanIdInput = $('#vlan_id_input').val();
             const vlanId = parseInt(vlanIdInput);
             const vlanName = $('#vlan_name_input').val().trim();
@@ -1159,6 +1176,13 @@
             if (!description) {
                 showAlert('⚠️', 'Description Required', 'Please enter a description for the port configuration.');
                 setTimeout(() => $('#description_input').focus(), 300);
+                return false;
+            }
+            
+            // Workflow Type validation
+            if (!workflowType) {
+                showAlert('⚠️', 'Workflow Type Required', 'Please select a workflow type (Onboarding or Offboarding).');
+                setTimeout(() => $('#workflow_type_select').focus(), 300);
                 return false;
             }
             
@@ -1198,6 +1222,7 @@
                 switch_id: parseInt($('#switch_select').val()),
                 ports: $('#ports_input').val().trim(),
                 description: $('#description_input').val().trim(),
+                workflow_type: $('#workflow_type_select').val(),
                 vlan_id: parseInt($('#vlan_id_input').val()),
                 vlan_name: $('#vlan_name_input').val().trim(),
                 force_change: $('#force_change').is(':checked'),
