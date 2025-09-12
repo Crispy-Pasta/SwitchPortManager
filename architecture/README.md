@@ -7,7 +7,7 @@ This directory contains architecture documentation and diagrams for the Dell Por
 ### 📊 [Network Team Documentation](./network-team.md)
 - **Audience**: Network administrators, network engineers
 - **Focus**: Network topology, switch connections, SSH operations, port tracing workflows, VLAN management
-- **Key Topics**: Network discovery, switch management, port tracing logic, SSH protocols, VLAN configuration
+- **Key Topics**: Network discovery, switch management, port tracing logic, SSH protocols, VLAN configuration, workflow-based operations
 
 ### 🖥️ [Server Team Documentation](./server-team.md) 
 - **Audience**: System administrators, infrastructure engineers, DevOps
@@ -23,7 +23,7 @@ This directory contains architecture documentation and diagrams for the Dell Por
 
 | Team | Primary Concerns | Key Components |
 |------|------------------|----------------|
-| **Network** | Switch connectivity, SSH operations, port tracing accuracy, VLAN management | Switches, SSH, Network topology, VLAN configuration |
+|| **Network** | Switch connectivity, SSH operations, port tracing accuracy, VLAN management | Switches, SSH, Network topology, VLAN configuration, Workflow management |
 | **Server** | Infrastructure, deployment, security, monitoring | Docker, PostgreSQL, nginx, AD |
 | **Development** | Code architecture, APIs, data models, user experience | Flask app, database, frontend, authentication |
 
@@ -37,7 +37,7 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 - **Session Management**: Proactive session timeout warnings, cross-tab state management, and graceful session expiration handling
 - **Infrastructure**: Docker containerized deployment with nginx reverse proxy
 - **Network Integration**: SSH-based switch communication with comprehensive Dell switch model support
-- **VLAN Manager**: Enterprise-grade VLAN configuration and port management system
+- **VLAN Manager**: Enterprise-grade VLAN configuration and port management system with workflow-based operations (onboarding/offboarding)
 - **Security Framework**: Multi-layer input validation and command injection prevention
 
 ## Getting Started
@@ -49,7 +49,7 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 
 ## Version Information
 
-- **Application Version**: 2.1.5
+- **Application Version**: 2.2.0
 - **Architecture**: 3-Container Production Setup (app, nginx, postgres)
 - **Database**: PostgreSQL with persistent named volumes
 - **Deployment**: Docker Compose with SSL/HTTPS support
@@ -58,4 +58,5 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 - **Backup**: Automated backup and rollback with deploy-safe.sh
 - **Session Timeout**: 5-minute configurable timeout with user-friendly warning system
 - **Frontend Enhancements**: JavaScript-based session state management and keep-alive functionality
-- **Last Updated**: August 20, 2025
+- **Workflow Management**: Structured onboarding and offboarding workflows with port enable/disable automation
+- **Last Updated**: September 12, 2025
