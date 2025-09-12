@@ -13,8 +13,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Validate branch/tag combination
+        run: |
+          echo "Branch ref: $GITHUB_REF"
+          echo "Base ref:   ${{ github.event.base_ref }}"
+          # Fail unless:
+          # - development branch push
+          # - production tag from main
+          # - alpha tag from staging
+          if [[ "$GITHUB_REF" == "refs/heads/development" ]]; then
+            echo "Development push → OK"
+          elif [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF}" != *-alpha && "${{ github.event.base_ref }}" == "refs/heads/main" ]]; then
+            echo "Production tag from main → OK"
+          elif [[ "$GITHUB_REF" == *-alpha && "${{ github.event.base_ref }}" == "refs/heads/staging" ]]; then
+            echo "Staging tag from staging → OK"
+          else
+            echo "❌ Invalid branch/tag combination!"
+            exit 1    # <<<— Force failure
+          fi
+
+      - uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -23,35 +41,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
       # ---- PRODUCTION BUILD ----
-      - name: Build and push Docker image (production)
-        if: startsWith(github.ref, 'refs/tags/v') && !endsWith(github.ref, '-alpha') && github.event.base_ref == 'refs/heads/main'
+      - name: Build prod image
+        if: startsWith(github.ref, 'refs/tags/v') && !endsWith(github.ref, '-alpha')
         uses: docker/build-push-action@v6
         with:
           file: ./Dockerfile
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # ---- STAGING BUILD ----
-      - name: Build and push Docker image (staging)
-        if: endsWith(github.ref, '-alpha') && github.event.base_ref == 'refs/heads/staging'
+      - name: Build staging image
+        if: endsWith(github.ref, '-alpha')
         uses: docker/build-push-action@v6
         with:
           file: ./Dockerfile.staging
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       # ---- DEVELOPMENT BUILD ----
-      - name: Build and push Docker image (development)
+      - name: Build dev image
         if: github.ref == 'refs/heads/development'
         uses: docker/build-push-action@v6
         with:
@@ -59,5 +72,3 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:dev-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
