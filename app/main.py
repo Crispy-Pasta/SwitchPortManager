@@ -3400,9 +3400,9 @@ def login():
             return redirect(url_for('index'))
         else:
             audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
+            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials", get_version=get_version)
     
-    return render_template_string(LOGIN_TEMPLATE)
+    return render_template_string(LOGIN_TEMPLATE, get_version=get_version)
 
 @app.route('/logout')
 def logout():
