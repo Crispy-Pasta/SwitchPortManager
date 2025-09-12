@@ -4,12 +4,12 @@
 
 This documentation targets software developers and application architects, focusing on the application architecture, code structure, APIs, and data flow of the Dell Port Tracer.
 
-## Application Architecture Diagram (v2.1.3)
+## Application Architecture Diagram (v2.2.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│               APPLICATION ARCHITECTURE v2.1.3                   │
-│                   3-Container Production Stack                   │
+│               APPLICATION ARCHITECTURE v2.2.0                   │
+│          3-Container Stack with Workflow-Based VLAN Mgmt        │
 └─────────────────────────────────────────────────────────────────┘
 
           ┌──────────────────────────────────────────┐
@@ -41,7 +41,8 @@ This documentation targets software developers and application architects, focus
           │    • Role-based Access Control             │
           │    • Port Tracing Logic                     │
           │    • MAC Address Processing                 │
-          │    • Sidebar Height Fix (min-height:400px) │
+          │    • Workflow-Based VLAN Management        │
+          │    • Onboarding/Offboarding Workflows      │
           └─────────────────────────┬───────────────────┘
                       PostgreSQL     │
                       Connection     │
@@ -67,63 +68,76 @@ This documentation targets software developers and application architects, focus
 
 ## Code Structure
 
-### Project Layout (v2.1.3)
+### Project Layout (v2.2.0)
 
 ```
 DellPortTracer/
-├── port_tracer_web.py          # Main Flask application
-├── templates/
-│   └── index.html              # Single-page application template
-├── static/
+├── run.py                      # Application entry point
+├── app/                        # Main application package
+│   ├── __init__.py             # Application factory
+│   ├── main.py                 # Main Flask application
+│   ├── auth/                   # Authentication module
+│   │   └── auth.py             # AD/LDAP authentication
+│   ├── core/                   # Core business logic
+│   │   ├── database.py         # Database models and setup
+│   │   ├── switch_manager.py   # Switch SSH connections
+│   │   ├── vlan_manager.py     # VLAN workflow management
+│   │   └── utils.py            # Utility functions
+│   ├── api/                    # API routes
+│   │   └── routes.py           # REST API endpoints
+│   └── monitoring/             # System monitoring
+│       ├── cpu_monitor.py      # CPU usage monitoring
+│       └── switch_monitor.py   # Switch protection
+├── templates/                  # Jinja2 templates
+│   ├── auth/
+│   │   └── login.html          # Login page
+│   ├── vlan.html               # VLAN management interface
+│   └── inventory.html          # Switch inventory page
+├── static/                     # Static assets
 │   ├── css/
-│   │   └── style.css           # Main stylesheet with sidebar fixes
-│   └── js/
-│       └── app.js              # Frontend JavaScript with jQuery
+│   │   ├── styles.css          # Main stylesheet
+│   │   └── navigation.css      # Navigation styles
+│   ├── js/
+│   │   └── main.js             # Frontend JavaScript
+│   └── img/                    # Images and icons
 ├── tools/                      # Debug and maintenance scripts
-│   ├── test_ldap_connection.py # LDAP connectivity tester
-│   ├── test_ad_auth.py         # AD authentication tester
-│   ├── nginx_fix.py            # nginx configuration fix
-│   └── debug_env.py            # Environment variable debug
-├── docs/
-│   ├── README.md               # Updated deployment documentation
-│   └── troubleshooting.md      # Docker/SSL troubleshooting guide
+├── docs/                       # Documentation
 ├── architecture/               # Architecture documentation
-│   ├── dev-team.md             # Development team architecture
-│   └── network-team.md         # Network team architecture
-├── nginx/                      # nginx configuration
-│   └── nginx.conf              # SSL/proxy configuration
-├── init_db.py                  # Database initialization script
-├── migrate_data.py             # SQLite to PostgreSQL migration
-├── Dockerfile                  # Docker container definition
-├── docker-compose.yml          # 3-container production stack
+│   ├── dev-team.md             # Development team docs
+│   ├── network-team.md         # Network team docs
+│   └── server-team.md          # Server team docs
 ├── scripts/                    # Deployment automation
-│   ├── deploy.sh               # Safe deployment script
-│   ├── backup.sh               # Database backup script
-│   └── ssl-setup.sh            # SSL certificate setup
+├── k8s/                        # Kubernetes manifests
+├── tests/                      # Test cases
+├── Dockerfile                  # Docker container definition
+├── docker-compose.yml          # Development compose
+├── pyproject.toml              # Project configuration
 ├── requirements.txt            # Python dependencies
-└── .env.example               # Environment variable template
+└── .env.example               # Environment template
 ```
 
 ### Key Components
 
-- **`port_tracer_web.py`**: Main Flask application with all routes and business logic
-- **`templates/index.html`**: Single-page application with embedded template logic
-- **`static/`**: CSS and JavaScript assets for the frontend
+- **`run.py`**: Application entry point for development and production
+- **`app/main.py`**: Main Flask application with routes and business logic
+- **`app/core/vlan_manager.py`**: Workflow-based VLAN management system
+- **`app/core/switch_manager.py`**: Dell switch SSH connection management
+- **`app/core/database.py`**: Database models and initialization
+- **`templates/`**: Jinja2 templates for web pages
+- **`static/`**: CSS, JavaScript, and image assets
 - **`tools/`**: Debugging and maintenance utilities
-- **`init_db.py`**: Database schema initialization
-- **`migrate_data.py`**: Data migration utilities
 
 ## Data Flow
 
-### API Endpoints (v2.1.3)
+### API Endpoints (v2.2.0)
 
 1. **Authentication**:
-   - `POST /api/login` - User authentication via Windows AD/LDAP
-   - `POST /api/logout` - Session termination
+   - `POST /login` - User authentication via Windows AD/LDAP
+   - `POST /logout` - Session termination
    - `GET /api/user` - Current user information
 
 2. **Port Tracing**:
-   - `POST /api/trace_port` - Trace a MAC address through the network
+   - `POST /trace` - Trace a MAC address through the network
    - `GET /api/trace_history` - View port trace history
    - `DELETE /api/trace/{id}` - Delete a specific trace record
 
@@ -134,7 +148,23 @@ DellPortTracer/
    - `DELETE /api/switches/{id}` - Remove switch
    - `GET /api/switches/{id}/ports` - Get switch port information
 
-4. **System Health**:
+4. **Site & Floor Management**:
+   - `GET /api/sites` - List all sites with floors
+   - `POST /api/sites` - Create new site
+   - `PUT /api/sites/{id}` - Update site information
+   - `DELETE /api/sites/{id}` - Delete site (cascade)
+   - `POST /api/floors` - Create new floor
+   - `PUT /api/floors/{id}` - Update floor information
+   - `DELETE /api/floors/{id}` - Delete floor (cascade)
+
+5. **VLAN Management (Workflow-Based) - v2.2.0**:
+   - `POST /api/vlan/workflow` - Execute VLAN workflow operations
+   - `POST /api/vlan/preview` - Preview VLAN changes before execution
+   - `GET /api/vlan/history` - View VLAN change audit log
+   - `GET /api/switch/{id}/vlans` - List VLANs on specific switch
+   - `GET /api/switch/{id}/ports/status` - Get detailed port status
+
+6. **System Health**:
    - `GET /health` - Application health check
    - `GET /api/system/status` - Detailed system status
    - `GET /api/system/stats` - Usage statistics

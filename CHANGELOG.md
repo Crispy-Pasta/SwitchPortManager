@@ -1,5 +1,54 @@
 # Changelog
 
+## [2.2.0] - 2025-09-12
+
+### ✨ **Workflow-Based VLAN Management**
+- **Structured Workflows**: Introduced workflow-based VLAN management operations for consistent port management
+  - 🟢 **Onboarding Workflow**: Enable Ports workflow for new user setup and port activation processes
+  - 🔴 **Offboarding Workflow**: Shutdown Ports workflow for user departures and port deactivation processes
+- **Enhanced User Interface**: Streamlined VLAN Manager form with workflow type selection
+  - Compact workflow type dropdown with visual emoji indicators
+  - Dynamic contextual help text that updates based on selected workflow type
+  - Improved form layout with cleaner spacing and professional appearance
+  - Removed parentheses from workflow options for cleaner, more concise interface
+
+### 🎨 **Select2 Dropdown UI Enhancements**
+- **Professional Styling**: Comprehensive Select2 dropdown styling improvements for consistent user experience
+  - **Smart Color Management**: Intelligent differentiation between placeholder text (light gray) and selected values (dark text)
+  - **Text Alignment**: Proper vertical centering and alignment for all dropdown text elements
+  - **Search Optimization**: Workflow Type dropdown search disabled (only 2 options), Target Switch maintains search functionality
+  - **Cross-Browser Consistency**: Enhanced CSS specificity and JavaScript fallbacks for uniform appearance
+- **Enhanced User Experience**: Professional, consistent interface design across all Select2 elements
+  - Real-time styling updates when selections change
+  - Improved readability with proper contrast ratios
+  - Consistent behavior across different browsers and devices
+  - Event-driven styling ensures persistent visual consistency
+
+### 🎯 **VLAN Manager Improvements**
+- **Frontend Enhancements**:
+  - Workflow type dropdown integration with backend parameter passing
+  - Enhanced form validation with workflow-specific guidance
+  - Improved visual design and user experience consistency
+- **Backend Integration**:
+  - Workflow type parameter passed through all VLAN management operations
+  - Enhanced audit logging with workflow context for compliance tracking
+  - Workflow-aware error handling and validation messages
+
+### 📚 **Documentation Updates**
+- **Updated README.md**: Comprehensive documentation of workflow type feature with examples
+- **Version Updates**: Updated version badges and references across codebase to v2.2.0
+- **Enhanced Changelog**: Detailed feature documentation with technical implementation details
+
+### 🔧 **Technical Improvements**
+- **Code Organization**: Enhanced frontend JavaScript for workflow type handling
+- **Version Centralization**: Implemented single source of truth for version management
+  - Centralized version definition in `app/__init__.py` with `__version__ = "2.2.0"`
+  - Created `get_version.py` utility script for programmatic version access
+  - Eliminated version duplication across multiple files for consistency
+  - Enhanced version management for automated builds and deployments
+- **Version Management**: Updated version references in main.py, run.py, and documentation
+- **Form Optimization**: Improved form structure and styling for workflow selection
+
 ## [2.1.8] - 2025-01-09
 
 ### 🛠️ Performance & Logging Improvements

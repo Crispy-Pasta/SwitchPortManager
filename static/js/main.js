@@ -5,8 +5,8 @@
  * Handles MAC address tracing, form validation, and UI interactions
  * for the main port tracer interface.
  * 
- * Version: 2.1.3
- * Updated: August 2025
+ * Version: 2.2.0
+ * Updated: September 2025
  */
 
 class PortTracer {

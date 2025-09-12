@@ -290,4 +290,5 @@ def get_version() -> str:
     Returns:
         str: Application version string
     """
-    return "2.1.8"
+    from app import __version__
+    return __version__

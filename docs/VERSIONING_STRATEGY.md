@@ -4,10 +4,46 @@
 
 ### Git Tag History
 ```
-v2.2.0     (future - major refactoring)
-v2.1.5  ← Latest tagged release (session timeout enhancements)
+v2.2.0  ← Current Version (workflow-based VLAN management + UI enhancements)
+v2.1.5     (session timeout enhancements)
 v2.1.4     (VLAN management interface optimization) 
 v2.1.2     (enhanced security features)
+```
+
+## 🎯 **Version Centralization Implementation**
+
+### Single Source of Truth
+As of v2.2.0, version management has been centralized to ensure consistency across all components:
+
+**Primary Version Source**: `app/__init__.py`
+```python
+__version__ = "2.2.0"
+```
+
+**Utility Script**: `get_version.py`
+```python
+#!/usr/bin/env python3
+# Programmatic access to version without importing modules
+# Used by shell scripts and automated builds
+```
+
+### Benefits
+- ✅ **No Version Duplication**: Single location for version definition
+- ✅ **Automated Build Support**: Scripts can query version programmatically
+- ✅ **Import Safety**: Version accessible without full module imports
+- ✅ **Consistency Guarantee**: All references point to same source
+
+### Usage Examples
+```bash
+# Get version from command line
+python get_version.py
+
+# Use in shell scripts
+VERSION=$(python get_version.py)
+echo "Building version $VERSION"
+
+# Docker builds can use this for tagging
+docker build -t app:$(python get_version.py) .
 ```
 
 ### Current Situation

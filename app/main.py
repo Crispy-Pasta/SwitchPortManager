@@ -85,7 +85,7 @@ from app.core.switch_manager import (
     get_port_caution_info, parse_mac_table_output, trace_single_switch
 )
 from app.core.utils import (
-    is_valid_mac, get_mac_format_error_message, format_switches_for_frontend,
+    is_valid_mac, get_mac_format_error_message, format_switches_for_frontend, get_version,
     get_site_floor_switches, apply_role_based_filtering, load_switches_from_database
 )
 from app.api.routes import api_bp
@@ -3253,7 +3253,7 @@ LOGIN_TEMPLATE = r"""
     </style>
 </head>
 <body class="login-page">
-    <div class="version-badge">v2.1.8</div>
+    <div class="version-badge">v{{ get_version() }}</div>
     
     <div class="login-container">
         <div class="logo-section">
@@ -3400,9 +3400,9 @@ def login():
             return redirect(url_for('index'))
         else:
             audit_logger.warning(f"User: {username} - LOGIN FAILED")
-            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials")
+            return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials", get_version=get_version)
     
-    return render_template_string(LOGIN_TEMPLATE)
+    return render_template_string(LOGIN_TEMPLATE, get_version=get_version)
 
 @app.route('/logout')
 def logout():
@@ -3436,7 +3436,7 @@ def health_check():
         
         return jsonify({
             'status': 'healthy',
-            'version': '2.1.8',
+            'version': get_version(),
             'timestamp': datetime.now().isoformat(),
             'sites_count': site_count,
             'windows_auth': WINDOWS_AUTH_AVAILABLE
@@ -4090,10 +4090,19 @@ def api_change_port_vlan_advanced():
         username = session['username']
         
         # Validate required fields are present
-        required_fields = ['switch_id', 'ports', 'vlan_id']
+        required_fields = ['switch_id', 'ports', 'vlan_id', 'workflow_type']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Validate workflow_type parameter
+        workflow_type = data.get('workflow_type')
+        if workflow_type not in ['onboarding', 'offboarding']:
+            return jsonify({
+                'error': 'Invalid workflow_type',
+                'details': 'workflow_type must be either "onboarding" or "offboarding"',
+                'valid_types': ['onboarding', 'offboarding']
+            }), 400
         
         # Import enterprise-grade validation functions from VLAN Manager v2
         from app.core.vlan_manager import (is_valid_port_input, is_valid_port_description, 
@@ -4172,6 +4181,7 @@ def api_change_port_vlan_advanced():
             ports_input=ports_input,        # Validated port format
             description=description,         # Sanitized description
             vlan_id=vlan_id,                # Validated VLAN ID
+            workflow_type=workflow_type,    # Validated workflow type
             vlan_name=vlan_name,            # Validated VLAN name
             force_change=force_change,
             skip_non_access=skip_non_access,
@@ -4449,19 +4459,15 @@ def api_check_port_status():
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     # Set up request timeout handling to prevent 504 Gateway Timeout errors
-    import signal
+    # Note: Using threading-based timeout instead of signals for Windows compatibility
     import threading
-    
-    def timeout_handler(signum, frame):
-        raise TimeoutError("Port status request timed out")
+    import time
     
     # Set a 45-second timeout for the entire request (before reaching gateway timeout)
     request_timeout = 45
+    request_start_time = time.time()
     
     try:
-        # Start request timer
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(request_timeout)
         
         from app.core.vlan_manager import VLANManager, is_valid_port_input, get_port_format_error_message
         data = request.json
@@ -4545,30 +4551,27 @@ def api_check_port_status():
             # Always ensure secure disconnection from switch
             vlan_manager.disconnect()
             
-    except TimeoutError:
-        # Handle request timeout to prevent 504 Gateway Timeout errors
-        logger.warning(f"Port status request timed out after {request_timeout}s - Switch ID: {switch_id}, Ports: {ports_input}")
-        audit_logger.warning(f"User: {username} - PORT STATUS TIMEOUT - Switch ID: {switch_id}, Ports: {ports_input}, Timeout: {request_timeout}s")
-        return jsonify({
-            'error': 'Request timeout',
-            'message': f'Port status check timed out after {request_timeout} seconds. This may be due to a large port range or slow switch response.',
-            'timeout_seconds': request_timeout,
-            'suggestion': 'Try checking fewer ports at once or contact system administrator if the switch is experiencing issues.'
-        }), 408  # Request Timeout
-        
     except Exception as e:
-        # Log unexpected errors for security monitoring and debugging
-        logger.error(f"Port status API unexpected error: {str(e)}")
-        audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id}, Ports: {ports_input}, Error: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-    finally:
-        # Always clean up the alarm signal
-        try:
-            signal.alarm(0)  # Cancel any pending alarm
-            if 'old_handler' in locals():
-                signal.signal(signal.SIGALRM, old_handler)  # Restore original signal handler
-        except Exception as cleanup_error:
-            logger.warning(f"Error cleaning up timeout handler: {cleanup_error}")
+        # Check if we've exceeded the timeout
+        elapsed_time = time.time() - request_start_time
+        if elapsed_time > request_timeout:
+            # Handle request timeout to prevent 504 Gateway Timeout errors
+            logger.warning(f"Port status request timed out after {elapsed_time:.1f}s - Switch ID: {switch_id if 'switch_id' in locals() else 'unknown'}, Ports: {ports_input if 'ports_input' in locals() else 'unknown'}")
+            audit_logger.warning(f"User: {username} - PORT STATUS TIMEOUT - Switch ID: {switch_id if 'switch_id' in locals() else 'unknown'}, Ports: {ports_input if 'ports_input' in locals() else 'unknown'}, Timeout: {elapsed_time:.1f}s")
+            return jsonify({
+                'error': 'Request timeout',
+                'message': f'Port status check timed out after {elapsed_time:.1f} seconds. This may be due to a large port range or slow switch response.',
+                'timeout_seconds': elapsed_time,
+                'suggestion': 'Try checking fewer ports at once or contact system administrator if the switch is experiencing issues.'
+            }), 408  # Request Timeout
+        else:
+            # Log unexpected errors for security monitoring and debugging
+            logger.error(f"Port status API unexpected error: {str(e)}")
+            # Use safer variable access to avoid UnboundLocalError
+            switch_id_safe = switch_id if 'switch_id' in locals() else 'unknown'
+            ports_input_safe = ports_input if 'ports_input' in locals() else 'unknown'
+            audit_logger.error(f"User: {session.get('username', 'unknown')} - PORT STATUS API ERROR - Switch ID: {switch_id_safe}, Ports: {ports_input_safe}, Error: {str(e)}")
+            return jsonify({'error': 'Internal server error'}), 500
 
 
 def create_app():
