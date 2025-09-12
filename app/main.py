@@ -85,7 +85,7 @@ from app.core.switch_manager import (
     get_port_caution_info, parse_mac_table_output, trace_single_switch
 )
 from app.core.utils import (
-    is_valid_mac, get_mac_format_error_message, format_switches_for_frontend,
+    is_valid_mac, get_mac_format_error_message, format_switches_for_frontend, get_version,
     get_site_floor_switches, apply_role_based_filtering, load_switches_from_database
 )
 from app.api.routes import api_bp
