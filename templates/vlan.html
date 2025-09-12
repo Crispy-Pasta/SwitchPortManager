@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced VLAN Management - Dell Switch Port Tracer</title>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}?v=1.1">
     <style>
         :root {
             --deep-navy: #001738;
@@ -111,6 +111,12 @@
             transition: border-color 0.3s;
             box-sizing: border-box;
         }
+        /* Browser default placeholder styling */
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #9ca3af;
+            opacity: 1;
+        }
         .form-group.compact input, .form-group.compact select {
             max-width: 350px;
         }
@@ -133,10 +139,54 @@
             border: 2px solid #ddd !important;
             border-radius: 8px !important;
         }
-        .vlan-form .select2-container--default .select2-selection--single .select2-selection__rendered {
+        /* Select2 base styling - proper text alignment and padding */
+        body .container .form-section .vlan-form .select2-container .select2-selection--single,
+        body #switch_select + .select2-container .select2-selection--single,
+        body #workflow_type_select + .select2-container .select2-selection--single {
+            height: 48px !important;
+            line-height: 48px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        
+        /* Select2 rendered text - only style placeholders, not selected values */
+        body .container .form-section .vlan-form .select2-container--default .select2-selection--single .select2-selection__rendered,
+        body .container .form-section .vlan-form .select2-container .select2-selection--single .select2-selection__rendered,
+        body #switch_select + .select2-container .select2-selection__rendered,
+        body #workflow_type_select + .select2-container .select2-selection__rendered {
             padding-left: 12px !important;
             padding-right: 40px !important;
-            color: #333 !important;
+            font-weight: 400 !important;
+            opacity: 1 !important;
+            line-height: normal !important;
+            color: inherit !important; /* Don't override selected text color */
+        }
+        
+        /* Only style placeholder text, not selected values */
+        body .container .form-section .vlan-form .select2-container--default .select2-selection--single .select2-selection__placeholder,
+        body .container .form-section .vlan-form .select2-container .select2-selection--single .select2-selection__placeholder,
+        body #switch_select + .select2-container .select2-selection__placeholder,
+        body #workflow_type_select + .select2-container .select2-selection__placeholder {
+            color: #9ca3af !important;
+            font-weight: 400 !important;
+            opacity: 1 !important;
+            line-height: normal !important;
+        }
+        
+        /* Target placeholder text by title attribute */
+        body .container .select2-container--default .select2-selection--single .select2-selection__rendered[title*="Select"],
+        body .container .select2-container--default .select2-selection--single .select2-selection__rendered[title*="Search"] {
+            color: #9ca3af !important;
+            font-weight: 400 !important;
+            opacity: 1 !important;
+            line-height: normal !important;
+        }
+        
+        /* Ensure selected text has normal color */
+        body .container .form-section .vlan-form .select2-container .select2-selection__rendered:not([title*="Select"]):not([title*="Search"]),
+        body #switch_select + .select2-container .select2-selection__rendered:not([title*="Select"]):not([title*="Search"]),
+        body #workflow_type_select + .select2-container .select2-selection__rendered:not([title*="Select"]):not([title*="Search"]) {
+            color: #2c3e50 !important;
         }
         .vlan-form .select2-dropdown {
             border: 2px solid #3498db !important;
@@ -556,6 +606,22 @@
                     </div>
                 </div>
 
+                <!-- Workflow Type Selection -->
+                <div class="form-row">
+                    <div class="form-group compact">
+                        <label for="workflow_type_select">🔄 Workflow Type *</label>
+                        <select id="workflow_type_select" name="workflow_type" required>
+                            <option value="">Select workflow type...</option>
+                            <option value="onboarding">🟢 Onboarding - Enable Ports</option>
+                            <option value="offboarding">🔴 Offboarding - Shutdown Ports</option>
+                        </select>
+                        <div class="help-text">
+                            <strong>Onboarding:</strong> After VLAN assignment, ports will be administratively enabled<br>
+                            <strong>Offboarding:</strong> After VLAN assignment, ports will be administratively shutdown
+                        </div>
+                    </div>
+                </div>
+
                 <!-- VLAN Configuration -->
                 <div style="display: flex; align-items: flex-start; gap: 24px; margin-bottom: 20px;">
                     <div style="flex: 0 0 110px;">
@@ -746,13 +812,64 @@
                 placeholder: 'Search and select a switch...',
                 width: '350px',
                 dropdownAutoWidth: true
+            }).on('select2:select select2:unselect', function() {
+                // Re-apply styling after selection changes
+                setTimeout(forceSelect2PlaceholderStyling, 50);
             });
+            
+            // Initialize Select2 for workflow type selection (no search since only 2 options)
+            $('#workflow_type_select').select2({
+                placeholder: 'Select workflow type...',
+                width: '350px',
+                dropdownAutoWidth: true,
+                minimumResultsForSearch: Infinity // Disable search box
+            }).on('select2:select select2:unselect', function() {
+                // Re-apply styling after selection changes
+                setTimeout(forceSelect2PlaceholderStyling, 50);
+            });
+            
+            // Force consistent placeholder styling after Select2 initialization
+            setTimeout(function() {
+                forceSelect2PlaceholderStyling();
+            }, 200);
             
             // Load switches
             loadSwitches();
             
             // Bind events
             bindEvents();
+        }
+        
+        function forceSelect2PlaceholderStyling() {
+            // Force consistent styling for Select2 placeholders using JavaScript
+            const placeholderColor = '#9ca3af';
+            const selectedTextColor = '#2c3e50';
+            
+            // Only target elements with placeholder text (title attributes containing "Select" or "Search")
+            $('[title*="Select"], [title*="Search"]').each(function() {
+                if ($(this).hasClass('select2-selection__rendered')) {
+                    $(this).css({
+                        'color': placeholderColor + ' !important',
+                        'font-weight': '400',
+                        'opacity': '1'
+                    });
+                }
+            });
+            
+            // Make sure selected values have proper text color
+            $('.select2-selection__rendered').each(function() {
+                const title = $(this).attr('title');
+                // If it doesn't contain placeholder text, it's a selected value
+                if (title && !title.includes('Select') && !title.includes('Search') && title.trim() !== '') {
+                    $(this).css({
+                        'color': selectedTextColor + ' !important',
+                        'font-weight': '400',
+                        'opacity': '1'
+                    });
+                }
+            });
+            
+            console.log('Applied JavaScript-based Select2 styling - placeholders and selected values');
         }
         
         function bindEvents() {
@@ -1142,6 +1259,7 @@
             const switchId = $('#switch_select').val();
             const ports = $('#ports_input').val().trim();
             const description = $('#description_input').val().trim();
+            const workflowType = $('#workflow_type_select').val();
             const vlanIdInput = $('#vlan_id_input').val();
             const vlanId = parseInt(vlanIdInput);
             const vlanName = $('#vlan_name_input').val().trim();
@@ -1159,6 +1277,13 @@
             if (!description) {
                 showAlert('⚠️', 'Description Required', 'Please enter a description for the port configuration.');
                 setTimeout(() => $('#description_input').focus(), 300);
+                return false;
+            }
+            
+            // Workflow Type validation
+            if (!workflowType) {
+                showAlert('⚠️', 'Workflow Type Required', 'Please select a workflow type (Onboarding or Offboarding).');
+                setTimeout(() => $('#workflow_type_select').focus(), 300);
                 return false;
             }
             
@@ -1198,6 +1323,7 @@
                 switch_id: parseInt($('#switch_select').val()),
                 ports: $('#ports_input').val().trim(),
                 description: $('#description_input').val().trim(),
+                workflow_type: $('#workflow_type_select').val(),
                 vlan_id: parseInt($('#vlan_id_input').val()),
                 vlan_name: $('#vlan_name_input').val().trim(),
                 force_change: $('#force_change').is(':checked'),

@@ -200,6 +200,41 @@ def _is_valid_port_number(port_num_str):
     except ValueError:
         return False
 
+def _is_port_err_disabled(status):
+    """
+    Check if a port is err-disabled (error-disabled state).
+    
+    Err-disabled ports have been automatically disabled due to security policy violations
+    such as unauthorized MAC addresses, spanning tree violations, or other security threats.
+    These ports require manual investigation and remediation before any changes can be made.
+    
+    Args:
+        status: Port status dictionary from get_port_status() or get_bulk_port_status()
+        
+    Returns:
+        bool: True if port is err-disabled, False otherwise
+    """
+    if not status or not isinstance(status, dict):
+        return False
+    
+    # Check status field for err-disabled indicators
+    port_status = str(status.get('status', '')).lower()
+    if 'err-disabled' in port_status or 'errdisabled' in port_status:
+        return True
+    
+    # Check mode field for err-disabled indicators
+    port_mode = str(status.get('mode', '')).lower()
+    if 'err-disabled' in port_mode or 'errdisabled' in port_mode:
+        return True
+    
+    # Check raw output fields for err-disabled state
+    for field in ['raw_status_output', 'config_output', 'raw_line']:
+        field_content = str(status.get(field, '')).lower()
+        if 'err-disabled' in field_content or 'errdisabled' in field_content:
+            return True
+    
+    return False
+
 def is_valid_port_description(description):
     """
     Validate port description to prevent command injection and ensure safe content.
@@ -1105,6 +1140,7 @@ class VLANManager:
                         link_state_found = False
                         
                         # Method 1: Look for explicit "Up" or "Down" in Link State column
+                        # Also check for common Dell patterns like "Auto Up", "Auto Down", etc.
                         for i, col in enumerate(columns):
                             col_stripped = col.strip()
                             col_lower = col_stripped.lower()
@@ -1113,11 +1149,30 @@ class VLANManager:
                             if col_lower in ['up', 'connected']:
                                 port_up = True
                                 link_state_found = True
+                                logger.info(f"Found explicit UP state: '{col_stripped}'")
                                 break
                             elif col_lower in ['down', 'notconnect', 'nolink', 'disabled']:
                                 port_up = False
                                 link_state_found = True
+                                logger.info(f"Found explicit DOWN state: '{col_stripped}'")
                                 break
+                        
+                        # Method 1.5: Look for compound indicators like "Auto Up", "Auto Down"
+                        if not link_state_found:
+                            line_words = original_line.split()
+                            for i in range(len(line_words) - 1):
+                                if line_words[i].lower() == 'auto' and i + 1 < len(line_words):
+                                    next_word = line_words[i + 1].lower()
+                                    if next_word == 'up':
+                                        port_up = True
+                                        link_state_found = True
+                                        logger.info(f"Found compound UP state: '{line_words[i]} {line_words[i + 1]}'")
+                                        break
+                                    elif next_word in ['down', 'notconnect']:
+                                        port_up = False
+                                        link_state_found = True
+                                        logger.info(f"Found compound DOWN state: '{line_words[i]} {line_words[i + 1]}'")
+                                        break
                         
                         # Method 2: If no explicit state found, look for speed + duplex combination
                         if not link_state_found:
@@ -1169,17 +1224,22 @@ class VLANManager:
                                     link_state_found = True
                                     break
                         
-                        # Method 4: Final fallback - heuristic analysis
+                        # Method 4: Final fallback - safer heuristic analysis
                         if not link_state_found:
                             line_content = original_line.lower()
-                            if 'up' in line_content and 'down' not in line_content:
+                            
+                            # Be more precise: look for UP/DOWN in likely positions
+                            if ' up ' in line_content or line_content.endswith(' up'):
                                 port_up = True
-                            elif 'down' in line_content or 'notconnect' in line_content:
+                                logger.info(f"Found UP via text search in: '{original_line[:50]}...'")
+                            elif any(down_word in line_content for down_word in [' down ', ' notconnect', ' disabled']):
                                 port_up = False
+                                logger.info(f"Found DOWN via text search in: '{original_line[:50]}...'")
                             else:
-                                # Default to DOWN if we can't determine
+                                # CRITICAL FIX: Default to DOWN when status is unclear
+                                # This prevents false positives where ports appear UP when they're DOWN
                                 port_up = False
-                                logger.warning(f"Port {port_name} status unclear, defaulting to DOWN")
+                                logger.warning(f"Port {port_name} status unclear from: '{original_line[:50]}...', defaulting to DOWN for safety")
                         
                         # Look for mode indicator (A=Access, T=Trunk, G=General)
                         for i, col in enumerate(columns):
@@ -1501,15 +1561,22 @@ class VLANManager:
             
             # Heuristic fallback for link state if not explicitly found
             if not link_state_found:
-                # Look for speed and duplex indicators
-                has_speed_duplex = any(
-                    re.match(r'^(10|100|1000|10000)$', col.strip()) or 
-                    col.strip().lower() in ['full', 'half']
-                    for col in columns
-                )
+                # CRITICAL FIX: Look for "Down", "notconnect", etc. in the text first
+                line_content = line.lower()
                 
-                # If we have speed/duplex info, assume UP; otherwise assume DOWN
-                port_up = has_speed_duplex
+                # Check for UP indicators (be precise about positioning)
+                if ' up ' in line_content or line_content.endswith(' up'):
+                    port_up = True
+                # Check for DOWN indicators (broader search as these can appear in various forms)
+                elif any(down_indicator in line_content for down_indicator in 
+                        [' down ', ' notconnect', ' disabled', ' disable ', ' nolink', 'err-disabled']):
+                    port_up = False
+                else:
+                    # REMOVED THE BUGGY HEURISTIC: Don't assume UP based on speed/duplex
+                    # Dell switches show speed/duplex even for DOWN ports!
+                    # Always default to DOWN when status is unclear for safety
+                    port_up = False
+                    logger.warning(f"Port {port_name} status unclear from bulk parse, defaulting to DOWN for safety")
             
             return {
                 'port': port_name,
@@ -1840,10 +1907,273 @@ class VLANManager:
             ports.append(range_str)  # Fallback to original
         
         return ports
+    
+    def apply_workflow_shutdown_commands(self, ports, workflow_type, exclude_err_disabled=True):
+        """
+        Apply shutdown or no shutdown commands to ports based on workflow type.
+        
+        This function is designed to be called after VLAN changes are successfully completed,
+        to apply the appropriate administrative state changes for onboarding or offboarding workflows.
+        
+        Args:
+            ports: List of port names that successfully had their VLANs changed
+            workflow_type: Either "onboarding" or "offboarding"
+            exclude_err_disabled: If True, skip ports that are err-disabled (default: True)
+            
+        Returns:
+            dict: Results with shutdown commands applied, failed ports, and summary
+            
+        Workflow Types:
+            - "onboarding": Applies "no shutdown" to bring ports up after VLAN assignment
+            - "offboarding": Applies "shutdown" to disable ports after VLAN assignment
+        """
+        if not ports:
+            return {
+                'success': True,
+                'message': 'No ports provided for shutdown commands',
+                'ports_shutdown_success': [],
+                'ports_shutdown_failed': [],
+                'commands_executed': [],
+                'ranges_used': []
+            }
+        
+        if workflow_type not in ['onboarding', 'offboarding']:
+            return {
+                'success': False,
+                'message': f'Invalid workflow_type: {workflow_type}',
+                'ports_shutdown_success': [],
+                'ports_shutdown_failed': ports,
+                'commands_executed': [],
+                'ranges_used': []
+            }
+        
+        # Determine the shutdown command based on workflow type
+        shutdown_command = "no shutdown" if workflow_type == "onboarding" else "shutdown"
+        action_description = "enable" if workflow_type == "onboarding" else "disable"
+        
+        logger.info(f"Applying workflow shutdown commands: {workflow_type} ({shutdown_command}) to {len(ports)} ports")
+        
+        # Filter out err-disabled ports if requested
+        eligible_ports = []
+        err_disabled_skipped = []
+        
+        if exclude_err_disabled:
+            # Check port status to identify err-disabled ports
+            port_statuses = self.get_bulk_port_status(ports) if len(ports) > 3 else {}
+            
+            for port in ports:
+                status = port_statuses.get(port) if port_statuses else self.get_port_status(port)
+                
+                if _is_port_err_disabled(status):
+                    err_disabled_skipped.append({
+                        'port': port,
+                        'reason': 'Port is err-disabled - skipping shutdown commands for security',
+                        'current_status': status
+                    })
+                    logger.warning(f"Skipping shutdown command for err-disabled port {port}")
+                else:
+                    eligible_ports.append(port)
+        else:
+            eligible_ports = ports[:]
+        
+        results = {
+            'success': True,
+            'workflow_type': workflow_type,
+            'shutdown_command': shutdown_command,
+            'action_description': action_description,
+            'ports_shutdown_success': [],
+            'ports_shutdown_failed': [],
+            'ports_err_disabled_skipped': err_disabled_skipped,
+            'commands_executed': [],
+            'ranges_used': []
+        }
+        
+        if not eligible_ports:
+            results['message'] = f'No eligible ports for {workflow_type} shutdown commands (all ports were err-disabled)'
+            return results
+        
+        try:
+            # Generate interface ranges for efficient batch operations
+            ranges = self.generate_interface_ranges(eligible_ports)
+            results['ranges_used'] = ranges
+            logger.info(f"Generated interface ranges for shutdown commands: {ranges}")
+            
+            # Apply shutdown commands using batch processing with ranges
+            range_success = False
+            for range_str in ranges:
+                try:
+                    commands = [
+                        "configure",
+                        f"interface range {range_str}",
+                        shutdown_command,
+                        "exit",
+                        "exit"
+                    ]
+                    
+                    # Execute commands for this range
+                    range_output = ""
+                    for command in commands:
+                        output = self.execute_command(command)
+                        range_output += output
+                        results['commands_executed'].append(command)
+                    
+                    # Check for command errors
+                    range_failed = False
+                    if "Invalid" in range_output or "ERROR" in range_output or "error" in range_output.lower():
+                        logger.warning(f"Interface range shutdown command failed for {range_str}, output: {range_output[:200]}")
+                        range_failed = True
+                    
+                    # Extract ports from range
+                    range_ports = self._extract_ports_from_range(range_str)
+                    
+                    if range_failed:
+                        # Fallback: try individual ports
+                        logger.info(f"Falling back to individual shutdown commands for: {range_ports}")
+                        
+                        for port in range_ports:
+                            try:
+                                individual_commands = [
+                                    "configure",
+                                    f"interface {port}",
+                                    shutdown_command,
+                                    "exit",
+                                    "exit"
+                                ]
+                                
+                                individual_output = ""
+                                for cmd in individual_commands:
+                                    output = self.execute_command(cmd)
+                                    individual_output += output
+                                    results['commands_executed'].append(cmd)
+                                
+                                # Check for success
+                                if "Invalid" not in individual_output and "ERROR" not in individual_output:
+                                    results['ports_shutdown_success'].append(port)
+                                    logger.info(f"Successfully applied '{shutdown_command}' to port {port}")
+                                else:
+                                    results['ports_shutdown_failed'].append(port)
+                                    logger.error(f"Failed to apply '{shutdown_command}' to port {port}: {individual_output[:100]}")
+                            
+                            except Exception as port_e:
+                                logger.error(f"Exception applying shutdown command to port {port}: {str(port_e)}")
+                                results['ports_shutdown_failed'].append(port)
+                    else:
+                        # Range command appeared successful
+                        logger.info(f"Range shutdown command succeeded for {range_str}: {range_ports}")
+                        range_success = True
+                        results['ports_shutdown_success'].extend(range_ports)
+                        
+                        for port in range_ports:
+                            logger.debug(f"Applied '{shutdown_command}' to port {port} via range command")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to execute shutdown commands for range {range_str}: {str(e)}")
+                    # Fallback: try individual ports
+                    range_ports = self._extract_ports_from_range(range_str)
+                    logger.info(f"Exception occurred, falling back to individual shutdown commands for: {range_ports}")
+                    
+                    for port in range_ports:
+                        try:
+                            individual_commands = [
+                                "configure",
+                                f"interface {port}",
+                                shutdown_command,
+                                "exit",
+                                "exit"
+                            ]
+                            
+                            individual_output = ""
+                            for cmd in individual_commands:
+                                output = self.execute_command(cmd)
+                                individual_output += output
+                                results['commands_executed'].append(cmd)
+                            
+                            # Check for success
+                            if "Invalid" not in individual_output and "ERROR" not in individual_output:
+                                results['ports_shutdown_success'].append(port)
+                                logger.info(f"Successfully applied '{shutdown_command}' to port {port}")
+                            else:
+                                results['ports_shutdown_failed'].append(port)
+                                logger.error(f"Failed to apply '{shutdown_command}' to port {port}: {individual_output[:100]}")
+                        
+                        except Exception as port_e:
+                            logger.error(f"Exception applying shutdown command to port {port}: {str(port_e)}")
+                            results['ports_shutdown_failed'].append(port)
+            
+            # If no ranges worked, try all ports individually as final fallback
+            if not range_success and not results['ports_shutdown_success']:
+                logger.warning("No interface ranges worked for shutdown commands, trying all ports individually")
+                results['ranges_used'] = []  # Clear ranges since they didn't work
+                
+                for port in eligible_ports:
+                    try:
+                        individual_commands = [
+                            "configure",
+                            f"interface {port}",
+                            shutdown_command,
+                            "exit",
+                            "exit"
+                        ]
+                        
+                        individual_output = ""
+                        for cmd in individual_commands:
+                            output = self.execute_command(cmd)
+                            individual_output += output
+                            results['commands_executed'].append(cmd)
+                        
+                        # Check for success
+                        if "Invalid" not in individual_output and "ERROR" not in individual_output:
+                            results['ports_shutdown_success'].append(port)
+                            logger.info(f"Individual shutdown command succeeded for port {port}")
+                        else:
+                            results['ports_shutdown_failed'].append(port)
+                            logger.error(f"Individual shutdown command failed for port {port}: {individual_output[:100]}")
+                    
+                    except Exception as port_e:
+                        logger.error(f"Exception applying individual shutdown command to port {port}: {str(port_e)}")
+                        results['ports_shutdown_failed'].append(port)
+            
+            # Remove duplicates and determine final success status
+            results['ports_shutdown_success'] = list(set(results['ports_shutdown_success']))
+            results['ports_shutdown_failed'] = list(set(results['ports_shutdown_failed']))
+            
+            # Determine overall success
+            results['success'] = len(results['ports_shutdown_failed']) == 0
+            
+            # Generate summary message
+            success_count = len(results['ports_shutdown_success'])
+            failed_count = len(results['ports_shutdown_failed'])
+            skipped_count = len(err_disabled_skipped)
+            
+            if results['success']:
+                results['message'] = f"Successfully applied '{shutdown_command}' to {success_count} ports for {workflow_type} workflow"
+                if skipped_count > 0:
+                    results['message'] += f" ({skipped_count} err-disabled ports skipped)"
+            else:
+                results['message'] = f"Applied '{shutdown_command}' to {success_count} ports, {failed_count} failed"
+                if skipped_count > 0:
+                    results['message'] += f" ({skipped_count} err-disabled ports skipped)"
+            
+            logger.info(f"Shutdown commands completed: {success_count} success, {failed_count} failed, {skipped_count} skipped")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to execute workflow shutdown commands: {str(e)}")
+            return {
+                'success': False,
+                'message': f'Shutdown commands failed: {str(e)}',
+                'workflow_type': workflow_type,
+                'ports_shutdown_success': [],
+                'ports_shutdown_failed': eligible_ports,
+                'ports_err_disabled_skipped': err_disabled_skipped,
+                'commands_executed': results.get('commands_executed', []),
+                'ranges_used': []
+            }
 
 # Flask API Routes for VLAN Management
 
-def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name=None, force_change=False, skip_non_access=False, keep_existing_vlan_name=False, preview_only=False):
+def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_type, vlan_name=None, force_change=False, skip_non_access=False, keep_existing_vlan_name=False, preview_only=False):
     """
     Main VLAN change workflow with comprehensive safety checks.
     
@@ -1852,6 +2182,7 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
         ports_input: String containing ports (comma-separated, ranges supported)
         description: Description to set on interfaces
         vlan_id: Target VLAN ID
+        workflow_type: Workflow type - either "onboarding" or "offboarding"
         vlan_name: VLAN name (for creation or update) - optional if keep_existing_vlan_name is True
         force_change: If True, change all ports except uplinks (with confirmation)
         skip_non_access: If True, skip ports that are up or not in access mode
@@ -1861,6 +2192,15 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
     Returns:
         dict: Workflow results with confirmations needed, changes made, and errors
     """
+    
+    # Validate workflow_type parameter
+    if workflow_type not in ['onboarding', 'offboarding']:
+        return {
+            'error': 'Invalid workflow_type',
+            'status': 'error',
+            'details': 'workflow_type must be either "onboarding" or "offboarding"',
+            'valid_types': ['onboarding', 'offboarding']
+        }
     
     # Get switch information from database
     try:
@@ -1936,18 +2276,44 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
                 return {'error': 'VLAN name is required when creating a new VLAN', 'status': 'error'}
             vlan_operation = 'create'
         
-        # Check port statuses
+        # Check port statuses (optimized with bulk retrieval)
         port_statuses = []
         active_or_non_access_ports = []
         safe_ports = []
         ports_already_correct = []  # New: track ports already set to target VLAN
+        err_disabled_ports = []  # New: track err-disabled ports that need investigation
+        
+        # Use bulk status for efficiency when checking many ports
+        if len(ports) > 3:
+            logger.info(f"Using bulk port status for {len(ports)} ports in vlan_change_workflow")
+            bulk_statuses = vlan_manager.get_bulk_port_status(ports)
+        else:
+            bulk_statuses = {}
         
         for port in ports:
-            status = vlan_manager.get_port_status(port)
+            # Prefer bulk result; fallback to individual call if missing or small set
+            status = bulk_statuses.get(port) if bulk_statuses else None
+            if status is None:
+                status = vlan_manager.get_port_status(port)
+            
             port_statuses.append(status)
             
+            # CRITICAL SAFETY CHECK: Detect err-disabled ports
+            # These ports have been automatically disabled due to security policy violations
+            # and require manual investigation before any configuration changes
+            if _is_port_err_disabled(status):
+                err_disabled_ports.append({
+                    'port': port,
+                    'reason': 'Port is err-disabled (security policy violation detected)',
+                    'details': 'Port was automatically disabled due to security threats (e.g., unauthorized MAC address). Manual investigation and remediation required.',
+                    'current_status': status,
+                    'security_issue': True
+                })
+                logger.warning(f"Port {port} is err-disabled - security policy violation detected, flagging as failed")
+                continue  # Skip further processing for this port - it's a security issue
+            
             # Check if port is already configured with the target VLAN
-            if status['current_vlan'] == str(vlan_id):
+            if status.get('current_vlan') == str(vlan_id):
                 ports_already_correct.append({
                     'port': port,
                     'reason': f'Port already assigned to VLAN {vlan_id}',
@@ -1958,21 +2324,21 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             
             # Check if port is active or not in access mode (up and/or not access mode)
             is_active_or_non_access = False
-            if status['status'] == 'up' and status['mode'] != 'access':
+            if status.get('status') == 'up' and status.get('mode') != 'access':
                 is_active_or_non_access = True
                 active_or_non_access_ports.append({
                     'port': port,
                     'reason': 'Port is UP and not in ACCESS mode',
                     'current_status': status
                 })
-            elif status['status'] == 'up':
+            elif status.get('status') == 'up':
                 is_active_or_non_access = True
                 active_or_non_access_ports.append({
                     'port': port,
                     'reason': 'Port is UP',
                     'current_status': status
                 })
-            elif status['mode'] != 'access':
+            elif status.get('mode') != 'access':
                 is_active_or_non_access = True
                 active_or_non_access_ports.append({
                     'port': port,
@@ -2016,6 +2382,9 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             # Exclude already correct ports from final ports list
             final_ports = [port for port in ports if port not in skipped_ports]
         
+        # Add err-disabled ports to the failed list as they require manual investigation
+        ports_failed_initial = [p['port'] for p in err_disabled_ports]
+        
         # Execute VLAN operation
         results = {
             'status': 'success',
@@ -2025,8 +2394,9 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
             'description': description,  # Include the description in results
             'total_ports_requested': len(ports),
             'ports_changed': [],
-            'ports_failed': [],
+            'ports_failed': ports_failed_initial.copy(),  # Start with err-disabled ports as failed
             'ports_skipped': skipped_ports,
+            'ports_err_disabled': err_disabled_ports,  # Add err-disabled ports to results
             'vlan_operation_result': None,
             'ranges_used': [],  # Initialize ranges_used
             'commands_executed': []  # Initialize commands_executed
@@ -2088,6 +2458,55 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, vlan_name
                     # Exception in batch processing, add all to failed list
                     results['ports_failed'].extend(final_ports)
                     logger.error(f"Exception in batch VLAN processing: {str(e)}")
+            
+            # NEW: Apply workflow shutdown commands after VLAN changes
+            # Only apply shutdown commands if we successfully changed some ports
+            if results['ports_changed'] and not preview_only:
+                logger.info(f"Applying {workflow_type} shutdown commands to {len(results['ports_changed'])} successfully changed ports")
+                
+                try:
+                    shutdown_result = vlan_manager.apply_workflow_shutdown_commands(
+                        ports=results['ports_changed'],
+                        workflow_type=workflow_type,
+                        exclude_err_disabled=True  # Skip err-disabled ports for safety
+                    )
+                    
+                    # Add shutdown results to the main results
+                    results['shutdown_commands_result'] = shutdown_result
+                    results['ports_shutdown_success'] = shutdown_result.get('ports_shutdown_success', [])
+                    results['ports_shutdown_failed'] = shutdown_result.get('ports_shutdown_failed', [])
+                    results['shutdown_ranges_used'] = shutdown_result.get('ranges_used', [])
+                    results['shutdown_commands_executed'] = shutdown_result.get('commands_executed', [])
+                    
+                    # Update overall commands executed
+                    results['commands_executed'].extend(shutdown_result.get('commands_executed', []))
+                    
+                    logger.info(f"Shutdown commands completed: {len(results['ports_shutdown_success'])} success, {len(results['ports_shutdown_failed'])} failed")
+                    
+                except Exception as shutdown_e:
+                    logger.error(f"Failed to apply workflow shutdown commands: {str(shutdown_e)}")
+                    # Add shutdown failure information but don't fail the entire workflow
+                    results['shutdown_commands_result'] = {
+                        'success': False,
+                        'message': f'Shutdown commands failed: {str(shutdown_e)}',
+                        'workflow_type': workflow_type,
+                        'ports_shutdown_success': [],
+                        'ports_shutdown_failed': results['ports_changed'],
+                        'error': str(shutdown_e)
+                    }
+                    results['ports_shutdown_success'] = []
+                    results['ports_shutdown_failed'] = results['ports_changed']
+            else:
+                # No ports changed or preview mode - no shutdown commands needed
+                results['shutdown_commands_result'] = {
+                    'success': True,
+                    'message': 'No shutdown commands applied (no ports changed or preview mode)',
+                    'workflow_type': workflow_type,
+                    'ports_shutdown_success': [],
+                    'ports_shutdown_failed': []
+                }
+                results['ports_shutdown_success'] = []
+                results['ports_shutdown_failed'] = []
         
         # Summary
         results['summary'] = {
@@ -2169,10 +2588,19 @@ def add_vlan_management_routes(app):
             username = session['username']
             
             # Required fields
-            required_fields = ['switch_id', 'ports', 'vlan_id']
+            required_fields = ['switch_id', 'ports', 'vlan_id', 'workflow_type']
             for field in required_fields:
                 if field not in data:
                     return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            # Validate workflow_type parameter
+            workflow_type = data.get('workflow_type')
+            if workflow_type not in ['onboarding', 'offboarding']:
+                return jsonify({
+                    'error': 'Invalid workflow_type',
+                    'details': 'workflow_type must be either "onboarding" or "offboarding"',
+                    'valid_types': ['onboarding', 'offboarding']
+                }), 400
             
             # Optional fields
             description = data.get('description', '')
@@ -2217,6 +2645,7 @@ def add_vlan_management_routes(app):
                 ports_input=data['ports'],
                 description=description,
                 vlan_id=data['vlan_id'],
+                workflow_type=workflow_type,
                 vlan_name=vlan_name,
                 force_change=force_change,
                 skip_non_access=skip_non_access,

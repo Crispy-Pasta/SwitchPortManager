@@ -29,7 +29,7 @@ try:
     WINDOWS_AUTH_AVAILABLE = True
 except ImportError:
     WINDOWS_AUTH_AVAILABLE = False
-    print("Warning: ldap3 not installed. Windows authentication disabled.")
+    # Note: ldap3 not installed. Windows authentication disabled.
 
 # Configure logger
 logger = logging.getLogger(__name__)

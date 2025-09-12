@@ -1,6 +1,6 @@
 version: '3.8'
 
-# Dell Switch Port Tracer v2.1.8 - Development Docker Compose Configuration
+# Dell Switch Port Tracer v2.2.0 - Development Docker Compose Configuration
 # Features: Enhanced UI/UX, VLAN Management v2, Safe deployment structure
 # Data Protection: Uses .env files and persistent volumes
 # Production: Use docker-compose.prod.yml for production deployments

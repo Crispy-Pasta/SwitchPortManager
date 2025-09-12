@@ -285,38 +285,36 @@ pip install ldap3
 pip install python-ldap  # Alternative LDAP library
 """
 
-print("""
-Windows NT/Active Directory Integration Guide for Port Tracer:
-
-IMPLEMENTATION STEPS:
-1. Install required packages:
-   pip install ldap3
-
-2. Configure environment variables:
-   - AD_SERVER: Your domain controller LDAP URL
-   - AD_DOMAIN: Your Windows domain
-   - AD_BASE_DN: Base Distinguished Name
-   - AD_SERVICE_USER: Service account (optional)
-   - AD_SERVICE_PASSWORD: Service account password (optional)
-
-3. Replace the login route in port_tracer_web.py with windows_login_route()
-
-4. Update the LOGIN_TEMPLATE to show "Windows Login" instead of generic login
-
-5. Test authentication with domain users
-
-SECURITY CONSIDERATIONS:
-- Use LDAPS (LDAP over SSL) in production
-- Configure proper service account with minimal permissions
-- Implement group-based access control
-- Add rate limiting for authentication attempts
-- Log all authentication events for security auditing
-
-CURRENT STATUS:
-✅ Web service architecture ready for NT authentication
-✅ Session management compatible
-✅ Audit logging supports Windows user tracking
-✅ Multi-user support already implemented
-
-READY FOR NT INTEGRATION: YES
-""")
+# Windows NT/Active Directory Integration Guide for Port Tracer:
+#
+# IMPLEMENTATION STEPS:
+# 1. Install required packages:
+#    pip install ldap3
+#
+# 2. Configure environment variables:
+#    - AD_SERVER: Your domain controller LDAP URL
+#    - AD_DOMAIN: Your Windows domain
+#    - AD_BASE_DN: Base Distinguished Name
+#    - AD_SERVICE_USER: Service account (optional)
+#    - AD_SERVICE_PASSWORD: Service account password (optional)
+#
+# 3. Replace the login route in port_tracer_web.py with windows_login_route()
+#
+# 4. Update the LOGIN_TEMPLATE to show "Windows Login" instead of generic login
+#
+# 5. Test authentication with domain users
+#
+# SECURITY CONSIDERATIONS:
+# - Use LDAPS (LDAP over SSL) in production
+# - Configure proper service account with minimal permissions
+# - Implement group-based access control
+# - Add rate limiting for authentication attempts
+# - Log all authentication events for security auditing
+#
+# CURRENT STATUS:
+# ✅ Web service architecture ready for NT authentication
+# ✅ Session management compatible
+# ✅ Audit logging supports Windows user tracking
+# ✅ Multi-user support already implemented
+#
+# READY FOR NT INTEGRATION: YES

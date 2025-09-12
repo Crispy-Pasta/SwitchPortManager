@@ -189,20 +189,28 @@ Each successful result includes:
 
 ---
 
-## 🎨 **User Interface Improvements (v2.1.1)**
+## 🎨 **User Interface Improvements (v2.2.0)**
 
-### **Enhanced VLAN Management**
-- **Naming Conventions**: Updated placeholder examples follow enterprise standards:
-  - `Zone_Client_Name` - for client-specific VLANs
-  - `Internal_Network` - for internal infrastructure
-  - `Guest_Access` - for guest network segments
-  - `IoT_Devices` - for IoT device networks
+### **Professional Select2 Dropdown Enhancements**
+- **Smart Visual Design**: Intelligent color differentiation between placeholder text (light gray #9ca3af) and selected values (dark text #2c3e50)
+- **Perfect Text Alignment**: Proper vertical centering and consistent spacing across all dropdown elements
+- **Optimized Search Experience**: 
+  - Search disabled for Workflow Type dropdown (only 2 options - more efficient)
+  - Search retained for Target Switch dropdown (searchable for large lists)
+- **Cross-Browser Consistency**: Enhanced CSS specificity with JavaScript fallbacks for uniform appearance
+- **Real-Time Updates**: Dynamic styling adjustments when selections change, maintaining visual consistency
 
-### **Switch Management Optimizations**
-- **Dropdown Constraints**: Site and floor dropdowns optimized to 250px width
-- **Layout Fixes**: Prevents horizontal scrolling and layout overflow
-- **Enhanced CSS**: Stronger specificity rules override global styles
-- **Runtime Consistency**: JavaScript enforcement ensures width consistency
+### **Workflow-Based VLAN Management**
+- **Structured Workflows**: Clear distinction between Onboarding (🟢 Enable Ports) and Offboarding (🔴 Shutdown Ports) operations
+- **Intuitive Interface**: Simplified workflow selection with visual indicators and contextual help
+- **Enhanced User Experience**: Streamlined form with dynamic help text that updates based on selected workflow
+- **Professional Styling**: Consistent visual hierarchy with improved spacing and typography
+
+### **Previous UI Improvements (v2.1.1)**
+- **Enhanced VLAN Management**: Updated placeholder examples following enterprise standards
+- **Switch Management Optimizations**: Dropdown constraints and layout fixes
+- **Enhanced CSS**: Stronger specificity rules to override global styles
+- **Runtime Consistency**: JavaScript enforcement for width consistency
 
 ---
 

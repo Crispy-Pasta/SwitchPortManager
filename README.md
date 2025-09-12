@@ -4,9 +4,9 @@
 
 ## 🚀 **Enterprise-Grade MAC Address Tracing Solution**
 
-A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages.
+A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages. Now includes workflow-based VLAN management for onboarding and offboarding operations.
 
-![Version](https://img.shields.io/badge/version-2.1.6-blue)
+![Version](https://img.shields.io/badge/version-2.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -29,7 +29,8 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 - **Switch Management UI**: Web-based CRUD interface for network administrators to manage switches, sites, and floors
 - **Database Migration Support**: Seamless migration from SQLite to PostgreSQL with data integrity validation
 - **Windows AD Integration**: Secure LDAP authentication with role-based access control  
-- **VLAN Manager**: Advanced VLAN configuration and port management capabilities
+- **VLAN Manager**: Advanced VLAN configuration and port management capabilities with workflow-based operations
+- **Workflow Type System**: Streamlined onboarding (Enable Ports) and offboarding (Shutdown Ports) workflows
 
 ### 🔧 Technical Features
 - **Dell Switch Support**: Comprehensive support for Dell N2000, N3000, and N3200 series switches (including N2048, N3248, N3024P models)
@@ -41,6 +42,7 @@ A secure, scalable web application for tracing MAC addresses across Dell switche
 - **Production Ready**: Health checks, monitoring, and high availability
 - **CPU Protection**: Advanced CPU monitoring and request throttling
 - **Switch Protection**: Connection limits and rate limiting for switch protection
+- **Version Management**: Centralized version control with single source of truth in `app/__init__.py`
 
 ## 📋 Requirements
 
@@ -186,7 +188,28 @@ pip install -r requirements.txt
    python port_tracer_web.py
    ```
 
-## 🆕 What's New in v2.1.6
+## 🆕 What's New in v2.2.0
+
+### ✨ **Workflow-Based VLAN Management**
+- **Structured Workflows**: Choose between Onboarding (Enable Ports) and Offboarding (Shutdown Ports) operations
+- **Intuitive Interface**: Simplified workflow type selection with clear visual indicators
+- **Enhanced User Experience**: Streamlined form with contextual help text and workflow-specific guidance
+- **Operational Consistency**: Standardized workflows ensure consistent port management across teams
+
+### 🎯 **VLAN Manager Improvements**
+- **Workflow Type Dropdown**: Compact selection with emoji indicators (🟢 Onboarding, 🔴 Offboarding)
+- **Contextual Help**: Dynamic help text that updates based on selected workflow type
+- **Form Optimization**: Cleaner, more professional interface with improved spacing and visual hierarchy
+- **Backend Integration**: Workflow type parameter passed through all VLAN management operations for audit trails
+
+### 🎨 **Professional Select2 UI Enhancements**
+- **Smart Visual Design**: Intelligent color differentiation between placeholder text (light gray) and selected values (dark text)
+- **Perfect Text Alignment**: Proper vertical centering and consistent spacing across all dropdown elements
+- **Optimized Search Experience**: Search disabled for Workflow Type (2 options), retained for Target Switch (searchable)
+- **Cross-Browser Consistency**: Enhanced CSS specificity with JavaScript fallbacks for uniform appearance
+- **Real-Time Updates**: Dynamic styling adjustments when selections change, maintaining visual consistency
+
+## 🔄 Previous Releases - v2.1.6
 
 ### ✅ **Automatic Database Initialization**
 - **Zero Configuration Setup**: Database schema creates automatically on first deployment
@@ -390,8 +413,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version**: 2.1.6
-**Last Updated**: August 2025  
+**Version**: 2.2.0
+**Last Updated**: September 2025  
 **Maintainer**: Network Operations Team
 
 ## 🔄 Changelog (v2.1.6)
