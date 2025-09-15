@@ -219,18 +219,18 @@ def _is_port_err_disabled(status):
     
     # Check status field for err-disabled indicators
     port_status = str(status.get('status', '')).lower()
-    if 'err-disabled' in port_status or 'errdisabled' in port_status:
+    if 'err-disabled' in port_status or 'errdisabled' in port_status or 'd-down' in port_status:
         return True
     
     # Check mode field for err-disabled indicators
     port_mode = str(status.get('mode', '')).lower()
-    if 'err-disabled' in port_mode or 'errdisabled' in port_mode:
+    if 'err-disabled' in port_mode or 'errdisabled' in port_mode or 'd-down' in port_mode:
         return True
     
     # Check raw output fields for err-disabled state
     for field in ['raw_status_output', 'config_output', 'raw_line']:
         field_content = str(status.get(field, '')).lower()
-        if 'err-disabled' in field_content or 'errdisabled' in field_content:
+        if 'err-disabled' in field_content or 'errdisabled' in field_content or 'd-down' in field_content:
             return True
     
     return False
@@ -1079,7 +1079,7 @@ class VLANManager:
                     # Retrieved port status and configuration data
             
             # Parse status from Dell switch output - Enhanced parsing logic
-            port_up = False
+            port_status = "down"  # Default to 'down', will be updated to specific states
             port_mode = "access"  # Default assumption
             current_vlan = "1"    # Default VLAN
             
@@ -1147,12 +1147,22 @@ class VLANManager:
                             
                             # Direct link state indicators (most reliable)
                             if col_lower in ['up', 'connected']:
-                                port_up = True
+                                port_status = 'up'
                                 link_state_found = True
                                 logger.info(f"Found explicit UP state: '{col_stripped}'")
                                 break
-                            elif col_lower in ['down', 'notconnect', 'nolink', 'disabled']:
-                                port_up = False
+                            elif col_lower == 'err-disabled' or col_lower == 'd-down':
+                                port_status = 'err-disabled'
+                                link_state_found = True
+                                logger.info(f"Found ERR-DISABLED state: '{col_stripped}'")
+                                break
+                            elif col_lower == 'disabled':
+                                port_status = 'disabled'
+                                link_state_found = True
+                                logger.info(f"Found DISABLED state: '{col_stripped}'")
+                                break
+                            elif col_lower in ['down', 'notconnect', 'nolink']:
+                                port_status = 'down'
                                 link_state_found = True
                                 logger.info(f"Found explicit DOWN state: '{col_stripped}'")
                                 break
@@ -1164,12 +1174,12 @@ class VLANManager:
                                 if line_words[i].lower() == 'auto' and i + 1 < len(line_words):
                                     next_word = line_words[i + 1].lower()
                                     if next_word == 'up':
-                                        port_up = True
+                                        port_status = 'up'
                                         link_state_found = True
                                         logger.info(f"Found compound UP state: '{line_words[i]} {line_words[i + 1]}'")
                                         break
                                     elif next_word in ['down', 'notconnect']:
-                                        port_up = False
+                                        port_status = 'down'
                                         link_state_found = True
                                         logger.info(f"Found compound DOWN state: '{line_words[i]} {line_words[i + 1]}'")
                                         break
@@ -1179,6 +1189,7 @@ class VLANManager:
                             has_speed = False
                             has_duplex = False
                             has_down_indicator = False
+                            specific_down_state = None
                             
                             for i, col in enumerate(columns):
                                 col_stripped = col.strip()
@@ -1192,16 +1203,23 @@ class VLANManager:
                                 elif col_lower in ['full', 'half']:
                                     has_duplex = True
                                 
-                                # Check for down indicators
-                                elif col_lower in ['down', 'notconnect', 'disabled', 'err-disabled']:
+                                # Check for down indicators with priority
+                                elif col_lower == 'err-disabled' or col_lower == 'd-down':
                                     has_down_indicator = True
+                                    specific_down_state = 'err-disabled'
+                                elif col_lower == 'disabled' and specific_down_state != 'err-disabled':
+                                    has_down_indicator = True
+                                    specific_down_state = 'disabled'
+                                elif col_lower in ['down', 'notconnect'] and specific_down_state is None:
+                                    has_down_indicator = True
+                                    specific_down_state = 'down'
                             
                             # If we have both speed and duplex without down indicators, assume UP
                             if (has_speed or has_duplex) and not has_down_indicator:
-                                port_up = True
+                                port_status = 'up'
                                 link_state_found = True
                             elif has_down_indicator:
-                                port_up = False
+                                port_status = specific_down_state if specific_down_state else 'down'
                                 link_state_found = True
                         
                         # Method 3: Parse the exact Dell format if we can identify column positions
@@ -1216,29 +1234,44 @@ class VLANManager:
                             for i, word in enumerate(line_words):
                                 word_lower = word.lower().strip()
                                 if word_lower == 'up':
-                                    port_up = True
+                                    port_status = 'up'
+                                    link_state_found = True
+                                    break
+                                elif word_lower == 'err-disabled' or word_lower == 'd-down':
+                                    port_status = 'err-disabled'
+                                    link_state_found = True
+                                    break
+                                elif word_lower == 'disabled':
+                                    port_status = 'disabled'
                                     link_state_found = True
                                     break
                                 elif word_lower in ['down', 'notconnect']:
-                                    port_up = False
+                                    port_status = 'down'
                                     link_state_found = True
                                     break
                         
-                        # Method 4: Final fallback - safer heuristic analysis
+                        # Method 4: Final fallback - safer heuristic analysis with priority
                         if not link_state_found:
                             line_content = original_line.lower()
                             
-                            # Be more precise: look for UP/DOWN in likely positions
-                            if ' up ' in line_content or line_content.endswith(' up'):
-                                port_up = True
+                            # Check for distinct disabled states first (higher priority)
+                            if 'err-disabled' in line_content or 'err disabled' in line_content or 'd-down' in line_content:
+                                port_status = 'err-disabled'
+                                logger.info(f"Found ERR-DISABLED via text search in: '{original_line[:50]}...'")
+                            elif ' disabled' in line_content or line_content.endswith('disabled'):
+                                port_status = 'disabled'
+                                logger.info(f"Found DISABLED via text search in: '{original_line[:50]}...'")
+                            # Then check for up/down states
+                            elif ' up ' in line_content or line_content.endswith(' up'):
+                                port_status = 'up'
                                 logger.info(f"Found UP via text search in: '{original_line[:50]}...'")
-                            elif any(down_word in line_content for down_word in [' down ', ' notconnect', ' disabled']):
-                                port_up = False
+                            elif any(down_word in line_content for down_word in [' down ', ' notconnect']):
+                                port_status = 'down'
                                 logger.info(f"Found DOWN via text search in: '{original_line[:50]}...'")
                             else:
                                 # CRITICAL FIX: Default to DOWN when status is unclear
                                 # This prevents false positives where ports appear UP when they're DOWN
-                                port_up = False
+                                port_status = 'down'
                                 logger.warning(f"Port {port_name} status unclear from: '{original_line[:50]}...', defaulting to DOWN for safety")
                         
                         # Look for mode indicator (A=Access, T=Trunk, G=General)
@@ -1308,7 +1341,7 @@ class VLANManager:
             
             result = {
                 'port': port_name,
-                'status': 'up' if port_up else 'down',
+                'status': port_status,
                 'mode': port_mode,
                 'current_vlan': current_vlan,
                 'config_output': config_output[:300] + '...' if len(config_output) > 300 else config_output,
@@ -1508,7 +1541,7 @@ class VLANManager:
                 return None
             
             # Initialize defaults
-            port_up = False
+            port_status = "down"  # Changed from port_up boolean to explicit status string
             port_mode = "access"
             current_vlan = "1"
             description = ""
@@ -1525,12 +1558,18 @@ class VLANManager:
                 col_stripped = col.strip()
                 col_lower = col_stripped.lower()
                 
-                # Look for link state
+                # Look for link state - now with distinct disabled states
                 if col_lower in ['up', 'connected'] and not link_state_found:
-                    port_up = True
+                    port_status = 'up'
                     link_state_found = True
-                elif col_lower in ['down', 'notconnect', 'disabled', 'disable'] and not link_state_found:
-                    port_up = False
+                elif ('err-disabled' in col_lower or 'errdisabled' in col_lower or 'd-down' in col_lower) and not link_state_found:
+                    port_status = 'err-disabled'
+                    link_state_found = True
+                elif col_lower in ['disabled', 'disable'] and not link_state_found:
+                    port_status = 'disabled'
+                    link_state_found = True
+                elif col_lower in ['down', 'notconnect'] and not link_state_found:
+                    port_status = 'down'
                     link_state_found = True
                 
                 # Look for mode indicator (A=Access, T=Trunk, G=General)
@@ -1561,26 +1600,32 @@ class VLANManager:
             
             # Heuristic fallback for link state if not explicitly found
             if not link_state_found:
-                # CRITICAL FIX: Look for "Down", "notconnect", etc. in the text first
+                # CRITICAL FIX: Look for distinct disabled states in the text
                 line_content = line.lower()
                 
                 # Check for UP indicators (be precise about positioning)
                 if ' up ' in line_content or line_content.endswith(' up'):
-                    port_up = True
-                # Check for DOWN indicators (broader search as these can appear in various forms)
+                    port_status = 'up'
+                # Check for ERR-DISABLED indicators first (most specific)
+                elif 'err-disabled' in line_content or 'errdisabled' in line_content or 'd-down' in line_content:
+                    port_status = 'err-disabled'
+                # Check for DISABLED indicators
+                elif ' disabled' in line_content or ' disable ' in line_content:
+                    port_status = 'disabled'
+                # Check for other DOWN indicators
                 elif any(down_indicator in line_content for down_indicator in 
-                        [' down ', ' notconnect', ' disabled', ' disable ', ' nolink', 'err-disabled']):
-                    port_up = False
+                        [' down ', ' notconnect', ' nolink']):
+                    port_status = 'down'
                 else:
                     # REMOVED THE BUGGY HEURISTIC: Don't assume UP based on speed/duplex
                     # Dell switches show speed/duplex even for DOWN ports!
                     # Always default to DOWN when status is unclear for safety
-                    port_up = False
+                    port_status = 'down'
                     logger.warning(f"Port {port_name} status unclear from bulk parse, defaulting to DOWN for safety")
             
             return {
                 'port': port_name,
-                'status': 'up' if port_up else 'down',
+                'status': port_status,
                 'mode': port_mode,
                 'current_vlan': current_vlan,
                 'description': description,
@@ -2282,6 +2327,10 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
         safe_ports = []
         ports_already_correct = []  # New: track ports already set to target VLAN
         err_disabled_ports = []  # New: track err-disabled ports that need investigation
+        disabled_ports = []  # New: track administratively disabled ports (safe to configure)
+        down_ports = []  # New: track down ports
+        up_ports = []  # New: track up ports
+        non_access_ports = []  # New: track non-access mode ports (trunk/general)
         
         # Use bulk status for efficiency when checking many ports
         if len(ports) > 3:
@@ -2298,19 +2347,66 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
             
             port_statuses.append(status)
             
-            # CRITICAL SAFETY CHECK: Detect err-disabled ports
-            # These ports have been automatically disabled due to security policy violations
-            # and require manual investigation before any configuration changes
-            if _is_port_err_disabled(status):
+            # ENHANCED SAFETY CHECK: Categorize ports by their distinct status
+            port_current_status = status.get('status', 'unknown').lower()
+            
+            # 1. CRITICAL: Detect err-disabled ports (highest priority - security issues)
+            if port_current_status == 'err-disabled' or _is_port_err_disabled(status):
                 err_disabled_ports.append({
                     'port': port,
                     'reason': 'Port is err-disabled (security policy violation detected)',
                     'details': 'Port was automatically disabled due to security threats (e.g., unauthorized MAC address). Manual investigation and remediation required.',
                     'current_status': status,
-                    'security_issue': True
+                    'security_issue': True,
+                    'status_category': 'err-disabled'
                 })
                 logger.warning(f"Port {port} is err-disabled - security policy violation detected, flagging as failed")
                 continue  # Skip further processing for this port - it's a security issue
+            
+            # 2. Detect administratively disabled ports (safe to configure)
+            elif port_current_status == 'disabled':
+                disabled_ports.append({
+                    'port': port,
+                    'reason': 'Port is administratively disabled',
+                    'details': 'Port has been manually disabled by administrator. Safe to configure and will require "no shutdown" to activate.',
+                    'current_status': status,
+                    'status_category': 'disabled'
+                })
+                logger.info(f"Port {port} is administratively disabled - safe for configuration")
+            
+            # 3. Detect down ports (physically down or no link)
+            elif port_current_status == 'down':
+                down_ports.append({
+                    'port': port,
+                    'reason': 'Port is down (no link detected)',
+                    'details': 'Port is physically down or no cable/device connected. Safe to configure.',
+                    'current_status': status,
+                    'status_category': 'down'
+                })
+                logger.debug(f"Port {port} is down - safe for configuration")
+            
+            # 4. Detect up ports (active with link)
+            elif port_current_status == 'up':
+                up_ports.append({
+                    'port': port,
+                    'reason': 'Port is up (active with link)',
+                    'details': 'Port has an active link and may have connected devices. Configuration changes need confirmation.',
+                    'current_status': status,
+                    'status_category': 'up'
+                })
+                logger.debug(f"Port {port} is up - needs confirmation for configuration")
+            
+            # Check if port is in non-access mode (trunk/general) - needs attention
+            port_mode = status.get('mode', 'access').lower()
+            if port_mode in ['trunk', 'general']:
+                non_access_ports.append({
+                    'port': port,
+                    'reason': f'Port is in {port_mode.upper()} mode',
+                    'details': f'Port is configured as {port_mode} mode and may have multiple VLANs or special configuration. Changing to access mode will remove existing VLAN assignments.',
+                    'current_status': status,
+                    'mode_category': port_mode
+                })
+                logger.warning(f"Port {port} is in {port_mode} mode - needs confirmation for mode change")
             
             # Check if port is already configured with the target VLAN
             if status.get('current_vlan') == str(vlan_id):
@@ -2349,9 +2445,9 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
             if not is_active_or_non_access:
                 safe_ports.append(port)
         
-        # Handle active or non-access ports based on options
-        # Analyze port safety conditions
-        logger.info(f"Port analysis: {len(active_or_non_access_ports)} need confirmation, {len(safe_ports)} safe, {len(ports_already_correct)} already correct")
+        # Enhanced port analysis with detailed categorization
+        logger.info(f"Enhanced port analysis: {len(up_ports)} up, {len(down_ports)} down, {len(disabled_ports)} disabled, {len(err_disabled_ports)} err-disabled, {len(non_access_ports)} non-access, {len(ports_already_correct)} already correct")
+        logger.info(f"Safety analysis: {len(active_or_non_access_ports)} need confirmation, {len(safe_ports)} safe")
         
         if active_or_non_access_ports and not force_change and not skip_non_access:
             return {
@@ -2372,18 +2468,63 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
         # Add already correct ports to skipped list
         skipped_ports.extend([p['port'] for p in ports_already_correct])
         
+        # Add err-disabled ports to skipped list (they need manual investigation)
+        skipped_ports.extend([p['port'] for p in err_disabled_ports])
+        
+        # Add non-access ports to skipped list (they need confirmation to change mode)
+        skipped_ports.extend([p['port'] for p in non_access_ports])
+        
         if skip_non_access:
             final_ports = safe_ports
             skipped_ports.extend([p['port'] for p in active_or_non_access_ports])
         elif force_change:
-            # Still respect uplink protection even with force, and exclude already correct ports
+            # Still respect uplink protection even with force, exclude already correct and err-disabled ports
             final_ports = [port for port in ports if not vlan_manager.is_uplink_port(port) and port not in skipped_ports]
         else:
-            # Exclude already correct ports from final ports list
+            # Exclude already correct and err-disabled ports from final ports list
+            # Down ports ARE included as they are safe to configure
             final_ports = [port for port in ports if port not in skipped_ports]
         
         # Add err-disabled ports to the failed list as they require manual investigation
         ports_failed_initial = [p['port'] for p in err_disabled_ports]
+        
+        # Prepare detailed skip analysis for engineer review
+        skip_analysis = {
+            'already_correct': {
+                'count': len(ports_already_correct),
+                'ports': ports_already_correct,
+                'explanation': f'These ports are already assigned to target VLAN {vlan_id} and do not need changes.'
+            },
+            'err_disabled': {
+                'count': len(err_disabled_ports),
+                'ports': err_disabled_ports,
+                'explanation': 'These ports are ERR-DISABLED due to security policy violations and require manual investigation before configuration changes. Common causes: unauthorized devices, port security violations, spanning tree violations.',
+                'action_required': 'CRITICAL: Investigate security violations before proceeding. Check logs for unauthorized MAC addresses or policy violations.'
+            },
+            'non_access': {
+                'count': len(non_access_ports),
+                'ports': non_access_ports,
+                'explanation': 'These ports are in TRUNK or GENERAL mode with multiple VLAN assignments. Changing to access mode will remove existing VLAN configuration.',
+                'action_required': 'CAUTION: Verify that changing from trunk/general to access mode is intended. This will affect VLAN connectivity for multiple networks.'
+            },
+            # NOTE: Down and disabled ports are NOT included in skip analysis as they are safe to configure
+            'up': {
+                'count': len(up_ports),
+                'ports': up_ports,
+                'explanation': 'These ports are UP with active connections. Configuration changes may disrupt connected devices.',
+                'action_required': 'Consider impact on connected devices. Use force change or skip non-access options to proceed.'
+            }
+        }
+        
+        # Add uplink protection analysis if applicable
+        uplink_ports = [port for port in ports if vlan_manager.is_uplink_port(port)]
+        if uplink_ports:
+            skip_analysis['uplink_protected'] = {
+                'count': len(uplink_ports),
+                'ports': [{'port': port, 'reason': 'Uplink port - protected from accidental changes'} for port in uplink_ports],
+                'explanation': 'These are uplink/trunk ports that connect to other switches or network infrastructure. They are protected from accidental VLAN changes.',
+                'action_required': 'CAUTION: Only modify if you are certain these are not critical network connections. Use force change to override protection.'
+            }
         
         # Execute VLAN operation
         results = {
@@ -2397,6 +2538,19 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
             'ports_failed': ports_failed_initial.copy(),  # Start with err-disabled ports as failed
             'ports_skipped': skipped_ports,
             'ports_err_disabled': err_disabled_ports,  # Add err-disabled ports to results
+            'ports_disabled': disabled_ports,  # Add administratively disabled ports to results (safe)
+            'ports_down': down_ports,  # Add down ports to results  
+            'ports_up': up_ports,  # Add up ports to results
+            'ports_non_access': non_access_ports,  # Add non-access mode ports to results
+            'port_status_summary': {  # Summary of port statuses for UI display
+                'up': len(up_ports),
+                'down': len(down_ports), 
+                'disabled': len(disabled_ports),
+                'err_disabled': len(err_disabled_ports),
+                'non_access': len(non_access_ports),
+                'already_correct': len(ports_already_correct)
+            },
+            'skip_analysis': skip_analysis,  # NEW: Detailed skip analysis for UI
             'vlan_operation_result': None,
             'ranges_used': [],  # Initialize ranges_used
             'commands_executed': []  # Initialize commands_executed
@@ -2518,7 +2672,7 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
             'uplink_protected': len([p for p in ports if vlan_manager.is_uplink_port(p)])
         }
         
-        # Enhanced success message with ranges and description
+        # Enhanced success message with ranges, description, and skip summary
         if results['ports_changed']:
             success_parts = []
             
@@ -2537,19 +2691,54 @@ def vlan_change_workflow(switch_id, ports_input, description, vlan_id, workflow_
             # VLAN operation performed
             if results['vlan_operation_result']:
                 success_parts.append(results['vlan_operation_result'])
-                
-            # Add information about skipped ports that were already correct
-            if ports_already_correct:
-                already_correct_count = len(ports_already_correct)
-                already_correct_ports = [p['port'] for p in ports_already_correct]
-                port_list = ', '.join(already_correct_ports[:5])
-                if len(already_correct_ports) > 5:
-                    port_list += f" and {len(already_correct_ports) - 5} more"
-                success_parts.append(f"Skipped {already_correct_count} ports already assigned to VLAN {vlan_id}: {port_list}")
             
             results['success_message'] = '\n'.join(success_parts)
         else:
             results['success_message'] = "No ports were changed."
+        
+        # Enhanced skip summary with detailed reasons and specific port names for engineer visibility
+        skip_summary_parts = []
+        skip_analysis = results.get('skip_analysis', {})
+        
+        # Critical items first (err-disabled) with specific port names
+        if skip_analysis.get('err_disabled', {}).get('count', 0) > 0:
+            count = skip_analysis['err_disabled']['count']
+            port_names = [p['port'] for p in skip_analysis['err_disabled']['ports']]
+            ports_str = ', '.join(port_names)
+            skip_summary_parts.append(f"🚨 CRITICAL: {count} err-disabled port{'s' if count > 1 else ''} ({ports_str}) require investigation")
+        
+        # Already correct ports with specific port names
+        if skip_analysis.get('already_correct', {}).get('count', 0) > 0:
+            count = skip_analysis['already_correct']['count']
+            port_names = [p['port'] for p in skip_analysis['already_correct']['ports']]
+            ports_str = ', '.join(port_names)
+            skip_summary_parts.append(f"✅ {count} port{'s' if count > 1 else ''} already on target VLAN ({ports_str})")
+        
+        # Non-access mode ports with specific port names (trunk/general)
+        if skip_analysis.get('non_access', {}).get('count', 0) > 0:
+            count = skip_analysis['non_access']['count']
+            port_names = [p['port'] for p in skip_analysis['non_access']['ports']]
+            ports_str = ', '.join(port_names)
+            skip_summary_parts.append(f"🔀 {count} non-access port{'s' if count > 1 else ''} ({ports_str}) - trunk/general mode")
+        
+        # NOTE: Down and disabled ports are NOT included in skip analysis as they are safe to configure
+        # They are processed normally and will appear in "Ports Ready to Change"
+        
+        # Up ports (requiring attention) with specific port names
+        if skip_analysis.get('up', {}).get('count', 0) > 0:
+            count = skip_analysis['up']['count']
+            port_names = [p['port'] for p in skip_analysis['up']['ports']]
+            ports_str = ', '.join(port_names)
+            skip_summary_parts.append(f"⚡ {count} active port{'s' if count > 1 else ''} ({ports_str}) - consider device impact")
+        
+        # Uplink protected ports with specific port names
+        if skip_analysis.get('uplink_protected', {}).get('count', 0) > 0:
+            count = skip_analysis['uplink_protected']['count']
+            port_names = [p['port'] for p in skip_analysis['uplink_protected']['ports']]
+            ports_str = ', '.join(port_names)
+            skip_summary_parts.append(f"🔒 {count} uplink port{'s' if count > 1 else ''} ({ports_str}) - protected")
+        
+        results['skip_summary'] = ' | '.join(skip_summary_parts) if skip_summary_parts else 'No ports skipped'
         
         return results
         

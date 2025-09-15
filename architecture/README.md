@@ -52,7 +52,7 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 
 ## Version Information
 
-- **Application Version**: 2.2.0
+- **Application Version**: 2.2.1
 - **Architecture**: 3-Container Production Setup (app, nginx, postgres)
 - **Database**: PostgreSQL with persistent named volumes
 - **Deployment**: Docker Compose with SSL/HTTPS support
@@ -62,4 +62,4 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 - **Session Timeout**: 5-minute configurable timeout with user-friendly warning system
 - **Frontend Enhancements**: JavaScript-based session state management and keep-alive functionality
 - **Workflow Management**: Structured onboarding and offboarding workflows with port enable/disable automation
-- **Last Updated**: September 12, 2025
+- **Last Updated**: September 15, 2025

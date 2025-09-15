@@ -6,7 +6,7 @@
 
 A secure, scalable web application for tracing MAC addresses across Dell switches in enterprise environments with advanced monitoring, protection, and logging capabilities. Enhanced security features including input validation and sanitized error messages. Now includes workflow-based VLAN management for onboarding and offboarding operations.
 
-![Version](https://img.shields.io/badge/version-2.2.0-blue)
+![Version](https://img.shields.io/badge/version-2.2.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
 ![Security](https://img.shields.io/badge/security-enhanced-green)
@@ -187,6 +187,23 @@ pip install -r requirements.txt
    ```bash
    python port_tracer_web.py
    ```
+
+## 🆕 What's New in v2.2.1
+
+### 🎨 **Enhanced Port Status Visualization**
+- **Improved VLAN Manager UI**: Enhanced port status display with distinct color coding for better operational clarity
+- **Port Status Differentiation**: Clear visual distinction between different port states:
+  - **UP Ports**: Green (#27ae60) with bold text - Active and operational
+  - **DOWN Ports**: Gray (#7f8c8d) with normal text - Inactive but administratively enabled  
+  - **DISABLED Ports**: Blue (#3498db) with semi-bold text - Administratively disabled/shutdown
+- **Enhanced User Experience**: Network administrators can now quickly identify port status types at a glance
+- **Design Consistency**: Blue color for disabled ports matches the application's existing design system
+- **Accessibility Improvements**: Enhanced color contrast and visual hierarchy for better accessibility
+
+### 🔧 **Technical Enhancements**
+- **CSS Architecture**: Added `.status-disabled` class following established design patterns
+- **Visual Consistency**: Maintains coherent styling across all VLAN Manager status displays
+- **Port Detection**: Application correctly processes and displays "disabled" status from switch outputs
 
 ## 🆕 What's New in v2.2.0
 

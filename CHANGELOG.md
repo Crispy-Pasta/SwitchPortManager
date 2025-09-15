@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.2.1] - 2025-09-15
+
+### 🎨 **UI/UX Enhancements**
+- **Port Status Visual Differentiation**: Enhanced VLAN Manager port status display with improved color coding
+  - **New `.status-disabled` CSS Class**: Added distinct blue (#3498db) styling for disabled ports
+  - **Clear Visual Separation**: Disabled ports now visually distinguished from DOWN ports (gray #7f8c8d) and UP ports (green #27ae60)
+  - **Consistent Design System**: Blue color matches existing application theme and button styling
+  - **Improved User Experience**: Network administrators can now quickly identify disabled vs down ports in status tables
+  - **Font Weight Enhancement**: Semi-bold (600) text for disabled ports provides additional visual emphasis
+
+### 🔧 **Technical Improvements**
+- **CSS Architecture**: Enhanced port status styling in `templates/vlan.html` following established design patterns
+- **Port Status Detection**: Application correctly identifies and processes "disabled" status from switch outputs
+- **Design Consistency**: Maintains coherent visual hierarchy across all port status indicators
+
+### 📊 **Port Status Color Scheme**
+- **UP Ports**: Green (#27ae60) with bold text - Active and operational
+- **DOWN Ports**: Gray (#7f8c8d) with normal text - Inactive but administratively enabled
+- **DISABLED Ports**: Blue (#3498db) with semi-bold text - Administratively disabled/shutdown
+- **Enhanced Accessibility**: Clear color differentiation improves accessibility for network operations teams
+
 ## [2.2.0] - 2025-09-12
 
 ### ✨ **Workflow-Based VLAN Management**
