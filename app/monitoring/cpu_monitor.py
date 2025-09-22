@@ -7,10 +7,10 @@ Provides real-time CPU monitoring and safety throttling to prevent system overlo
 Implements multi-level protection zones to maintain system stability.
 
 Protection Zones:
-- Green Zone (0-40%): Normal operation
-- Yellow Zone (40-60%): Reduced concurrency + warnings
-- Red Zone (60%+): Queue requests + reject new connections
-- Critical Zone (80%+): Emergency mode - reject all new requests
+- Green Zone (0-75%): Normal operation
+- Yellow Zone (75-85%): Reduced concurrency + warnings
+- Red Zone (85-95%): Queue requests + reject new connections
+- Critical Zone (95%+): Emergency mode - reject all new requests
 
 Author: Network Operations Team
 Last Updated: July 2025
@@ -44,10 +44,10 @@ class CPUStatus:
 
 class CPUProtectionZone:
     """CPU protection zone definitions."""
-    GREEN = "green"      # 0-40%
-    YELLOW = "yellow"    # 40-60%
-    RED = "red"          # 60-80%
-    CRITICAL = "critical" # 80%+
+    GREEN = "green"      # 0-75%
+    YELLOW = "yellow"    # 75-85%
+    RED = "red"          # 85-95%
+    CRITICAL = "critical" # 95%+
 
 class CPUSafetyMonitor:
     """
@@ -62,18 +62,18 @@ class CPUSafetyMonitor:
     """
     
     def __init__(self, 
-                 green_threshold: float = 40.0,
-                 yellow_threshold: float = 60.0,
-                 red_threshold: float = 80.0,
+                 green_threshold: float = 75.0,
+                 yellow_threshold: float = 85.0,
+                 red_threshold: float = 95.0,
                  monitoring_interval: float = 1.0,
                  history_window: int = 300):  # 5 minutes
         """
         Initialize CPU Safety Monitor.
         
         Args:
-            green_threshold: CPU% threshold for yellow zone (default: 40%)
-            yellow_threshold: CPU% threshold for red zone (default: 60%)
-            red_threshold: CPU% threshold for critical zone (default: 80%)
+            green_threshold: CPU% threshold for yellow zone (default: 75%)
+            yellow_threshold: CPU% threshold for red zone (default: 85%)
+            red_threshold: CPU% threshold for critical zone (default: 95%)
             monitoring_interval: CPU check interval in seconds (default: 1.0)
             history_window: Number of historical readings to keep (default: 300)
         """
