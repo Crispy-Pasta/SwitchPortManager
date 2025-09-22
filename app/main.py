@@ -233,9 +233,9 @@ logger.info(f"Switch credentials loaded - Username: {'SET' if SWITCH_USERNAME el
 
 # CPU Safety configuration (override concurrent limits based on CPU protection zones)
 cpu_monitor = initialize_cpu_monitor(
-    green_threshold=float(os.getenv('CPU_GREEN_THRESHOLD', '40')),
-    yellow_threshold=float(os.getenv('CPU_YELLOW_THRESHOLD', '60')),
-    red_threshold=float(os.getenv('CPU_RED_THRESHOLD', '80'))
+    green_threshold=float(os.getenv('CPU_GREEN_THRESHOLD', '75')),
+    yellow_threshold=float(os.getenv('CPU_YELLOW_THRESHOLD', '85')),
+    red_threshold=float(os.getenv('CPU_RED_THRESHOLD', '95'))
 )
 
 # Switch Protection Monitor initialization
@@ -3314,9 +3314,10 @@ def check_cpu_before_request():
     prevent system overload and maintain service stability.
     
     CPU Load Monitoring:
-    - Green Zone (0-40%): All requests accepted
-    - Yellow Zone (40-60%): Limited concurrent requests
-    - Red Zone (60%+): New requests rejected with 503 status
+    - Green Zone (0-75%): All requests accepted
+    - Yellow Zone (75-85%): Limited concurrent requests
+    - Red Zone (85-95%): Queue requests + warnings
+    - Critical Zone (95%+): New requests rejected with 503 status
     
     Only applies to compute-intensive endpoints like '/trace' to avoid impacting
     regular web interface navigation and administrative functions.
