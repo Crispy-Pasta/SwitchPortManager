@@ -1409,14 +1409,76 @@
             }
         }
         
-        // Render the site tree
-        function renderSiteTree(sites) {
+        // Helper functions to preserve site tree state during refresh
+        function saveCurrentTreeState() {
+            const state = {
+                expandedSites: [],
+                selectedSiteId: null,
+                selectedFloorId: null
+            };
+            
+            // Save expanded sites
+            document.querySelectorAll('.site-header.expanded').forEach(header => {
+                const siteId = header.id.replace('site-header-', '');
+                state.expandedSites.push(siteId);
+            });
+            
+            // Save selected site
+            const selectedSite = document.querySelector('.site-header.selected');
+            if (selectedSite) {
+                state.selectedSiteId = selectedSite.id.replace('site-header-', '');
+            }
+            
+            // Save selected floor
+            const selectedFloor = document.querySelector('.floor-item.selected');
+            if (selectedFloor) {
+                state.selectedFloorId = selectedFloor.id.replace('floor-', '');
+            }
+            
+            return state;
+        }
+        
+        function restoreTreeState(state) {
+            if (!state) return;
+            
+            // Restore expanded sites
+            state.expandedSites.forEach(siteId => {
+                const header = document.getElementById(`site-header-${siteId}`);
+                const floors = document.getElementById(`floors-${siteId}`);
+                if (header && floors) {
+                    header.classList.add('expanded');
+                    floors.classList.add('expanded');
+                }
+            });
+            
+            // Restore selected site
+            if (state.selectedSiteId) {
+                const header = document.getElementById(`site-header-${state.selectedSiteId}`);
+                if (header) {
+                    header.classList.add('selected');
+                }
+            }
+            
+            // Restore selected floor
+            if (state.selectedFloorId) {
+                const floorItem = document.getElementById(`floor-${state.selectedFloorId}`);
+                if (floorItem) {
+                    floorItem.classList.add('selected');
+                }
+            }
+        }
+        
+        // Render the site tree with state preservation
+        function renderSiteTree(sites, preserveState = true) {
             const container = document.getElementById('site-tree-container');
+            
+            // Save current state before rendering
+            const savedState = preserveState ? saveCurrentTreeState() : null;
             
             if (sites.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">&#127970;</div>
+                        <div class="empty-icon">🏢</div>
                         <div class="empty-title">No Sites Found</div>
                         <div class="empty-description">No sites are configured in the system</div>
                     </div>
@@ -1478,6 +1540,13 @@
             });
             
             container.innerHTML = html;
+            
+            // Restore the previous state after rendering
+            if (savedState) {
+                setTimeout(() => {
+                    restoreTreeState(savedState);
+                }, 0);
+            }
         }
         
         // Helper function to format floor names with 'F' prefix for numeric floors
@@ -2113,11 +2182,11 @@
         // Make function globally available
         window.createModal = createModal;
         
-        function closeModal() {
-            const modal = document.querySelector('.modal-overlay');
-            if (modal) {
+function closeModal() {
+            const modals = document.querySelectorAll('.modal-overlay');
+            modals.forEach(modal => {
                 modal.remove();
-            }
+            });
         }
         
         // Make function globally available
@@ -2458,7 +2527,7 @@
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">&#128179; Update Site</button>
-                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName}')">&#128465;&#65039; Delete Site</button>
+                        <button type="button" class="btn-danger" onclick="showDeleteSiteModal(${siteId}, '${siteName.replace(/'/g, "\\'")}')">&#128465;&#65039; Delete Site</button>
                         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     </div>
                 </form>
@@ -2467,14 +2536,6 @@
             document.getElementById('edit-site-form').addEventListener('submit', handleEditSite);
         }
         
-        function showDeleteSiteModal(siteId, siteName) {
-            const modal = createDeleteModal(
-                'Delete Site',
-                `Are you sure you want to delete the site <span class="delete-item-name">"${siteName}"</span>?`,
-                'This will also delete all floors and switches in this site. This action cannot be undone.',
-                () => deleteSite(siteId, siteName)
-            );
-        }
         
         
         function editFloor(floorId, floorName, siteId) {

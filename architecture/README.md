@@ -41,6 +41,7 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 - **Security Framework**: Multi-layer input validation and command injection prevention
 - **Professional UI**: Select2-powered dropdowns with intelligent styling, perfect text alignment, and cross-browser consistency
 - **User Experience**: Real-time dynamic updates, contextual help text, and optimized search functionality
+- **State Management**: Frontend UI state preservation system for sidebar navigation context during operations
 - **Version Management**: Centralized version control system with single source of truth in `app/__init__.py` and programmatic access via `get_version.py` utility
 
 ## Getting Started
@@ -52,7 +53,7 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 
 ## Version Information
 
-- **Application Version**: 2.2.1
+- **Application Version**: 2.2.2
 - **Architecture**: 3-Container Production Setup (app, nginx, postgres)
 - **Database**: PostgreSQL with persistent named volumes
 - **Deployment**: Docker Compose with SSL/HTTPS support
@@ -61,5 +62,6 @@ The Dell Port Tracer is a comprehensive web-based application that helps network
 - **Backup**: Automated backup and rollback with deploy-safe.sh
 - **Session Timeout**: 5-minute configurable timeout with user-friendly warning system
 - **Frontend Enhancements**: JavaScript-based session state management and keep-alive functionality
+- **UI State Preservation**: Site tree navigation state maintained during switch management operations
 - **Workflow Management**: Structured onboarding and offboarding workflows with port enable/disable automation
-- **Last Updated**: September 15, 2025
+- **Last Updated**: September 22, 2025

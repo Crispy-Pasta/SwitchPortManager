@@ -1,5 +1,51 @@
 # Changelog
 
+## [2.2.2] - 2025-09-22
+
+### 🎯 **User Experience Enhancements**
+- **Site Tree State Preservation**: Implemented comprehensive state preservation for the switch management sidebar
+  - **Problem Solved**: Site tree was losing expanded/collapsed state after switch edit/add operations
+  - **Root Cause**: `refreshSidebarCounts()` was rebuilding the entire site tree without preserving UI state
+  - **Solution**: Added JavaScript state management functions with async restoration
+  - **Impact**: Users maintain navigation context during switch operations, improving workflow efficiency
+  - **Technical Implementation**: `saveCurrentTreeState()` and `restoreTreeState()` functions with DOM state tracking
+
+### 🎨 **UI Consistency Improvements** 
+- **Modal Button Standardization**: Enhanced modal dialog button consistency across all management interfaces
+  - **Problem Solved**: Edit site/floor modal buttons had inconsistent sizes and visual appearance
+  - **Solution**: Comprehensive CSS standardization with `!important` declarations for reliable styling
+  - **Features**: 80px minimum width, unified padding (8px 12px), consistent font sizing (12px)
+  - **Scope**: Applies to Update (btn-primary), Delete (btn-danger), and Cancel (btn-secondary) buttons
+  - **Impact**: Professional, consistent interface design across all management modals
+  
+- **Select2 Dropdown Arrow Centering**: Fixed vertical alignment of dropdown arrows in VLAN Manager
+  - **Problem Solved**: Dropdown arrows in Target Switch and Workflow Type selectors were not vertically centered
+  - **Solution**: Precise CSS positioning using flexbox alignment for perfect centering
+  - **Technical Details**: 48px height matching, flexbox centering, consistent 12px right positioning
+  - **Impact**: Professional, polished appearance for all Select2 dropdown elements
+
+### 🔧 **Development Infrastructure**
+- **Template Auto-Reload Configuration**: Added optional template auto-reload for development workflow
+  - **Purpose**: Enables real-time template changes during development without application restarts
+  - **Implementation**: Configurable via Flask `TEMPLATES_AUTO_RELOAD` and `jinja_env.auto_reload`
+  - **Production Ready**: Commented out by default to maintain production performance
+  - **Usage**: Uncomment when active template development is needed
+
+### 📊 **Technical Details**
+- **State Management**: Enhanced frontend JavaScript with persistent UI state tracking
+  - Expanded sites tracking with CSS class persistence
+  - Selected site and floor ID preservation across refreshes
+  - Async DOM restoration with setTimeout to prevent timing issues
+- **CSS Architecture**: Improved modal styling hierarchy with enhanced specificity
+  - Prevents style conflicts with third-party libraries
+  - Consistent visual language across all modal interfaces
+  - Professional button interactions with hover effects and transitions
+
+### 🚀 **Performance Impact**
+- **Frontend Optimization**: State preservation functions execute asynchronously to prevent UI blocking
+- **DOM Efficiency**: Minimal DOM queries with targeted element selection for state management
+- **Production Ready**: All enhancements designed for production deployment with no performance impact
+
 ## [2.2.1] - 2025-09-15
 
 ### 🎨 **UI/UX Enhancements**

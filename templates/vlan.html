@@ -192,6 +192,44 @@
             border: 2px solid #3498db !important;
             border-radius: 8px !important;
         }
+        
+        /* SELECT2 DROPDOWN ARROW CENTERING FIX (September 2025)
+         * Fix dropdown arrows not being vertically centered in Select2 containers
+         * 
+         * PROBLEM SOLVED: Dropdown arrows were positioned too high/low in Select2 dropdowns
+         * - Target Switch and Workflow Type dropdowns had misaligned arrows
+         * - Inconsistent vertical positioning across different Select2 elements
+         * 
+         * SOLUTION: Precise arrow positioning using flexbox alignment and transform
+         * - Centers arrows both horizontally and vertically within the container
+         * - Consistent 12px right positioning for proper spacing
+         * - Works with all Select2 dropdown heights and styling
+         */
+        body .container .form-section .vlan-form .select2-container .select2-selection__arrow,
+        body #switch_select + .select2-container .select2-selection__arrow,
+        body #workflow_type_select + .select2-container .select2-selection__arrow {
+            height: 48px !important;           /* Match container height */
+            top: 0 !important;                 /* Reset top positioning */
+            right: 12px !important;            /* Consistent right margin */
+            width: 20px !important;            /* Standard arrow width */
+            display: flex !important;          /* Enable flexbox centering */
+            align-items: center !important;    /* Vertically center the arrow */
+            justify-content: center !important; /* Horizontally center the arrow */
+        }
+        
+        /* Style the actual arrow icon within the container */
+        body .container .form-section .vlan-form .select2-container .select2-selection__arrow b,
+        body #switch_select + .select2-container .select2-selection__arrow b,
+        body #workflow_type_select + .select2-container .select2-selection__arrow b {
+            border-color: #666 transparent transparent transparent !important;
+            border-style: solid !important;
+            border-width: 5px 4px 0 4px !important;
+            height: 0 !important;
+            width: 0 !important;
+            position: static !important;       /* Remove absolute positioning */
+            margin: 0 !important;             /* Remove default margins */
+            transform: none !important;        /* Remove any transforms */
+        }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
             outline: none;
             border-color: #3498db;
