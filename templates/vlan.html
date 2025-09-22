@@ -192,6 +192,44 @@
             border: 2px solid #3498db !important;
             border-radius: 8px !important;
         }
+        
+        /* SELECT2 DROPDOWN ARROW CENTERING FIX (September 2025)
+         * Fix dropdown arrows not being vertically centered in Select2 containers
+         * 
+         * PROBLEM SOLVED: Dropdown arrows were positioned too high/low in Select2 dropdowns
+         * - Target Switch and Workflow Type dropdowns had misaligned arrows
+         * - Inconsistent vertical positioning across different Select2 elements
+         * 
+         * SOLUTION: Precise arrow positioning using flexbox alignment and transform
+         * - Centers arrows both horizontally and vertically within the container
+         * - Consistent 12px right positioning for proper spacing
+         * - Works with all Select2 dropdown heights and styling
+         */
+        body .container .form-section .vlan-form .select2-container .select2-selection__arrow,
+        body #switch_select + .select2-container .select2-selection__arrow,
+        body #workflow_type_select + .select2-container .select2-selection__arrow {
+            height: 48px !important;           /* Match container height */
+            top: 0 !important;                 /* Reset top positioning */
+            right: 12px !important;            /* Consistent right margin */
+            width: 20px !important;            /* Standard arrow width */
+            display: flex !important;          /* Enable flexbox centering */
+            align-items: center !important;    /* Vertically center the arrow */
+            justify-content: center !important; /* Horizontally center the arrow */
+        }
+        
+        /* Style the actual arrow icon within the container */
+        body .container .form-section .vlan-form .select2-container .select2-selection__arrow b,
+        body #switch_select + .select2-container .select2-selection__arrow b,
+        body #workflow_type_select + .select2-container .select2-selection__arrow b {
+            border-color: #666 transparent transparent transparent !important;
+            border-style: solid !important;
+            border-width: 5px 4px 0 4px !important;
+            height: 0 !important;
+            width: 0 !important;
+            position: static !important;       /* Remove absolute positioning */
+            margin: 0 !important;             /* Remove default margins */
+            transform: none !important;        /* Remove any transforms */
+        }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
             outline: none;
             border-color: #3498db;
@@ -390,6 +428,10 @@
         }
         .status-down {
             color: #7f8c8d;
+        }
+        .status-disabled {
+            color: #3498db;
+            font-weight: 600;
         }
         .mode-access {
             color: #27ae60;
@@ -1519,7 +1561,12 @@
                     <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 10px 0;">
                         <h6 style="color: #856404; margin: 0 0 8px 0;">⏭️ Ports Would Be Skipped</h6>
                         <p style="margin: 0;"><strong>These ports would be skipped:</strong> ${result.ports_skipped.join(', ')}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active or non-access mode status, or user settings</p>
+                        ${result.skip_summary ? `
+                            <div style="margin: 8px 0 0 0; padding: 8px; background: rgba(255,193,7,0.1); border-radius: 4px; font-size: 13px; line-height: 1.4;">
+                                <strong>Skip Analysis:</strong> ${result.skip_summary}
+                            </div>
+                            ${result.skip_analysis ? generateDetailedSkipAnalysis(result.skip_analysis) : ''}
+                        ` : '<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active or non-access mode status, or user settings</p>'}
                     </div>
                 `;
             }
@@ -1646,7 +1693,12 @@
                     <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 10px 0;">
                         <h6 style="color: #856404; margin: 0 0 8px 0;">⏭️ Skipped Ports</h6>
                         <p style="margin: 0;"><strong>Skipped ports:</strong> ${result.ports_skipped.join(', ')}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active ports, or user settings</p>
+                        ${result.skip_summary ? `
+                            <div style="margin: 8px 0 0 0; padding: 8px; background: rgba(255,193,7,0.1); border-radius: 4px; font-size: 13px; line-height: 1.4;">
+                                <strong>Skip Analysis:</strong> ${result.skip_summary}
+                            </div>
+                            ${result.skip_analysis ? generateDetailedSkipAnalysis(result.skip_analysis) : ''}
+                        ` : '<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Reasons: Uplink protection, active ports, or user settings</p>'}
                     </div>
                 `;
             }
@@ -1679,6 +1731,48 @@
         
         function closeAlertModal() {
             $('#alertModal').hide();
+        }
+        
+        function generateDetailedSkipAnalysis(skip_analysis) {
+            if (!skip_analysis) return '';
+            
+            let html = '<div style="margin-top: 8px; border: 1px solid rgba(255,193,7,0.3); border-radius: 4px; overflow: hidden;">';
+            
+            // Process each category in order of priority
+            const categories = [
+                { key: 'err_disabled', title: '🚨 ERR-DISABLED Ports (Critical)', color: '#dc3545', bgColor: 'rgba(220, 53, 69, 0.1)' },
+                { key: 'already_correct', title: '✅ Already on Target VLAN', color: '#28a745', bgColor: 'rgba(40, 167, 69, 0.1)' },
+                { key: 'uplink_protected', title: '🔒 Uplink Protected Ports', color: '#6f42c1', bgColor: 'rgba(111, 66, 193, 0.1)' },
+                { key: 'up', title: '⚡ Active Ports (UP)', color: '#fd7e14', bgColor: 'rgba(253, 126, 20, 0.1)' },
+                { key: 'disabled', title: '🔧 Administratively Disabled', color: '#6c757d', bgColor: 'rgba(108, 117, 125, 0.1)' },
+                { key: 'down', title: '📱 Down Ports', color: '#17a2b8', bgColor: 'rgba(23, 162, 184, 0.1)' }
+            ];
+            
+            let hasContent = false;
+            
+            categories.forEach(category => {
+                const data = skip_analysis[category.key];
+                if (data && data.count > 0 && data.ports) {
+                    hasContent = true;
+                    const ports = data.ports.map(p => p.port || p).join(', ');
+                    
+                    html += `
+                        <div style="padding: 8px 10px; border-bottom: 1px solid rgba(0,0,0,0.1); background: ${category.bgColor};">
+                            <div style="font-weight: 600; color: ${category.color}; margin-bottom: 4px;">
+                                ${category.title} (${data.count})
+                            </div>
+                            <div style="font-size: 12px; color: #495057; margin-bottom: 2px;">
+                                <strong>Ports:</strong> <span style="font-family: monospace; font-size: 11px; background: rgba(255,255,255,0.5); padding: 1px 3px; border-radius: 2px;">${ports}</span>
+                            </div>
+                            ${data.explanation ? `<div style="font-size: 11px; color: #6c757d; font-style: italic;">${data.explanation}</div>` : ''}
+                        </div>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            
+            return hasContent ? html : '';
         }
     </script>
 </body>
