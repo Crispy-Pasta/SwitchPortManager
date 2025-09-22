@@ -179,8 +179,23 @@ class DellSwitchSSH:
             logger.info(f"Successfully connected to {self.ip_address}")
             return True
             
+        except paramiko.AuthenticationException as e:
+            logger.error(f"Authentication failed for {self.ip_address}: {str(e)}")
+            return False
+        except paramiko.SSHException as e:
+            logger.error(f"SSH connection error to {self.ip_address}: {str(e)}")
+            return False
+        except TimeoutError as e:
+            logger.error(f"Connection timeout to {self.ip_address}: {str(e)}")
+            return False
+        except ConnectionRefusedError as e:
+            logger.error(f"Connection refused by {self.ip_address}: {str(e)}")
+            return False
+        except OSError as e:
+            logger.error(f"Network error connecting to {self.ip_address}: {str(e)}")
+            return False
         except Exception as e:
-            logger.error(f"Failed to connect to {self.ip_address}: {str(e)}")
+            logger.error(f"Unexpected error connecting to {self.ip_address}: {str(e)}")
             return False
     
     def disconnect(self):
@@ -580,11 +595,12 @@ def trace_single_switch(switch_info: Dict[str, Any], mac_address: str, username:
         switch = DellSwitchSSH(switch_ip, username, password, switch_monitor)
         
         if not switch.connect():
+            # Determine specific connection failure reason
             return {
                 'switch_name': switch_name,
                 'switch_ip': switch_ip,
                 'status': 'connection_failed',
-                'message': 'Failed to connect to switch'
+                'message': get_connection_failure_message(switch_ip)
             }
         
         # Execute MAC lookup
@@ -629,13 +645,37 @@ def trace_single_switch(switch_info: Dict[str, Any], mac_address: str, username:
                 'message': result['message']
             }
         
+    except paramiko.AuthenticationException as e:
+        logger.error(f"Authentication failed for {switch_name} ({switch_ip}): {str(e)}")
+        return {
+            'switch_name': switch_name,
+            'switch_ip': switch_ip,
+            'status': 'authentication_failed',
+            'message': 'Authentication failed - please check switch credentials'
+        }
+    except paramiko.SSHException as e:
+        logger.error(f"SSH error for {switch_name} ({switch_ip}): {str(e)}")
+        return {
+            'switch_name': switch_name,
+            'switch_ip': switch_ip,
+            'status': 'ssh_error',
+            'message': f'SSH connection error: {get_ssh_error_message(str(e))}'
+        }
+    except (TimeoutError, ConnectionRefusedError, OSError) as e:
+        logger.error(f"Network error for {switch_name} ({switch_ip}): {str(e)}")
+        return {
+            'switch_name': switch_name,
+            'switch_ip': switch_ip,
+            'status': 'network_unreachable',
+            'message': f'Device unreachable - {get_network_error_message(str(e))}'
+        }
     except Exception as e:
-        logger.error(f"Error tracing MAC on {switch_name} ({switch_ip}): {str(e)}")
+        logger.error(f"Unexpected error tracing MAC on {switch_name} ({switch_ip}): {str(e)}")
         return {
             'switch_name': switch_name,
             'switch_ip': switch_ip,
             'status': 'error',
-            'message': str(e)
+            'message': f'Unexpected error: {str(e)}'
         }
     finally:
         # Ensure connection is always closed
@@ -652,3 +692,43 @@ def trace_single_switch(switch_info: Dict[str, Any], mac_address: str, username:
             except AttributeError:
                 # If switch_monitor doesn't have the method, continue
                 pass
+
+
+# Error message helper functions for better user experience
+def get_connection_failure_message(switch_ip: str) -> str:
+    """Generate user-friendly message for connection failures."""
+    return f"Unable to connect to switch {switch_ip}. The device may be offline, unreachable, or have connectivity issues. Please check network connectivity and try again."
+
+
+def get_network_error_message(error_str: str) -> str:
+    """Convert technical network errors into user-friendly messages."""
+    error_lower = error_str.lower()
+    
+    if 'timeout' in error_lower or 'timed out' in error_lower:
+        return "Connection timed out. The device may be busy or network latency is high."
+    elif 'refused' in error_lower or 'connection refused' in error_lower:
+        return "Connection refused. The device may be down or SSH service is disabled."
+    elif 'unreachable' in error_lower or 'no route' in error_lower:
+        return "Network unreachable. Check network connectivity and routing."
+    elif 'name resolution' in error_lower or 'resolve' in error_lower:
+        return "Name resolution failed. Please verify the IP address is correct."
+    else:
+        return "Check network connectivity and device availability."
+
+
+def get_ssh_error_message(error_str: str) -> str:
+    """Convert SSH-specific errors into user-friendly messages."""
+    error_lower = error_str.lower()
+    
+    if 'authentication' in error_lower:
+        return "Invalid credentials or authentication method not supported"
+    elif 'key exchange' in error_lower or 'kex' in error_lower:
+        return "SSH key exchange failed. The device may use incompatible encryption"
+    elif 'protocol' in error_lower:
+        return "SSH protocol mismatch. The device may use an unsupported SSH version"
+    elif 'banner' in error_lower:
+        return "SSH banner timeout. The device may be slow to respond"
+    elif 'channel' in error_lower:
+        return "SSH channel error. The connection was interrupted"
+    else:
+        return "SSH connection issue. Check device SSH configuration"

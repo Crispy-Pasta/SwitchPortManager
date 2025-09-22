@@ -1,7 +1,7 @@
 # Dell Switch Port Tracer - API Documentation
 
-**Version:** 2.1.3  
-**Last Updated:** August 2025  
+**Version:** 2.2.1  
+**Last Updated:** September 2025
 **Architecture:** Docker Compose 3-Container Stack  
 **Database:** PostgreSQL with encrypted credentials
 

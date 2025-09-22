@@ -566,6 +566,121 @@ docker-compose up -d nginx
 echo "Deployment completed successfully!"
 ```
 
+## Frontend State Management (v2.2.2)
+
+### UI State Preservation System
+
+Implemented comprehensive state preservation for the switch management interface to maintain user navigation context during operations.
+
+#### Problem Addressed
+- Site tree sidebar was losing expanded/collapsed state after switch edit/add operations
+- Users lost navigation context, requiring manual re-expansion of site hierarchy
+- Poor user experience during frequent switch management tasks
+
+#### Technical Implementation
+
+```javascript
+// State preservation functions in templates/inventory.html
+
+// Save current UI state before DOM operations
+function saveCurrentTreeState() {
+    const state = {
+        expandedSites: [],
+        selectedSiteId: null,
+        selectedFloorId: null
+    };
+    
+    // Capture expanded sites
+    document.querySelectorAll('.site-header.expanded').forEach(header => {
+        const siteId = header.id.replace('site-header-', '');
+        state.expandedSites.push(siteId);
+    });
+    
+    // Capture selected elements
+    const selectedSite = document.querySelector('.site-header.selected');
+    if (selectedSite) {
+        state.selectedSiteId = selectedSite.id.replace('site-header-', '');
+    }
+    
+    const selectedFloor = document.querySelector('.floor-item.selected');
+    if (selectedFloor) {
+        state.selectedFloorId = selectedFloor.id.replace('floor-', '');
+    }
+    
+    return state;
+}
+
+// Restore UI state after DOM regeneration
+function restoreTreeState(state) {
+    if (!state) return;
+    
+    // Restore expanded sites
+    state.expandedSites.forEach(siteId => {
+        const header = document.getElementById(`site-header-${siteId}`);
+        const floors = document.getElementById(`floors-${siteId}`);
+        if (header && floors) {
+            header.classList.add('expanded');
+            floors.classList.add('expanded');
+        }
+    });
+    
+    // Restore selections
+    if (state.selectedSiteId) {
+        const header = document.getElementById(`site-header-${state.selectedSiteId}`);
+        if (header) header.classList.add('selected');
+    }
+    
+    if (state.selectedFloorId) {
+        const floorItem = document.getElementById(`floor-${state.selectedFloorId}`);
+        if (floorItem) floorItem.classList.add('selected');
+    }
+}
+
+// Enhanced render function with state preservation
+function renderSiteTree(sites, preserveState = true) {
+    const container = document.getElementById('site-tree-container');
+    
+    // Save current state before rendering
+    const savedState = preserveState ? saveCurrentTreeState() : null;
+    
+    // Regenerate tree HTML
+    container.innerHTML = generateTreeHTML(sites);
+    
+    // Restore state asynchronously to avoid DOM timing issues
+    if (savedState) {
+        setTimeout(() => {
+            restoreTreeState(savedState);
+        }, 0);
+    }
+}
+```
+
+#### Integration Points
+
+1. **Switch Management Operations**:
+   - `handleEditSwitch()` - Maintains state during switch updates
+   - `handleAddSwitchToFloor()` - Preserves navigation during switch creation
+   - `refreshSidebarCounts()` - Uses state-preserving render methods
+
+2. **Backend Integration**:
+   - No backend changes required - purely frontend enhancement
+   - Works with existing API endpoints and data structures
+   - Transparent to server-side operations
+
+#### Performance Considerations
+
+- **Minimal DOM Queries**: Targeted element selection using specific IDs
+- **Asynchronous Restoration**: `setTimeout` prevents UI blocking during restoration
+- **Lightweight State Objects**: Only stores essential UI state data
+- **Conditional Execution**: State preservation only activates when needed
+
+#### Benefits
+
+- **Improved User Experience**: Navigation context maintained during operations
+- **Workflow Efficiency**: Reduces clicks and manual re-navigation
+- **Professional Interface**: Consistent with modern web application standards
+- **Zero Performance Impact**: Lightweight implementation with minimal overhead
+
 ## Development Practices
 
 ### Code Quality

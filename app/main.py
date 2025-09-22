@@ -109,6 +109,12 @@ app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'templates'),
             static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static'))
 
+# TEMPLATE AUTO-RELOAD CONFIGURATION (commented out for production)
+# Uncomment during development to see template changes without restart
+# Note: Can impact performance in production, use only when needed
+# app.config['TEMPLATES_AUTO_RELOAD'] = True
+# app.jinja_env.auto_reload = True
+
 # Session timeout configuration
 from datetime import timedelta
 
