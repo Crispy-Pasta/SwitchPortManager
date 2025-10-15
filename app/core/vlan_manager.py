@@ -1100,8 +1100,12 @@ class VLANManager:
                 if line.lower().startswith(('show ', 'console', 'enable', 'configure')):
                     continue
                     
-                # Skip header lines and separators
-                if any(header in line.lower() for header in ['port', 'name', 'type', 'duplex', 'speed', 'link', 'state', 'vlan']) and line_idx < 10:
+                # Skip header lines and separators - be more specific to avoid false positives
+                # Only skip if it looks like a pure header line (starts with header words)
+                if line_idx < 3 and (
+                    line.lower().startswith(('port', 'name', 'type', 'duplex', 'speed', 'link', 'state', 'vlan')) or
+                    all(word in line.lower() for word in ['port', 'description', 'duplex', 'speed', 'link', 'state'])
+                ):
                     continue
                 if line.startswith('-') or line.startswith('='):
                     continue
@@ -1115,9 +1119,12 @@ class VLANManager:
                 
                 line_contains_port = False
                 # Only check for port name if this doesn't look like a command or header
+                # Fix: Check if port name appears at START of line (after whitespace) to avoid matching command echoes
                 if not any(cmd in line.lower() for cmd in ['show', 'interface', 'status', 'configure', 'enable']):
                     for port_variation in port_name_variations:
-                        if port_variation in line.lower():
+                        # Port name should be at the beginning of the line (column 1)
+                        # This prevents matching command echoes like "show interface status Gi3/0/25"
+                        if line.lower().startswith(port_variation.lower()):
                             line_contains_port = True
                             break
                 
@@ -1126,9 +1133,35 @@ class VLANManager:
                     
                     # Split by multiple whitespace to handle variable spacing
                     import re
-                    columns = re.split(r'\s{2,}|\t', line)  # Split on 2+ spaces or tabs
+                    # First try splitting on 2+ spaces or tabs (for well-formatted output)
+                    columns = re.split(r'\s{2,}|\t', line)
                     if len(columns) < 3:  # If that doesn't work, try single space
                         columns = line.split()
+                    
+                    # If we still don't have enough columns, try a more flexible approach
+                    # This handles cases where some columns are separated by single spaces
+                    if len(columns) < 5:  # We expect at least 5 columns: Port, Desc, Duplex, Speed, Neg, Link, etc.
+                        # Try splitting on any whitespace and then reconstruct
+                        all_words = line.split()
+                        if len(all_words) >= 5:
+                            # Reconstruct columns: Port, Description (may be multiple words), Duplex, Speed, Neg, Link
+                            columns = [all_words[0]]  # Port
+                            # Find where the status indicators start (look for 'Full', 'Half', 'Auto', 'Up', 'Down')
+                            status_start_idx = None
+                            for i, word in enumerate(all_words[1:], 1):
+                                if word.lower() in ['full', 'half', 'auto', 'up', 'down', 'connected', 'notconnect']:
+                                    status_start_idx = i
+                                    break
+                            
+                            if status_start_idx:
+                                # Description is everything between port and status
+                                desc_words = all_words[1:status_start_idx]
+                                columns.append(' '.join(desc_words))  # Description
+                                # Add the rest as individual columns
+                                columns.extend(all_words[status_start_idx:])
+                            else:
+                                # Fallback to original split
+                                columns = all_words
                     
                     # Parse status output columns
                     
@@ -1168,10 +1201,13 @@ class VLANManager:
                                 break
                         
                         # Method 1.5: Look for compound indicators like "Auto Up", "Auto Down"
+                        # This catches cases where "Auto" and "Up" are separate columns
                         if not link_state_found:
                             line_words = original_line.split()
                             for i in range(len(line_words) - 1):
-                                if line_words[i].lower() == 'auto' and i + 1 < len(line_words):
+                                word_lower = line_words[i].lower()
+                                # Check for "Auto Up", "Auto Down" patterns
+                                if word_lower == 'auto' and i + 1 < len(line_words):
                                     next_word = line_words[i + 1].lower()
                                     if next_word == 'up':
                                         port_status = 'up'
@@ -1183,6 +1219,17 @@ class VLANManager:
                                         link_state_found = True
                                         logger.info(f"Found compound DOWN state: '{line_words[i]} {line_words[i + 1]}'")
                                         break
+                                # Also check for standalone "Up" or "Down" that might have been missed
+                                elif word_lower == 'up':
+                                    port_status = 'up'
+                                    link_state_found = True
+                                    logger.info(f"Found standalone UP state at word {i}: '{line_words[i]}'")
+                                    break
+                                elif word_lower in ['down', 'notconnect']:
+                                    port_status = 'down'
+                                    link_state_found = True
+                                    logger.info(f"Found standalone DOWN state at word {i}: '{line_words[i]}'")
+                                    break
                         
                         # Method 2: If no explicit state found, look for speed + duplex combination
                         if not link_state_found:
@@ -1367,6 +1414,11 @@ class VLANManager:
         Get status for multiple ports using a single 'show interfaces status' command.
         This is much more efficient than calling get_port_status() for each port individually.
         
+        OPTIMIZED FOR LARGE PORT COUNTS (v2.1.9):
+        - Reduced timeout for faster response
+        - Better command selection for large outputs
+        - Optimized parsing to reduce processing time
+        
         Args:
             ports: List of port names to check
             
@@ -1379,21 +1431,32 @@ class VLANManager:
         port_statuses = {}
         
         try:
-            # Get all interface statuses with a single command
-            status_commands = [
-                "show interfaces status | no-more",  # If supported, prevents paging
-                "show interfaces status",            # Dell standard
-                "show interface status",             # Alternative
-                "show ports status",                 # Some Dell models
-            ]
+            # OPTIMIZATION: Use the most efficient command first for large port counts
+            # For large port ranges, use commands that are less likely to timeout
+            if len(ports) > 20:
+                # For very large port counts, use the most reliable command
+                status_commands = [
+                    "show interfaces status | no-more",  # Prevents paging, fastest
+                    "show interfaces status",            # Dell standard
+                ]
+            else:
+                # For smaller counts, try all commands
+                status_commands = [
+                    "show interfaces status | no-more",  # If supported, prevents paging
+                    "show interfaces status",            # Dell standard
+                    "show interface status",             # Alternative
+                    "show ports status",                 # Some Dell models
+                ]
             
             status_output = ""
             status_cmd_used = None
             
             for cmd in status_commands:
                 try:
-                    # Use enhanced collection for bulk status commands that may have large output
-                    status_output = self.execute_command(cmd, wait_time=1.5, expect_large_output=True)
+                    # OPTIMIZATION: Reduced wait time for faster response
+                    # Use shorter timeouts for bulk operations to prevent gateway timeouts
+                    wait_time = 0.8 if len(ports) > 20 else 1.2
+                    status_output = self.execute_command(cmd, wait_time=wait_time, expect_large_output=True)
                     status_cmd_used = cmd
                     if status_output and status_output.strip() and "Invalid input" not in status_output:
                         break
@@ -1469,23 +1532,34 @@ class VLANManager:
                     missing_ports.append(port)
                     logger.warning(f"× Port {port} not found in bulk status output")
             
-            # Call individual port status for missing ports
+            # OPTIMIZATION: Limit individual fallback calls to prevent timeouts
             if missing_ports:
-                logger.info(f"Calling individual port status for {len(missing_ports)} missing ports: {missing_ports}")
-                for port in missing_ports:
-                    try:
-                        individual_status = self.get_port_status(port)
-                        port_statuses[port] = individual_status
-                        logger.info(f"[FALLBACK] Individual port status for {port}: {individual_status['status']}, {individual_status['mode']}, VLAN {individual_status['current_vlan']}")
-                    except Exception as port_e:
-                        logger.error(f"Failed to get individual status for port {port}: {str(port_e)}")
+                if len(missing_ports) > 10:
+                    logger.warning(f"Too many missing ports ({len(missing_ports)}), skipping individual fallback to prevent timeout")
+                    for port in missing_ports:
                         port_statuses[port] = {
                             'port': port,
                             'status': 'unknown',
                             'mode': 'unknown',
                             'current_vlan': 'unknown',
-                            'error': f'Individual port status failed: {str(port_e)}'
+                            'error': 'Bulk parsing incomplete - too many ports to check individually'
                         }
+                else:
+                    logger.info(f"Calling individual port status for {len(missing_ports)} missing ports: {missing_ports}")
+                    for port in missing_ports:
+                        try:
+                            individual_status = self.get_port_status(port)
+                            port_statuses[port] = individual_status
+                            logger.info(f"[FALLBACK] Individual port status for {port}: {individual_status['status']}, {individual_status['mode']}, VLAN {individual_status['current_vlan']}")
+                        except Exception as port_e:
+                            logger.error(f"Failed to get individual status for port {port}: {str(port_e)}")
+                            port_statuses[port] = {
+                                'port': port,
+                                'status': 'unknown',
+                                'mode': 'unknown',
+                                'current_vlan': 'unknown',
+                                'error': f'Individual port status failed: {str(port_e)}'
+                            }
             
             logger.info(f"Bulk port status retrieved for {len(port_statuses)} ports using single command")
             return port_statuses
@@ -1531,6 +1605,31 @@ class VLANManager:
             columns = re.split(r'\s{2,}|\t', line)
             if len(columns) < 3:  # Fallback to single space
                 columns = line.split()
+            
+            # If we still don't have enough columns, try a more flexible approach
+            # This handles cases where some columns are separated by single spaces
+            if len(columns) < 5:  # We expect at least 5 columns: Port, Desc, Duplex, Speed, Neg, Link, etc.
+                # Try splitting on any whitespace and then reconstruct
+                all_words = line.split()
+                if len(all_words) >= 5:
+                    # Reconstruct columns: Port, Description (may be multiple words), Duplex, Speed, Neg, Link
+                    columns = [all_words[0]]  # Port
+                    # Find where the status indicators start (look for 'Full', 'Half', 'Auto', 'Up', 'Down')
+                    status_start_idx = None
+                    for i, word in enumerate(all_words[1:], 1):
+                        if word.lower() in ['full', 'half', 'auto', 'up', 'down', 'connected', 'notconnect']:
+                            status_start_idx = i
+                            break
+                    
+                    if status_start_idx:
+                        # Description is everything between port and status
+                        desc_words = all_words[1:status_start_idx]
+                        columns.append(' '.join(desc_words))  # Description
+                        # Add the rest as individual columns
+                        columns.extend(all_words[status_start_idx:])
+                    else:
+                        # Fallback to original split
+                        columns = all_words
             
             if len(columns) < 3:
                 return None
@@ -1603,25 +1702,52 @@ class VLANManager:
                 # CRITICAL FIX: Look for distinct disabled states in the text
                 line_content = line.lower()
                 
-                # Check for UP indicators (be precise about positioning)
-                if ' up ' in line_content or line_content.endswith(' up'):
-                    port_status = 'up'
-                # Check for ERR-DISABLED indicators first (most specific)
-                elif 'err-disabled' in line_content or 'errdisabled' in line_content or 'd-down' in line_content:
-                    port_status = 'err-disabled'
-                # Check for DISABLED indicators
-                elif ' disabled' in line_content or ' disable ' in line_content:
-                    port_status = 'disabled'
-                # Check for other DOWN indicators
-                elif any(down_indicator in line_content for down_indicator in 
-                        [' down ', ' notconnect', ' nolink']):
-                    port_status = 'down'
-                else:
-                    # REMOVED THE BUGGY HEURISTIC: Don't assume UP based on speed/duplex
-                    # Dell switches show speed/duplex even for DOWN ports!
-                    # Always default to DOWN when status is unclear for safety
-                    port_status = 'down'
-                    logger.warning(f"Port {port_name} status unclear from bulk parse, defaulting to DOWN for safety")
+                # First, try word-by-word search for compound patterns like "Auto Up"
+                line_words = line.split()
+                for i, word in enumerate(line_words):
+                    word_lower = word.lower()
+                    # Check for "Auto Up", "Auto Down" patterns
+                    if word_lower == 'auto' and i + 1 < len(line_words):
+                        next_word = line_words[i + 1].lower()
+                        if next_word == 'up':
+                            port_status = 'up'
+                            link_state_found = True
+                            break
+                        elif next_word in ['down', 'notconnect', 'disable', 'disabled']:
+                            port_status = 'down' if next_word in ['down', 'notconnect'] else 'disabled'
+                            link_state_found = True
+                            break
+                    # Check for standalone status words
+                    elif word_lower == 'up':
+                        port_status = 'up'
+                        link_state_found = True
+                        break
+                    elif word_lower in ['down', 'notconnect']:
+                        port_status = 'down'
+                        link_state_found = True
+                        break
+                
+                # If still not found, use text-based search as final fallback
+                if not link_state_found:
+                    # Check for UP indicators (be precise about positioning)
+                    if ' up ' in line_content or line_content.endswith(' up'):
+                        port_status = 'up'
+                    # Check for ERR-DISABLED indicators first (most specific)
+                    elif 'err-disabled' in line_content or 'errdisabled' in line_content or 'd-down' in line_content:
+                        port_status = 'err-disabled'
+                    # Check for DISABLED indicators
+                    elif ' disabled' in line_content or ' disable ' in line_content:
+                        port_status = 'disabled'
+                    # Check for other DOWN indicators
+                    elif any(down_indicator in line_content for down_indicator in 
+                            [' down ', ' notconnect', ' nolink']):
+                        port_status = 'down'
+                    else:
+                        # REMOVED THE BUGGY HEURISTIC: Don't assume UP based on speed/duplex
+                        # Dell switches show speed/duplex even for DOWN ports!
+                        # Always default to DOWN when status is unclear for safety
+                        port_status = 'down'
+                        logger.warning(f"Port {port_name} status unclear from bulk parse, defaulting to DOWN for safety")
             
             return {
                 'port': port_name,

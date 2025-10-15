@@ -87,5 +87,5 @@ if [ "${ENVIRONMENT:-production}" = "development" ]; then
     exec python run.py
 else
     log "🚀 Starting in PRODUCTION mode with Gunicorn"
-    exec gunicorn --workers 1 --bind 0.0.0.0:5000 --timeout 120 --access-logfile - --error-logfile - wsgi:application
+    exec gunicorn --workers 1 --bind 0.0.0.0:5000 --timeout 180 --access-logfile - --error-logfile - wsgi:application
 fi
