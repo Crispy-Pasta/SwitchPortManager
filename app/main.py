@@ -4470,8 +4470,8 @@ def api_check_port_status():
     import threading
     import time
     
-    # Set a 45-second timeout for the entire request (before reaching gateway timeout)
-    request_timeout = 45
+    # Set a 60-second timeout for the entire request (before reaching gateway timeout)
+    request_timeout = 60
     request_start_time = time.time()
     
     try:
