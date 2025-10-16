@@ -1857,6 +1857,7 @@ class VLANManager:
             # Find consecutive ranges
             current_range_start = port_nums[0]
             current_range_end = port_nums[0]
+            consecutive_ranges = []
             
             for i in range(1, len(port_nums)):
                 if port_nums[i] == current_range_end + 1:
@@ -1865,18 +1866,25 @@ class VLANManager:
                 else:
                     # Non-consecutive, finalize current range and start new one
                     if current_range_start == current_range_end:
-                        ranges.append(f"{group_key}/{current_range_start}")
+                        consecutive_ranges.append(f"{group_key}/{current_range_start}")
                     else:
-                        ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
+                        consecutive_ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
                     
                     current_range_start = port_nums[i]
                     current_range_end = port_nums[i]
             
             # Add the final range
             if current_range_start == current_range_end:
-                ranges.append(f"{group_key}/{current_range_start}")
+                consecutive_ranges.append(f"{group_key}/{current_range_start}")
             else:
-                ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
+                consecutive_ranges.append(f"{group_key}/{current_range_start}-{current_range_end}")
+            
+            # FIX: Combine all ranges for this group into a single comma-separated command
+            if len(consecutive_ranges) == 1:
+                ranges.append(consecutive_ranges[0])
+            else:
+                # Multiple ranges in same group - combine with commas
+                ranges.append(','.join(consecutive_ranges))
         
         return ranges
     
@@ -2051,7 +2059,7 @@ class VLANManager:
         """Extract individual port names from a range string.
         
         Args:
-            range_str: Range string like 'Gi1/0/1-5' or 'Gi1/0/10'
+            range_str: Range string like 'Gi1/0/1-5', 'Gi1/0/10', or 'Gi1/0/35,Gi1/0/37,Gi1/0/39'
             
         Returns:
             List of individual port names
@@ -2059,19 +2067,26 @@ class VLANManager:
         ports = []
         
         try:
-            if '-' in range_str:
-                # Handle range like 'Gi1/0/1-5'
-                base_part, range_part = range_str.rsplit('/', 1)
-                if '-' in range_part:
-                    start, end = map(int, range_part.split('-'))
-                    for i in range(start, end + 1):
-                        ports.append(f"{base_part}/{i}")
+            # First, split by comma to handle comma-separated ranges
+            # e.g., 'Gi1/0/1-2,Gi1/0/5-6,Gi1/0/10' or 'Gi1/0/35,Gi1/0/37,Gi1/0/39'
+            parts = range_str.split(',')
+            
+            for part in parts:
+                part = part.strip()
+                
+                if '-' in part:
+                    # Handle range like 'Gi1/0/1-5'
+                    base_part, range_part = part.rsplit('/', 1)
+                    if '-' in range_part:
+                        start, end = map(int, range_part.split('-'))
+                        for i in range(start, end + 1):
+                            ports.append(f"{base_part}/{i}")
+                    else:
+                        # Single port with hyphen in name (shouldn't happen)
+                        ports.append(part)
                 else:
                     # Single port
-                    ports.append(range_str)
-            else:
-                # Single port
-                ports.append(range_str)
+                    ports.append(part)
                 
         except (ValueError, IndexError) as e:
             logger.warning(f"Could not extract ports from range {range_str}: {str(e)}")
