@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dell-switch-port-tracer"
-version = "2.2.0"
+version = "2.2.4"
 description = "Web-based port tracing and VLAN management for Dell switches"
 readme = "README.md"
 license = {file = "LICENSE"}
